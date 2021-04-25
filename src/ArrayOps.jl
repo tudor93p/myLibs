@@ -358,23 +358,6 @@ function multiply_elementwise(A::AbstractArray, B::AbstractArray, dim=nothing)::
 end 
 
 
-#===========================================================================#
-#
-#
-#
-#---------------------------------------------------------------------------#
-
-function Rescale(A, mM0, mM1=A)
-
-  m0,M0 = extrema(mM0)
-
-	length(A)==1 && return A-A .+ m0
-
-	m,M = extrema(mM1)
-	
-	return (A .- m)*(M0-m0)/(M-m) .+ m0
-
-end
 
 
 
