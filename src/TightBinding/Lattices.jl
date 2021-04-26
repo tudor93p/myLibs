@@ -477,7 +477,7 @@ function PosAtoms(latt::Lattice;
 									labels_contain=nothing,
 									label=nothing,
 									f=(sl,P)->P,
-									kind=:Sublattces,
+									kind=:Sublattices,
 									kwargs...
 									)
 

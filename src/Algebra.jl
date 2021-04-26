@@ -1267,7 +1267,7 @@ function EuclDistEquals(d0; tol=1e-8)
 	vtm(A::AbstractVector) = reshape(A,1,:)
 	vtm(A::AbstractMatrix) = A
 
-	return function(A::a, B::a) where {a<:T,b<:T} where T<:AbstractVecOrMat
+	return function(A::a, B::b) where {a<:T,b<:T} where T<:AbstractVecOrMat
 
 		a<:AbstractVector && b<:AbstractVector && return isd0(LA.norm(A-B))
 
