@@ -117,6 +117,8 @@ function DistributeBallsToBoxes(list::Any, boxes::Int)
 
 end 
 
+
+
 function EqualDistributeBallsToBoxes(balls::Int, boxes::Int)::Vector{Int}
 
   div(balls,boxes) .+ (1:boxes.<=balls%boxes)
@@ -129,6 +131,14 @@ function EqualDistributeBallsToBoxes(list::Any, boxes::Int)::Vector{Int}
 
 end 
 
+
+function EqualDistributeBallsToBoxes_cumulRanges(args...)
+
+	d = EqualDistributeBallsToBoxes(args[1:2]...)
+
+	return sepLengths_cumulRanges(d, args[3:end]...)
+
+end 
 
 
 #===========================================================================#
@@ -752,6 +762,8 @@ function DictKey_Symbol(d)
 end
 
 
+
+
 #===========================================================================#
 #
 # Distribute list of parameters to several processes and print progress
@@ -778,7 +790,7 @@ function Distribute_Work(allparamcombs,do_work;arg_pos=1,kwargs0...)
 
 	njobs = size(allparamcombs,1)
 
-	which_ = sepLengths_cumulRanges(EqualDistributeBallsToBoxes(njobs, nr_scripts), start, stop)
+	which_ = EqualDistributeBallsToBoxes_cumulRanges(njobs, nr_scripts, start, stop)
 
 	doparams = allparamcombs[which_] 
 	
@@ -858,11 +870,6 @@ function sepLengths_cumulRanges(As::Any)::Vector{OrdinalRange{Int,Int}}
 
 end
 
-#function sepLengths_cumulRanges(As...)::Vector{UnitRange}
-#
-#	sepLengths_cumulRanges(As)
-#	
-#end
 
 
 
