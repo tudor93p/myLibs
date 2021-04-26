@@ -220,32 +220,38 @@ function tolNF(tol::Real)
 end 
 
 
-function Unique(V::AbstractArray{T}; 
+function Unique(V::AbstractArray{T};
+								dim=1,
 								tol=1e-8, inds=nothing,
 								sorted=false,
 								check_type=true) where T
 
-
-
-#	v isa AbstractArray &&
-#
-#	isList(v) || error("Type ",typeof(v)," not supported.")
-
 	if !check_type || is_exact(T) || all(is_exact ∘ typeof, V)
 
-		U = (sorted ? sort : identity)(unique(V))
+		U = unique(V,dims=dim) |> function (u)
+
+				sorted isa Bool && !sorted && return u 
+
+				kw = sorted isa Bool ? () : Dict(:by=>sorted)
+
+				ndims(V)==1 && return sort(u; kw...)
 	
+				return sort(u; dims=dim, kw...)	
+
+			end 
+
+
 		isnothing(inds) && return U
 
-		i_f = findfirst(inds.==[:first,:all,:last])
+		i_f = findfirst(isequal(inds), [:first,:all,:last])
 
 		isnothing(i_f) && error("Cannot get indices with '$inds'")
 
 		f = [findfirst, findall, findlast][i_f]
 
-#		typeof(inds)<:Function || error("Cannot get indices with ", typeof(inds))
-	
-		return U, [f(isequal(u), V) for u in U]
+		iter = collect(eachslice(V,dims=dim))
+
+		return U, [f(isequal(u), iter) for u in eachslice(U,dims=dim)]
 
 	end 
 
@@ -255,21 +261,18 @@ function Unique(V::AbstractArray{T};
 
 		ntol,ftol = tolNF(tol)
 
-		ftol==0.0 && return V 
+		if ftol>0 && (is_float(T) || any(is_float ∘ typeof, V))
+			
+			return trunc.(V, digits=ntol)
 
-		is_float(T) && return trunc.(V, digits=ntol)
+		end 
 
-		fs, newT = typeof.(V) |> t -> (findall(is_float, t), promote_type(t...))
-
-		W = AbstractArray{newT}(V)
-	
-		W[fs] = trunc.(W[fs], digits=ntol)
-
-		return W
+		return V
 
 	end
 
-	I = Unique(get_newV(); tol=tol, inds=Assign_Value(inds, :first),
+
+	I = Unique(get_newV(); tol=tol, inds=Assign_Value(inds, :first), dim=dim,
 						 						 sorted=sorted, check_type=false)[2]
 
 	isnothing(inds) && return V[I]

@@ -3,8 +3,7 @@ module Lattices
 
 using OrderedCollections:OrderedDict
 
-import LinearAlgebra; const LA=LinearAlgebra
-import Utils, Algebra
+import ..Utils, ..Algebra, ..ArrayOps, ..LA
 
 import Plots, ConcaveHull, QHull
 
@@ -429,7 +428,7 @@ function sublattices_contain(latt::Lattice, inp::Real; kwargs...)
 end 
 
 
-function sublattices_contain(latt::Lattice, inp::AbstractString=""; kwargs...)
+function sublattices_contain(latt::Lattice, inp::AbstractString; kwargs...)
 
 	sublattices_contain(latt, [inp]; kwargs...)
 
@@ -597,26 +596,32 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function OuterDist(args::Vararg{Any,2}; kwargs...)::AbstractArray
+function OuterOp(f::Symbol)::Function
+	
+	function outer_op(args::Vararg{Any,2}; kwargs...)::Array
 
-	Algebra.OuterDist(map(args) do X
+		getproperty(Algebra, f)(map(args) do X 
 
-		isa(X,Lattice) ? PosAtoms(X; kwargs...) : X
+			isa(X,Lattice) ? PosAtoms(X; kwargs...) : X
 
-	end...; dim=2)
+		end...; dim=2)
 
-end 
+	end 
+end
 
 
-function FlatOuterDist(args::Vararg{Any,2}; kwargs...)::AbstractArray
+OuterDiff = OuterOp(:OuterDiff)
+OuterDist = OuterOp(:OuterDist)
+FlatOuterDist = OuterOp(:FlatOuterDist)
+FlatOuterDiff = OuterOp(:FlatOuterDiff)
 
-	Algebra.FlatOuterDist(map(args) do X
 
-		isa(X,Lattice) ? PosAtoms(X; kwargs...) : X
 
-	end...; dim=2)
-
-end 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -640,6 +645,21 @@ function Distances(latt::Lattice; nr_uc=2, nr_neighbors=1, with_zero=true, kwarg
   
 end 
 
+
+function BondDirs(latt::Lattice, neighbor_index::Int64=1; nr_uc=2, kwargs...)
+
+	AtomsUC = PosAtoms(latt; kwargs...)
+
+	Diffs = FlatOuterDiff(AtomsUC[:, 1:1].-AtomsUC, UnitCells(latt, nr_uc))
+
+	Dists,Inds = Utils.Unique(sum(abs2, Diffs,dims=1)[:], 
+														tol=TOLERANCE, sorted=true, inds=:all) 
+
+	choose = findall(Dists .> TOLERANCE)[neighbor_index]
+
+	return Diffs[:, Inds[choose]]
+
+end 
 
 
 
@@ -1642,7 +1662,7 @@ function plot(latts...)
 	atoms = hcat([PosAtoms(l) for l in latts]...)
 
 	@show size(atoms)
-import 2libs 
+#import 2libs 
 
 	A = collect(eachcol(atoms))
 @time h = ConcaveHull.concave_hull(A)
@@ -1690,7 +1710,18 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
+
+function SquareLattice(name="A")
+
+	Lattice(ArrayOps.UnitMatrix(2), [name=>[0,0]])
+
+end 
 
 
 
