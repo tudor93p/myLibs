@@ -22,6 +22,10 @@ export Lattice
 
 const TOLERANCE = 1e-5
 
+approx(args...) = isapprox(args...; atol=TOLERANCE)
+
+Unique(args...;kwargs...) = Utils.Unique(args...; kwargs..., tol=TOLERANCE)
+Unique!(args...;kwargs...) = Utils.Unique!(args...; kwargs..., tol=TOLERANCE)
 
 # Latt : python object
 # Properties:
@@ -614,7 +618,7 @@ OuterDiff = OuterOp(:OuterDiff)
 OuterDist = OuterOp(:OuterDist)
 FlatOuterDist = OuterOp(:FlatOuterDist)
 FlatOuterDiff = OuterOp(:FlatOuterDiff)
-
+FlatOuterSum = OuterOp(:FlatOuterSum)
 
 
 #===========================================================================#
@@ -631,13 +635,11 @@ FlatOuterDiff = OuterOp(:FlatOuterDiff)
 
 function Distances(latt::Lattice; nr_uc=2, nr_neighbors=1, with_zero=true, kwargs...)
 
-	TOLERANCE>1e-1 && error("The tolerance is too large!")
-
 	AtomsUC = PosAtoms(latt; kwargs...)
 	
 	Ds = FlatOuterDist(AtomsUC[:, 1:1].-AtomsUC, UnitCells(latt, nr_uc))
 
-	Utils.Unique!(Ds; tol=TOLERANCE, sorted=true)
+	Unique!(Ds; sorted=true)
 
 	!with_zero && deleteat!(Ds, Ds.<TOLERANCE)
 
@@ -652,8 +654,7 @@ function BondDirs(latt::Lattice, neighbor_index::Int64=1; nr_uc=2, kwargs...)
 
 	Diffs = FlatOuterDiff(AtomsUC[:, 1:1].-AtomsUC, UnitCells(latt, nr_uc))
 
-	Dists,Inds = Utils.Unique(sum(abs2, Diffs,dims=1)[:], 
-														tol=TOLERANCE, sorted=true, inds=:all) 
+	Dists,Inds = Unique(sum(abs2, Diffs,dims=1)[:], sorted=true, inds=:all) 
 
 	choose = findall(Dists .> TOLERANCE)[neighbor_index]
 
@@ -684,7 +685,7 @@ function SquareInt_LattCoeff(latt::Lattice, n)::AbstractMatrix{Int}
 
 	tn = trunc.(n)
 
-	if !isapprox(tn, n, atol=TOLERANCE) 
+	if !approx(tn, n)
 
 		error("n is not an integer/an array of integers!")
 
@@ -895,7 +896,7 @@ function ucs_in_UC(N::AbstractMatrix{T}; dim=2, method2D_cells=:Polygon, kwargs.
 
 		tN = trunc.(N) 
 
-		isapprox(tN, N, atol=TOLERANCE) || error("N should contain integers")
+		approx(tN, N) || error("N should contain integers")
 		
 		return ucs_in_UC(convert(AbstractMatrix{Int}, tN); kwargs...)
 
@@ -1068,7 +1069,7 @@ function Superlattice(Components::Utils.List, Ns::Utils.List; Labels=nothing, kw
 
 	for S in CombsOfVecs.(zip(Components[2:end], Ns[2:end]))
 
-		isapprox(Supervectors, S, atol=TOLERANCE) && continue
+		approx(Supervectors, S) && continue
 
 		error("The 'Ns' provided are not compatible; one should recover the same supervectors for each pair (N,Component).")
 	
@@ -1257,7 +1258,7 @@ function AddAtoms!(latt::Lattice, positions=[], labels="A"; kind=:Sublattices)
 	D = getproperty(latt, kind)
 
 
-	for (k,i) in zip(Utils.Unique(new_labels, inds=:all)...)
+	for (k,i) in zip(Unique(new_labels, inds=:all)...)
 
 		isempty(i) && continue
 
@@ -1274,7 +1275,7 @@ function AddAtoms(latt::Lattice, positions=[], labels="A"; kind=:Sublattices)
 
 	positions = Initialize_PosAtoms(latt, positions)
 
-	new_labels, inds = Utils.Unique(
+	new_labels, inds = Unique(
 												parse_input_sublattices(latt, labels, 
 																								size(positions,2), string),
 												inds=:all) 
@@ -1410,22 +1411,86 @@ end
 
 
 
+
 #===========================================================================#
 #
 #
 #
 #---------------------------------------------------------------------------#
 
-function SurfaceAtoms(latt::Lattice, bondlength=nothing; kwargs...)
 
-	LattDim(Latt)==0 || error()
+#function Distances(latt::Lattice; nr_uc=2, nr_neighbors=1, with_zero=true, kwargs...)
+#
+#	AtomsUC = PosAtoms(latt; kwargs...)
+#	
+#	Ds = FlatOuterDist(AtomsUC[:, 1:1].-AtomsUC, UnitCells(latt, nr_uc))
+#
+#	Utils.Unique!(Ds; tol=TOLERANCE, sorted=true)
+#
+#	!with_zero && deleteat!(Ds, Ds.<TOLERANCE)
+#
+#	return nr_neighbors=="all" ? Ds : Ds[1:min(nr_neighbors+1,end)]
+#  
+#end 
 
-	SurfaceAtoms(PosAtoms(latt; kwargs...), bondlength)
+function get_Bonds(latt::Lattice; nr_uc=1, neighbor_index=1, kwargs...)::Vector{Tuple{Int,Int}}
+
+	AtomsUC = PosAtoms(latt; kwargs...)
+
+	size(AtomsUC,2) > 5000 && error("Not enough memory")
+
+	UCs = UnitCells(latt, nr_uc)
+
+	outside = map(!approx(zeros(VecDim(latt))), eachcol(UCs))
+
+#	dists = zeros(size(AtomsUC,2), size(AtomsUC,2), size(UCs,2))
+#
+#	for (i,U) in enumerate(eachcol(UCs))
+#
+#		dists[:,:,i] = OuterDist(AtomsUC, AtomsUC .+ U)
+#	
+#	end 
+
+	ud,ui = Unique(FlatOuterDist(AtomsUC, FlatOuterSum(AtomsUC,UCs)),
+								 sorted=true, inds=:all)
+
+#	@show approx(dists[:],FlatOuterDist(AtomsUC, FlatOuterSum(AtomsUC,UCs)))
+
+	n = ui[neighbor_index + count(ud.<TOLERANCE)]
+
+	ci = CartesianIndices((axes(AtomsUC,2),axes(AtomsUC,2),axes(UCs,2)))[n] 
+
+	return Utils.mapif(!isempty, ci) do cart_idx 
+
+		(i,j,u) = cart_idx.I 
+
+		return outside[u] | isless(i,j) ? (i,j) : ()
+
+	end |> unique |> sort 
+
 
 end 
 
 
-function SurfaceAtoms(atoms::AbstractMatrix{Float64})
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+#function SurfaceAtoms(latt::Lattice, bondlength=nothing; kwargs...)
+#
+#	LattDim(Latt)==0 || error()
+#
+#	SurfaceAtoms(PosAtoms(latt; kwargs...), bondlength)
+#
+#end 
+
+
+#function SurfaceAtoms(atoms::AbstractMatrix{Float64})
 
 #	size(atoms,2) > 5000 && error("Too many atoms")
 #
@@ -1448,7 +1513,9 @@ function SurfaceAtoms(atoms::AbstractMatrix{Float64})
 #convex hull
 
 
-end 
+#end 
+
+
 
 
 

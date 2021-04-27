@@ -371,31 +371,46 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Array_from_ListIndsVals(inds::AbstractVector, vals)
+function Array_from_ListIndsVals(inds::AbstractVector, vals)::Array
 
 	Array_from_ListIndsVals(reshape(inds,:,1), vals)
 
 end 
 
-function Array_from_ListIndsVals(inds::AbstractMatrix, vals)
-
-	inds, vals = collect(inds), collect(vals)
+function Array_from_ListIndsVals(inds::AbstractMatrix, vals::Any, shape...)::Array  
 
 	Utils.isList(vals) || error("Wrong type")
 
+	return Array_from_ListIndsVals(inds, collect(vals), shape...)
+
+end 
+
+function Array_from_ListIndsVals(inds::AbstractMatrix, 
+																 vals::AbstractArray, shape...)::Array
+
 	v0 = first(vals)
 
-	A = zeros(typeof(first(v0)), size(v0)..., maximum.(eachcol(inds))...)
+	i0 = fill(:, ndims(v0))
+
+	A = zeros(typeof(first(v0)), size(v0)..., shape...)
 
 	for (I,V) in zip(eachrow(inds), vals)
 		
-		A[fill(:, ndims(V))..., I...] = V 
+		A[i0..., I...] = V 
 
 	end 
 
 	return A
 
 end
+
+
+function Array_from_ListIndsVals(inds::AbstractMatrix, vals)::Array
+
+	Array_from_ListIndsVals(inds, vals, maximum.(eachcol(inds))...)
+
+end 
+
 
 #===========================================================================#
 #

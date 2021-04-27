@@ -1292,86 +1292,103 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_Bonds(atoms::AbstractMatrix, bondlength::Number; 
-									 tol=1e-8, dim=1, kwargs...)
 
-	get_Bonds(atoms, EuclDistEquals(bondlength; tol=tol, dim=dim); dim=dim, kwargs...)
+
+
+function get_Bonds(atoms::AbstractMatrix, len_or_f::Union{<:Function,<:Number}; kwargs...)
+
+	get_Bonds(atoms, atoms, len_or_f; order_pairs=true, kwargs...)
+						
+end 
+
+
+
+function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, bondlength::Number; tol=1e-8,dim=1, kwargs...)
+
+	get_Bonds(atoms1, atoms2, EuclDistEquals(bondlength; tol=tol, dim=dim); dim=dim, kwargs...)
 
 end 
 
-function get_Bonds(atoms::AbstractMatrix, isBond::Function; 
-									 inds=true, pos=false, as_matrices=false, dim=1, N=5000)
+
+
+function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, 
+									 isBond::Function; 
+#									 inds=true, pos=false, as_matrices=false, 
+									 dim=1, order_pairs=false, N=5000,
+#										kwargs...
+										)::Vector{Tuple{Int,Int}}
+
+	nr_at = [size(atoms1,dim),size(atoms2,dim)]
+
+	nr_batches = Int.(ceil.(nr_at/N))
+
+	batches = map(zip(nr_at,nr_batches)) do n 
 	
+		Utils.EqualDistributeBallsToBoxes_cumulRanges(n...)
 
-	nr_at = size(atoms,dim)
+	end 
+		
 
-	nr_batches = Int(ceil(nr_at/N)) # for memory reasons
+	batch_offsets = [cumsum([0;map(length, B[1:end-1])]) for B in batches]
 
-	batches = Utils.EqualDistributeBallsToBoxes_cumulRanges(nr_at, nr_batches)
+	I = ((b,c) for b=1:nr_batches[1]  
+								for c=UnitRange(1, order_pairs ? b : nr_batches[2])	)
 
-	batch_offsets = cumsum([0;map(length, batches[1:end-1])])
+	function get_pairs((b,c))
 
-	function get_pairs(b,c)
+		x0 = [batch_offsets[1][b], batch_offsets[2][c]]
 
-		x0 = batch_offsets[[b,c]]
-
-		d = isBond(selectdim(atoms,dim,batches[b]),
-							 selectdim(atoms,dim,batches[c]),
+		d = isBond(selectdim(atoms1, dim, batches[1][b]),
+							 selectdim(atoms2, dim, batches[2][c]),
 							 dim=dim)
 
-		return sort(map(findall(b!=c ? d : LA.triu(d,1))) do x
+		return sort(map(findall(order_pairs && b==c ? LA.triu(d,1) : d)) do x
 
 							Tuple(sort(x.I.+x0)) 
 
 						end)
 
 	end
-	
-	bond_indices = sort(vcat([get_pairs(b,c) for b=1:nr_batches for c=1:b]...))
 
-	
-	if as_matrices
 
-		return get_Bonds_toMatrix(atoms, bond_indices; inds=inds, pos=pos, dim=dim)
+	return sort(Utils.flatmap(get_pairs, I))
+
+end 
+
+
+function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 
+														atoms1::AbstractMatrix, 
+														atoms2::AbstractMatrix=atoms1; 
+														dim=1)
+
+	map(bond_indices) do (a,b)
+
+		[collect(selectdim(atoms1, dim, a)), collect(selectdim(atoms2, dim, b))
+		 ]
 
 	end 
+end 
 
 
 
-	!pos && return bond_indices
+#function output_get_Bonds(bond_indices, atoms1, atoms2=atoms1; 
+#													dim=1, inds=true, pos=false, as_matrices=false)
 
-	bond_Rs = map(bond_indices) do ab 
+#	as_matrices && return get_Bonds_toMatrix(atoms1, bond_indices, atoms2;
+#																					 inds=inds, pos=pos, dim=dim)
+#
+#	!pos && return bond_indices
+#
+#	bond_Rs = bondRs_fromIndices(bond_indices, atoms1, atoms2; dim=dim)
+#
+#	return !inds ? bond_Rs : (bond_indices, bond_Rs)
+#
+#	#	Rs[pair_index][member_index][coordinate_index]
 
-		[collect(selectdim(atoms,dim,i)) for i in ab]
-
-	end 
-
-	return !inds ? bond_Rs : (bond_indices, bond_Rs)
-
-
-
-	
-
-
-
-
+#end
 
 
-
-	#	Rs[pair_index][member_index][coordinate_index]
-
-#	Rs = atoms[hcat(vcat.(b...)...),:]
-#	Rs[pair_index, member_index, coordinate_index]
-
-
-	
-#	return np.transpose(Rs[pairs,:dim],axes=(0,2,1)).reshape(-1,dim)
-
-
-end
-
-
-function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)
+function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)::AbstractMatrix
 
 	xor(inds,pos) || error("Specify either 'inds' or 'pos'")
 
@@ -1381,9 +1398,10 @@ function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)
 	shape[dim] = length(X)
 
 	shape[[2,1][dim]] = sum(length, X[1])
-	
-	M = zeros(eltype(X[1][1]), shape...)
 
+#	shape  = ArrayOps.Array_from_ListIndsVals([dim,dim2],[length(X),sum(length, X[1])])
+
+	M = zeros(eltype(X[1][1]), shape...)
 
 	for (i,x) in enumerate(X)
 
@@ -1398,35 +1416,38 @@ end
 
 
 
-function get_Bonds_toMatrix(atoms, bond_indices; inds=false, pos=false, dim=1)
+function get_Bonds_toMatrix(atoms1::AbstractMatrix, 
+														bond_indices::Vector{Tuple{Int,Int}},
+														atoms2::AbstractMatrix=atoms1; 
+														dim=1, kwargs...)::Matrix
 
-	M_bond_indices = get_Bonds_toMatrix(bond_indices; inds=true,dim=dim)
-
-	if !pos 
-
-		inds && return M_bond_indices
-
-	else 
-
-		dim2 = [2,1][dim]
-
-		M_bond_Rs = cat(map([1,2]) do i
-
-			selectdim(atoms, dim, selectdim(M_bond_indices, dim2, i)) 
-
-		end..., dims=dim2)
-
-
-		inds && return (M_bond_indices, M_bond_Rs)
-
-		return M_bond_Rs
-
-	end 
-
-	return 
+	get_Bonds_toMatrix(atoms1,
+										 get_Bonds_toMatrix(bond_indices; inds=true,dim=dim),
+										 atoms2;
+										 dim=dim,kwargs...)
 
 end 
 
+function get_Bonds_toMatrix(atoms1::AbstractMatrix, 
+														M_bond_indices::AbstractMatrix{Int},
+														atoms2::AbstractMatrix=atoms1; 
+														inds=false, pos=false, dim=1)::Matrix
+
+	xor(inds,pos) || error("Specify either 'inds' or 'pos'")
+
+	!pos && inds && return M_bond_indices
+
+
+	dim2 = [2,1][dim]
+
+	return cat(map(enumerate((atoms1,atoms2,))) do (i,atoms)
+
+		selectdim(atoms, dim, selectdim(M_bond_indices, dim2, i)) 
+
+	end..., dims=dim2)
+
+
+end 
 
 
 
