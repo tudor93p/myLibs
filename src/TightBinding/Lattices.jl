@@ -629,11 +629,18 @@ FlatOuterSum = OuterOp(:FlatOuterSum)
 
 
 
+function Distances(latt::Lattice, nr_neighbors::Int; 
+									 nr_uc=nr_neighbors, kwargs...)
+
+	Distances(latt, :all; nr_uc=nr_uc, kwargs...)[1:nr_neighbors]
+
+end 
 
 
+function Distances(latt::Lattice, nr_neighbors::Symbol=:all; 
+									 nr_uc=2, kwargs...)
 
-
-function Distances(latt::Lattice; nr_uc=2, nr_neighbors=1, with_zero=true, kwargs...)
+	haskey(kwargs,:nr_neighbors) && @warn "Obsolete kwarg"
 
 	AtomsUC = PosAtoms(latt; kwargs...)
 	
@@ -641,9 +648,13 @@ function Distances(latt::Lattice; nr_uc=2, nr_neighbors=1, with_zero=true, kwarg
 
 	Unique!(Ds; sorted=true)
 
-	!with_zero && deleteat!(Ds, Ds.<TOLERANCE)
+	deleteat!(Ds, Ds.<TOLERANCE)
 
-	return nr_neighbors=="all" ? Ds : Ds[1:min(nr_neighbors+1,end)]
+	nr_neighbors==:all && return Ds 
+
+	error("Not understood: 'nr_neighbors'=$nr_neighbors")
+
+#	return nr_neighbors=="all" ? Ds : Ds[1:min(nr_neighbors,end)]
   
 end 
 
