@@ -97,8 +97,11 @@ mutable struct Lattice
 
 	function Lattice(LV, SL=nothing, VA=nothing; mode::Symbol=:cartesian)
 									 
-		lv, sl, va = to_myMatrix(LV), to_myODict(SL), to_myODict(VA) 
-		
+		lv = to_myMatrix(LV)
+
+		sl, va = to_myODict(SL,lv), to_myODict(VA,lv) 
+	
+
 		for k in [keys(sl);keys(va)], odict in [sl,va]
 
 			if haskey(odict, k)
@@ -130,6 +133,7 @@ mutable struct Lattice
 
 	end 
 
+
 	function Lattice(latt::Lattice; act_on_vectors=(v::AbstractMatrix)->v,
 									 								act_on_atoms=(d::AbstractDict)->d
 																								)
@@ -153,29 +157,57 @@ mutable struct Lattice
 
 						),
 
-		
+	
+#			(Dict,)
+#			(Symbol,)
+#			()
+#			(Symbol, Dict)
+#
+#			(Dict,k)
+#			(Symbol,k)
+#			(k,)
+#			(Symbol, Dict,k)
+#
+#			(Matrix,)
+#			(Symbol, Matrix)
+#
+#			(Matrix,k)
+#			(Symbol, Matrix, k)
+
+
+
+
 			map([:Sublattices, :Vacancies]) do kind
 	
 				D = getproperty(latt, kind)
 
-				for args in ((D,), (kind,), (), (kind, D),)
+				for args in ((D,), (kind,), (), (kind, D),), k_ in ((), (k,))
 
-					!hasmethod(act_on_atoms, typeof.(args)) && continue 
+					!hasmethod(act_on_atoms, typeof.((args...,k_...))) && continue 
 			
-					return act_on_atoms(map(copy, args)...)
+					return act_on_atoms(map(copy, args)...,k_...)
 
 				end 
 
-	
 				return map(collect(keys(D))) do k 
 
-					for args in ((D[k], k), (kind, D[k], k), (kind, D[k]))
+					for args in ((D[k],), (kind, D[k]))
+
+						!hasmethod(act_on_atoms, typeof.(args)) && continue 
+
+						return k=>act_on_atoms(map(copy, args)...)
+
+					end 
+
+
+					for args in ((D[k],k), (kind, D[k], k))
 
 						!hasmethod(act_on_atoms, typeof.(args)) && continue 
 
 						return act_on_atoms(map(copy, args)...)
 
 					end 
+
 
 					error("Improper methods of 'act_on_atoms'")
 
@@ -188,6 +220,67 @@ mutable struct Lattice
 	
 		
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+#function Lattice!(latt::Lattice; act_on_vectors! =nothing,
+#																	act_on_atoms! =nothing,	)
+#
+#
+#	if hasmethod(act_on_vectors!, (AbstractMatrix,))
+#	
+#		act_on_vectors!(latt.LattVec)
+#	
+#	elseif hasmethod(act_on_vectors!, (Lattice,))
+#	
+#		act_on_vectors!(latt)
+#	
+#	elseif !isnothing(act_on_vectors!)
+#	
+#		error("Improper definiton of 'act_on_vectors!'")
+#	
+#	end
+#
+#
+#	isnothing(act_on_atoms!) && return 
+#
+#	foreach([:Sublattices, :Vacancies]) do kind
+#
+#		D = getproperty(latt, kind)
+#
+#		for args in ((D,), (kind,), (), (kind, D),)
+#
+#			!hasmethod(act_on_atoms!, typeof.(args)) && continue
+#			
+#			return act_on_atoms!(arg...)
+#
+#		end 
+#
+#
+#		foreach(collect(keys(D))) do k 
+#
+#			for args in ((D[k],), (kind, D[k]), (D[k],k), (kind, D[k], k))
+#
+#				!hasmethod(act_on_atoms!, typeof.(args)) && continue 
+#				
+#				return act_on_atoms!(args...)
+#
+#			end 
+#
+#			error("Improper methods of 'act_on_atoms!'")
+#
+#		end 
+#
+#	end
+#		
+#end 
+#
 
 
 #===========================================================================#
@@ -248,6 +341,8 @@ function to_myMatrix(x::Utils.List, D::Union{Int64,Nothing}=nothing
 
 	end 
 
+	@show x 
+
 	error("Wrong dimensions or types")
 
 end 
@@ -286,7 +381,7 @@ function to_myODict(x::AbstractDict, D::Union{Int64,Nothing}=nothing
 
 	if x isa OrderedDict 
 
-		valtype(x)==AbstractMatrix{Float64} && return x
+		valtype(x)<:AbstractMatrix{<:Float64} && return x
 
 		return OrderedDict(k=>to_myMatrix(v, D) for (k,v) in x)
 
@@ -301,14 +396,50 @@ function to_myODict(x::AbstractDict, D::Union{Int64,Nothing}=nothing
 end 
 
 
-function to_myODict(x::Utils.List, D::Union{Int64,Nothing}=nothing
+
+
+
+
+function to_myODict((labels,atoms)::Tuple{<:AbstractVector{<:AbstractString},
+																					<:Any},
+										D::Union{Int64,Nothing}=nothing 
+										)::OrderedDict{Any, AbstractMatrix{Float64}}
+
+	to_myODict((labels,to_myMatrix(atoms, D)),D)
+
+end 
+
+function to_myODict((labels,atoms)::Tuple{<:AbstractVector{<:AbstractString},
+																					<:AbstractMatrix},
+										D::Union{Int64,Nothing}=nothing 
+										)::OrderedDict{Any, AbstractMatrix{Float64}}
+
+	l,a = length(labels), size(atoms,2)
+
+	if a>l && a%l==0
+
+		return to_myODict((repeat(labels,outer=div(a,l)),atoms), D)
+
+	elseif a!=l 
+
+		error("Sizes don't match")
+
+	end 
+
+	return OrderedDict(L=>atoms[:,I] 
+										 for (L,I) in zip(Unique(labels, inds=:all)...))
+
+end 
+
+
+
+
+
+
+function to_myODict(x::Pair, D::Union{Int64,Nothing}=nothing
 									 )::OrderedDict{Any, AbstractMatrix{Float64}}
 
-	isempty(x) && return OrderedDict()
-
-	all(isa.(x,Pair)) || return OrderedDict("A"=>to_myMatrix(x, D))
-	
-	return OrderedDict(k=>to_myMatrix(v, D) for (k,v) in x)
+	OrderedDict(x.first => to_myMatrix(x.second, D))
 
 end
 
@@ -322,12 +453,90 @@ end
 
 
 
-function to_myODict(x::Pair, D::Union{Int64,Nothing}=nothing
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function to_myODict(x::Utils.List, D::Union{Int64,Nothing}=nothing
 									 )::OrderedDict{Any, AbstractMatrix{Float64}}
 
-	OrderedDict(x.first => to_myMatrix(x.second, D))
+	isempty(x) && return OrderedDict()
+
+
+	types = map(x) do xi 
+
+		if xi isa Union{<:Pair,
+										<:AbstractDict, 
+										<:Tuple{<:AbstractVector{<:AbstractString},	<:Any}}
+			return 1 
+
+		elseif xi isa AbstractMatrix
+
+			return 2
+
+		else 
+
+			return 0
+
+		end
+
+	end 
+
+
+	all(types.==0) && return to_myODict(to_myMatrix(x,D), D)
+#it's just one matrix given in a strange way
+
+
+
+	all(types.>0) || error("Some input not understood")
+
+
+	out1 = merge(hcat, to_myODict.(x[types.==1], D)...) 
+
+
+	function good_keys(used_keys, n, sol=[])
+		
+		length(sol)==n && return sol 
+
+		start = isempty(sol) ? 'A' : sol[end][1]+1
+
+		for K in zip(lowercase(start):'z', uppercase(start):'Z')
+
+			any(s(k) in used_keys 
+						for k in K for s in (string, Symbol)) && continue
+
+			return good_keys(used_keys, n, [sol;string(K[2])])
+
+		end 
+
+		error("Not enough trials")
+
+	end 
+
+	unused_keys = good_keys(keys(out1), count(types.==2))
+
+
+	return merge!(hcat, out1, 
+								(OrderedDict(k=>to_myMatrix(v, D)) 
+								 					for (k,v) in zip(unused_keys,x[types.==2]))...)
+
 
 end
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 
 function to_myODict(x, latt::Lattice
@@ -921,6 +1130,7 @@ function ucs_in_UC(N::AbstractMatrix{T}; dim=2, method2D_cells=:Polygon, kwargs.
 	correct_nr = Int(round(abs(LA.det(N))))
 	# this should be the size of the new unit cell -- like | a1.(a2 x a3) |
 
+	correct_nr>0 || error("Vectors must be linear independent")
 
 	polygon = BodyVertices_fromVectors(N; dim=dim) 
 
@@ -931,6 +1141,8 @@ function ucs_in_UC(N::AbstractMatrix{T}; dim=2, method2D_cells=:Polygon, kwargs.
 #
 #    iter_ucs = [np.arange(*maxmin[::-1]).reshape(-1,1)]
 #
+
+
 
 	n, iter_ucs = if size(N,2)==2 && method2D_cells == :Polygon
 									
@@ -1004,7 +1216,7 @@ function parse_input_RsNs( latt::Union{Nothing,Lattice}=nothing;
 
 	isnothing(A) && error("Cannot proceed with unknown vectors")
 
-	!isnothing(Ns) && return CombsOfVecs(A, to_myMatrix(Ns, latt), dim=dim)
+	!isnothing(Ns) && return CombsOfVecs(A, to_myMatrix(Ns, A), dim=dim)
 
 	!isnothing(StopStart) && return CombsOfVecs10(A, StopStart...; dim=dim)
 
@@ -1021,16 +1233,87 @@ end
 #
 #---------------------------------------------------------------------------#
 
+const labelCompStart = "_Part" 
+const labelCompStop = "End" 
+
+function labelToComponent(L::String)::String
+
+	I,J = findall(labelCompStart,L), findall(labelCompStop,L)
+
+	comp = Utils.mapif(!isnothing,  Base.product(I,J)) do (i,j) 
+
+		a,b = i[end]+1, j[1]-1
+
+		a<=b || return nothing 
+
+		for other in (I,J)
+
+			any(q->a<=q[1]<=b, other) && return nothing 
+
+		end 
+
+		return L[a:b] 
+
+	end 
+
+
+
+	if length(comp)>1 
+		
+		error("The name label '$L' contains too many '$labelCompStart...$labelCompStop' pairs")
+
+	elseif length(comp)<1
+
+		error("No component cue could be found in label '$L'")
+
+	else 
+
+		return comp[1]
+
+	end 
+
+end
+
+function componentToLabel(L)::String
+
+	string(labelCompStart,L,labelCompStop)
+
+end 
+
+function Labels_ManyUCs(P::Pair, uc_labels::AbstractVector)::Vector{String}
+
+	Labels_ManyUCs(repeat([P.first], size(P.second,2)), uc_labels)
+
+end
+
+function Labels_ManyUCs(atom_labels::AbstractVector,
+												uc_labels::AbstractVector;
+#												kwargs...
+												)::Vector{String}
+
+	Algebra.OuterBinary(atom_labels, 
+											componentToLabel.(uc_labels),
+											*, flat=true)
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
 function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
 											 ucs::AbstractMatrix{<:Real};
-											 dim::Int=2, kwargs...)::AbstractMatrix{Float64}
+											 dim::Int=2, kwargs...)::Matrix{Float64}
 
 	Algebra.FlatOuterSum(atoms, ucs; dim=dim)
 
 end 
+
 
 
 function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
@@ -1041,6 +1324,17 @@ function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
 	Atoms_ManyUCs(atoms, parse_input_RsNs(;Ns=ns, A=A, kwargs...))
 
 end 
+
+function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
+											 ns::AbstractMatrix{<:Real},
+											 latt::Lattice;
+											 kwargs...)::AbstractMatrix{Float64}
+
+	Atoms_ManyUCs(atoms, parse_input_RsNs(latt; Ns=ns, kwargs...))
+
+end 
+
+
 
 
 
@@ -1062,9 +1356,61 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Superlattice(latt::Lattice, n; kwargs...)
+#function Superlattice!(latt::Lattice, n; kwargs...)
+#
+#
+#
+#
+#	end
+#
+#	latt.LattVec = CombsOfVecs(latt, N)
+#
+#	return latt
+#
+#end
+
+
+function Superlattice!(latt::Lattice, n; Labels=nothing, kwargs...)::Lattice
 	
-	Superlattice([latt], [n]; kwargs...)
+	n = SquareInt_LattCoeff(latt, n)
+	
+	ns_ucs = ucs_in_UC(n; kwargs...)
+
+
+
+	for kind in [:Sublattices, :Vacancies] 
+
+		if isnothing(Labels) 
+
+			for k in sublatt_labels(latt; kind=kind)
+
+				getproperty(latt, kind)[k] = Atoms_ManyUCs(latt; Ns=ns_ucs, label=k, kind=kind)
+
+			end 
+
+		elseif Labels isa Function 
+
+			labels_ucs = Labels.(eachcol(Int.(ns_ucs)))
+
+			for k in sublatt_labels(latt; kind=kind) 
+
+				atoms = pop!(getproperty(latt,kind), k)
+
+				labels = Labels_ManyUCs(k=>atoms, labels_ucs)
+
+				merge!(getproperty(latt,kind),
+							 to_myODict((labels, Atoms_ManyUCs(atoms, ns_ucs, latt)), 
+													latt)
+							 )
+			end 
+
+		end 
+	
+	end 
+
+
+	latt.LattVec = CombsOfVecs(latt, n)
+		
 
 end
 
@@ -1072,7 +1418,64 @@ end
 
 
 
-function Superlattice(Components::Utils.List, Ns::Utils.List; Labels=nothing, kwargs...)
+
+
+
+
+function Superlattice(latt::Lattice, n; Labels=nothing, kwargs...)::Lattice
+	
+	n = SquareInt_LattCoeff(latt, n)
+	
+	ns_ucs = ucs_in_UC(n; kwargs...)
+
+	act_on_vectors(vectors::AbstractMatrix) = CombsOfVecs(vectors, n)
+
+	new_atoms(atoms::AbstractMatrix) = Atoms_ManyUCs(atoms, ns_ucs, latt) 
+
+	isnothing(Labels) && return Lattice(latt;
+																			act_on_vectors=act_on_vectors,
+																			act_on_atoms=new_atoms)
+
+
+	if Labels isa Function 
+
+		labels_ucs = Labels.(eachcol(Int.(ns_ucs)))
+
+		function act_on_atoms(atoms::AbstractMatrix, k)
+
+			(Labels_ManyUCs(k=>atoms, labels_ucs), new_atoms(atoms))
+
+		end 
+
+		return Lattice(latt;
+									 act_on_vectors=act_on_vectors,
+									 act_on_atoms=act_on_atoms)
+
+	end 
+		
+
+end
+
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+
+
+
+function Superlattice(Components::Utils.List, Ns::Utils.List; Labels=nothing, kwargs...)::Lattice
 
 	Ns = SquareInt_LattCoeff.(zip(Components,Ns))
 
@@ -1145,23 +1548,6 @@ end
 
 
 
-function Superlattice!(latt::Lattice, n; kwargs...)
-
-	N = SquareInt_LattCoeff(latt, n)
-	
-	ucs = ucs_in_UC(N; kwargs...)
-
-	for p in [:Sublattices, :Vacancies], k in sublatt_labels(latt; kind=p)
-
-		getproperty(latt, p)[k] = Atoms_ManyUCs(latt; Ns=ucs, label=k, kind=p)
-
-	end
-
-	latt.LattVec = CombsOfVecs(latt, N)
-
-	return latt
-
-end
 
 
 
@@ -1197,23 +1583,22 @@ function Initialize_PosAtoms(vect_dim::Int, pos_atoms=nothing)
 
 	dim,nr = size(pos_atoms)
 
-	if dim>vect_dim
-
-		error("Atoms cannot have more coordinates than the dimension of the lattice vectors!")
-
-	elseif dim==vect_dim
-
-		return pos_atoms
-
-	else 
+	dim==vect_dim && return pos_atoms
+	
+	dim>vect_dim && return vcat(pos_atoms, zeros(Float64, vect_dim-dim, nr))
+	
 
 	# in case additional coordinates are needed, use zeross
 
-		return vcat(pos_atoms, zeros(Float64, vect_dim-dim, nr))
-
-	end 
+	error("Atoms cannot have more coordinates than the dimension of the lattice vectors!")
 
 end 
+
+
+
+
+
+
 
 
 

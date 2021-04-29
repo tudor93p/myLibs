@@ -1147,7 +1147,8 @@ function OuterBinary(U::Tu, V::Tv, op::Function; flat=false)::AbstractArray wher
 	right_shape(a::Number) = hcat(a)
 	right_shape(a::AbstractVector) = reshape(a,:,1)
 
-	return dropdims(OuterBinary(right_shape(U), right_shape(V), op; flat=flat),
+	return dropdims(OuterBinary(right_shape(U), right_shape(V), op; 
+															flat=flat, dim=1),
 									dims=3-flat)
 
 end 

@@ -603,7 +603,11 @@ end
 
 function flat(list_of_lists...; keep=nothing)
 
-	i = findfirst(isList, list_of_lists)
+	i = findfirst(list_of_lists) do x 
+
+				isList(x) || isa(x,AbstractDict)
+
+			end 
 
 	if isnothing(i) 
 		
