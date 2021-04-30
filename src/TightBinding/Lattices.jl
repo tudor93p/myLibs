@@ -163,10 +163,10 @@ mutable struct Lattice
 #			()
 #			(Symbol, Dict)
 #
-#			(Dict,k)
-#			(Symbol,k)
-#			(k,)
-#			(Symbol, Dict,k)
+#			(Dict,k::Symbol)
+#			(Symbol,k::Symbol)
+#			(k::Symbol,)
+#			(Symbol, Dict,k::Symbol)
 #
 #			(Matrix,)
 #			(Symbol, Matrix)
@@ -177,19 +177,19 @@ mutable struct Lattice
 
 
 
-			map([:Sublattices, :Vacancies]) do kind
-	
-				D = getproperty(latt, kind)
+			map(latt) do (kind,D)
 
-				for args in ((D,), (kind,), (), (kind, D),), k_ in ((), (k,))
+				for args in ((D,), (kind,), (), (kind, D),) 
 
-					!hasmethod(act_on_atoms, typeof.((args...,k_...))) && continue 
+#					(D,k), (kind,k), (kind, D, k)
+
+					!applicable(act_on_atoms, args...) && continue
 			
-					return act_on_atoms(map(copy, args)...,k_...)
+					return act_on_atoms(map(copy, args)...)
 
 				end 
 
-				return map(collect(keys(D))) do k 
+				return map(sublatt_labels(D)) do k 
 
 					for args in ((D[k],), (kind, D[k]))
 
@@ -280,6 +280,213 @@ end
 #	end
 #		
 #end 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+Base.getindex(latt::Lattice, kind::Symbol) = getproperty(latt, kind)
+Base.getindex(latt::Lattice, i::Int) = latt[[:Sublattices,:Vacancies][i]]
+
+Base.firstindex(latt::Lattice) = :Sublattices
+Base.lastindex(latt::Lattice) = :Vacancies
+
+Base.length(latt::Lattice) = 2
+
+function Base.iterate(latt::Lattice, state=(1,0))
+
+	SV = [:Sublattices, :Vacancies] 
+
+	element, count = state 
+
+	count >= length(SV) && return nothing
+
+	return ((SV[element], latt[element]), (element + 1, count + 1))
+
+end 
+#
+
+#function Base.map(f::Function, (latt,kind)::Tuple{Lattice,Symbol})
+
+		
+#
+#	f(kind) 
+#
+#
+#	f(getproperty(latt, kind)) 
+
+#applicable
+
+#apply(f::Function, latt::Lattice)
+
+
+#function apply(f::Function, latt::Lattice)
+#
+#	if hasmethod(f, (Symbol, )) 
+#		
+#		return f
+#
+#	elseif hasmethod(f, (OrderedDict, )) 
+#		
+#		return F(kind::Symbol)=f(getproperty(latt, kind))
+#
+#	elseif hasmethod(f, (Symbol, OrderedDict)) 
+#		
+#		return F(kind::Symbol)=f(kind, getproperty(latt, kind))
+#
+#	end 
+#
+#
+#end 
+#
+
+#function applyOnAtoms(f::Function, latt::Lattice)
+#
+#
+#end 
+
+
+
+
+#function Base.foreach(f::Function, latt::Lattice)
+#
+##	for (D,kind) in latt 
+##
+##		for args in (D, ), (kind, ), (D, kind)
+##
+##			applicable(f, args...) && (f(args...);break)
+##
+##		end 
+##
+##	end 
+#
+#	if hasmethod(f, (Symbol,))
+#
+#		for (kind,D) in latt 
+#
+#			f(kind)
+#
+#		end 
+#
+#	elseif hasmethod(f, (OrderedDict,)) 
+#
+#		for (kind, D) in latt 
+#
+#			f(D) 
+#
+#		end 
+#
+#	elseif hasmethod(f, (Symbol, OrderedDict,))
+#
+#		for (kind, D) in latt 
+#			
+#			f(kind, D)
+#
+#		end 
+#
+#
+#	elseif hasmethod(f, (Symbol, Any))
+#
+#		return foreach(latt) do kind::Symbol
+#		
+#			foreach(k->f(kind,k),sublatt_labels(latt, kind))
+#
+#		end 
+#
+#	elseif hasmethod(f, (OrderedDict, Any))
+#
+#		return foreach(latt) do D::OrderedDict
+#		
+#			@show keys(D)
+#
+#			foreach(k->f(D,k), sublatt_labels(D))
+#
+#		end 
+#
+#	end 
+#end 
+#
+##	if hasmethod(f, (Symbol,))
+##
+##		return map(f, SV) 
+##
+##
+##	elseif hasmethod(f, (OrderedDict,)) 
+##		
+##		return map((kind::Symbol)->kind=>f(getproperty(latt, kind)), latt)
+##
+##
+##	elseif hasmethod(f, (Symbol, OrderedDict,))
+##
+##		return map((kind::Symbol)->f(kind, getproperty(latt, kind)), latt)
+#	
+#
+#
+#	elseif hasmethod(f, (OrderedDict, Any))
+#
+#		return map(latt) do D::OrderedDict 
+#
+#				map(k->f(D,k), sublatt_labels(D))
+#
+#			end 
+#
+#
+#	elseif hasmethod(f, (Symbol, Any)) 
+#
+#		return map(latt) do kind::Symbol
+#
+#			map(k->f(kind, k), sublatt_labels(latt, kind))
+#
+#		end 
+#
+#
+#	elseif hasmethod(f, (Symbol, OrderedDict, Any))
+#
+#		return map(latt) do kind::Symbol, D::OrderedDict
+#			
+#			map(k->f(kind, D, k), sublatt_labels(D))
+#
+#		end
+#
+#
+#	elseif hasmethod(f, (AbstractMatrix,))
+#
+#		return map((D::OrderedDict, k::Any)-> k=>f(D[k]), latt)
+#
+#
+#	elseif hasmethod(f, (Symbol, AbstractMatrix))
+#
+#		return map((kind::Symbol,D::OrderedDict) -> k=>f(kind, D[k]), latt)
+#
+#
+#	elseif hasmethod(f, (AbstractMatrix, Any))
+#
+#		return map((D::OrderedDict, k::Any) -> f(D[k], k)::Pair , latt)
+#
+#
+#	elseif hasmethod(f, (Symbol, AbstractMatrix, Any))
+#
+#		return map((kind::Symbol, D::OrderedDict)->f(kind, D[k], k)::Pair, latt)
+#
+#	else 
+#
+#
+#		error("Unknown methods:\n",methods(f))
+#	
+#	end 
+#
+#
+#end 
+#
+#
+#
+#
+#
+#
+#
+#
+#
 #
 
 
@@ -610,16 +817,40 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function sublatt_labels(latt::Lattice; kind=:Sublattices)
 
-	kind!=:Both && return collect(keys(getproperty(latt, kind)))
+function sublatt_labels(latt::Lattice, kind::Symbol)::Vector
+
+	sublatt_labels(latt; kind=kind)
+
+end 
+
+	
+function sublatt_labels(latt::Lattice; kind=:Sublattices)::Vector
+
+	kind!=:Both && return sublatt_labels(latt[kind])
 
 	return union(sublatt_labels(latt; kind=:Sublattices),
 							 sublatt_labels(latt; kind=:Vacancies))
 
 end 
 
+function sublatt_labels(D::OrderedDict)::Vector 
 
+	collect(keys(D))
+
+end 
+
+function sublatt_labels(latts::Utils.List, args...; kwargs...)::Vector 
+
+	Utils.isList(latts, Lattice) || error()
+
+	return mapreduce(vcat, latts) do latt 
+
+			sublatt_labels(latt, args...; kwargs...)
+
+		end |> unique 
+
+end 
 
 #===========================================================================#
 #
@@ -683,9 +914,6 @@ EmptyPos(latt::Lattice)::AbstractMatrix{Float64} = EmptyPos(VecDim(latt))
 #
 #---------------------------------------------------------------------------#
 
-
-
-
 function PosAtoms(latt::Lattice;
 									labels_contain=nothing,
 									label=nothing,
@@ -696,7 +924,7 @@ function PosAtoms(latt::Lattice;
 
 	SL = if !isnothing(label)
 		
-					in(label, sublatt_labels(latt, kind=kind)) ? [label] : []
+					in(label, sublatt_labels(latt, kind)) ? [label] : []
 					
 					else 
 		
@@ -709,9 +937,9 @@ function PosAtoms(latt::Lattice;
 
 	for sl in SL 
 
-		isempty(latt.Sublattices[sl]) && continue
+		isempty(latt[kind][sl]) && continue
 
-		return hcat([f(s, latt.Sublattices[s]) for s in SL]...)
+		return mapreduce(s-> f(s, latt[kind][s]), hcat, SL) 
 
 	end 
 
@@ -732,7 +960,7 @@ function VecDim(latt::Lattice)::Int
 
 	size(latt.LattVec,1)>0 && return size(latt.LattVec,1) 
 
-	for prop in [:Sublattices, :Vacancies], (k,v) in getproperty(latt, prop)
+	for (prop, D) in latt, (k,v) in D 
 		
 		!isnothing(v) && size(v,1)>0 && return size(v,1)
 	
@@ -892,14 +1120,15 @@ end
 
 
 
-function SquareInt_LattCoeff((latt,n)::Tuple{Lattice, T})::AbstractMatrix{Int} where T
+function SquareInt_LattCoeff((latt,n)::Tuple{Lattice, <:Any}
+														)::Matrix{Int}
 
 	SquareInt_LattCoeff(latt, n)
 
 end
 														
 
-function SquareInt_LattCoeff(latt::Lattice, n)::AbstractMatrix{Int}
+function SquareInt_LattCoeff(latt::Lattice, n)::Matrix{Int}
 
 	n = to_myMatrix(n, latt)
 
@@ -935,7 +1164,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function BodyVertices_fromVectors(v::AbstractMatrix{T}; dim=2)::AbstractMatrix{T} where T
+function BodyVertices_fromVectors(v::AbstractMatrix; dim=2)::Matrix
 
 	CombsOfVecs10(v, 1, 0; dim=dim)
 
@@ -965,7 +1194,7 @@ end
 
 
 function prepare_polygon_vertices(V::AbstractMatrix; 
-																	order_vertices=false, dim=2)::AbstractMatrix
+																	order_vertices=false, dim=2)::Matrix
 
 	if order_vertices
 
@@ -1187,20 +1416,6 @@ end
 #
 #---------------------------------------------------------------------------#
 
-#function CollectAtoms(lattices::Utils.List, latt_vac::Symbol, label)::AbstractMatrix{Float64}
-#
-#	hcat(map(lattices) do L 
-#
-#		L::Lattice
-#
-#		!hasproperty(L, latt_vac) && error("'$latt_vac' not found")
-#
-#		return get(getproperty(L, latt_vac), k, zeros(Float64, VecDim(L), 0))
-#
-#	end...) 
-#
-#end 
-
 function parse_input_RsNs( latt::Union{Nothing,Lattice}=nothing;
 													 Rs=nothing,
 													 Ns=nothing,
@@ -1356,61 +1571,65 @@ end
 #
 #---------------------------------------------------------------------------#
 
-#function Superlattice!(latt::Lattice, n; kwargs...)
+
+function new_atoms_dict(latt::Lattice,
+															 ns_ucs::AbstractMatrix,
+															 Labels::Nothing=nothing)::Function
+
+	function out(atoms::AbstractMatrix, k)::OrderedDict
+			
+		OrderedDict(k=>Atoms_ManyUCs(atoms, ns_ucs, latt)) 
+
+	end 
+
+end 
+
+
+
+function new_atoms_dict(latt::Lattice,
+												ns_ucs::AbstractMatrix,
+												Labels::Function)::Function 
+
+	labels_ucs = Labels.(eachcol(Int.(ns_ucs))) 
+
+	return function out(atoms::AbstractMatrix, k)::OrderedDict
+		
+		labels = Labels_ManyUCs(k=>atoms, labels_ucs)
+
+		return to_myODict((labels, Atoms_ManyUCs(atoms, ns_ucs, latt)), latt)
+
+	end 
+
+end 
+
+
+
+
+
+#===========================================================================#
 #
 #
 #
-#
-#	end
-#
-#	latt.LattVec = CombsOfVecs(latt, N)
-#
-#	return latt
-#
-#end
+#---------------------------------------------------------------------------#
+
 
 
 function Superlattice!(latt::Lattice, n; Labels=nothing, kwargs...)::Lattice
 	
 	n = SquareInt_LattCoeff(latt, n)
 	
-	ns_ucs = ucs_in_UC(n; kwargs...)
+	new_atoms = new_atoms_dict(latt, ucs_in_UC(n; kwargs...), Labels)
 
+	for (kind,D) in latt, k in sublatt_labels(D) 
 
-
-	for kind in [:Sublattices, :Vacancies] 
-
-		if isnothing(Labels) 
-
-			for k in sublatt_labels(latt; kind=kind)
-
-				getproperty(latt, kind)[k] = Atoms_ManyUCs(latt; Ns=ns_ucs, label=k, kind=kind)
-
-			end 
-
-		elseif Labels isa Function 
-
-			labels_ucs = Labels.(eachcol(Int.(ns_ucs)))
-
-			for k in sublatt_labels(latt; kind=kind) 
-
-				atoms = pop!(getproperty(latt,kind), k)
-
-				labels = Labels_ManyUCs(k=>atoms, labels_ucs)
-
-				merge!(getproperty(latt,kind),
-							 to_myODict((labels, Atoms_ManyUCs(atoms, ns_ucs, latt)), 
-													latt)
-							 )
-			end 
-
-		end 
+		merge!(D, new_atoms(pop!(D,k), k))
 	
 	end 
 
 
 	latt.LattVec = CombsOfVecs(latt, n)
-		
+
+	return latt 
 
 end
 
@@ -1422,37 +1641,18 @@ end
 
 
 
-function Superlattice(latt::Lattice, n; Labels=nothing, kwargs...)::Lattice
+function Superlattice(latt::Lattice, n; kw...)::Lattice
+
+	Superlattice_(latt::Lattice, SquareInt_LattCoeff(latt, n); kw...)
+
+end 
+											 
+function Superlattice_(latt::Lattice, n; Labels=nothing, kw...)::Lattice
 	
-	n = SquareInt_LattCoeff(latt, n)
-	
-	ns_ucs = ucs_in_UC(n; kwargs...)
-
-	act_on_vectors(vectors::AbstractMatrix) = CombsOfVecs(vectors, n)
-
-	new_atoms(atoms::AbstractMatrix) = Atoms_ManyUCs(atoms, ns_ucs, latt) 
-
-	isnothing(Labels) && return Lattice(latt;
-																			act_on_vectors=act_on_vectors,
-																			act_on_atoms=new_atoms)
-
-
-	if Labels isa Function 
-
-		labels_ucs = Labels.(eachcol(Int.(ns_ucs)))
-
-		function act_on_atoms(atoms::AbstractMatrix, k)
-
-			(Labels_ManyUCs(k=>atoms, labels_ucs), new_atoms(atoms))
-
-		end 
-
-		return Lattice(latt;
-									 act_on_vectors=act_on_vectors,
-									 act_on_atoms=act_on_atoms)
-
-	end 
-		
+	Lattice(latt;
+					act_on_vectors=(v::AbstractMatrix)->CombsOfVecs(v, n),
+					act_on_atoms=new_atoms_dict(latt, ucs_in_UC(n; kw...), Labels),
+				 )
 
 end
 
@@ -1508,7 +1708,7 @@ function Superlattice(Components::Utils.List, Ns::Utils.List; Labels=nothing, kw
 
 	return Lattice(Supervectors, map([:Sublattices, :Vacancies]) do p
 
-		Utils.flatmap(unique(vcat(sublatt_labels.(Components; kind=p)...))) do k 
+		Utils.flatmap(sublatt_labels(Components; kind=p)) do k 
 
 			all_atoms = map(zip(Components,Ns)) do (latt,ns)
 
@@ -1610,7 +1810,7 @@ end
 
 function parse_input_sublattices(latt::Lattice, inp::Nothing, args...)
 
-	good = !in(sublatt_labels(latt; kind=:Both))
+	good = !in(sublatt_labels(latt, :Both))
 
 	for c in string.('A':'Z')
 
@@ -1651,20 +1851,19 @@ function AddAtoms!(latt::Lattice, positions=[], labels="A"; kind=:Sublattices)
 
 	new_labels = parse_input_sublattices(latt, labels, size(positions,2), string)
 
-	D = getproperty(latt, kind)
-
-
 	for (k,i) in zip(Unique(new_labels, inds=:all)...)
 
 		isempty(i) && continue
 
-		D[k] = hcat(get(D, k, EmptyPos(latt)), view(positions, :, i))
+		latt[kind][k] = hcat(get(latt[kind], k, EmptyPos(latt)), 
+												 view(positions, :, i))
 
 	end 
 
 	return latt 
 
 end 
+
 
 
 function AddAtoms(latt::Lattice, positions=[], labels="A"; kind=:Sublattices)
@@ -1716,9 +1915,9 @@ function ShiftAtoms!(latt::Lattice; n=nothing, r=nothing, kind=:Both)
 
 	for K in (kind==:Both ? [:Sublattices, :Vacancies] : [kind])
 
-		for l in sublatt_labels(latt, kind=K)
-			
-			getproperty(latt, K)[l] .+= R 
+		for l in sublatt_labels(latt, K)
+		
+			latt[K][l] .+= R 
 
 		end 
 
