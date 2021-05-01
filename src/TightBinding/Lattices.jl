@@ -1191,8 +1191,6 @@ ucs_in_UC(N::Utils.List; kw...) = ucs_in_UC(LA.Diagonal(vcat(N...)); kw...)
 
 function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) where T
 
-	dim=2
-
 	if T<:Int 
 
 		# Nothing to do, N is ready.
@@ -1217,9 +1215,9 @@ function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) wh
 
 	correct_nr>0 || error("Vectors must be linear independent")
 
-	polygon = Geometry.rhomboidVertices_fromDVectors(N; dim=dim) 
+	polygon = Geometry.rhomboidVertices_fromDVectors(N; dim=2)
 
-	mM = cat(cat.(extrema(polygon, dims=dim)..., dims=[2,1][dim])..., dims=dim)
+	mM = cat(cat.(extrema(polygon, dims=2)..., dims=1)..., dims=2)
 
 
 #  if len(N) == 1:
@@ -1231,7 +1229,7 @@ function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) wh
 
 	n, iter_ucs = if size(N,2)==2 && method2D_cells == :Polygon
 									
-									ucsUC_Polygon(N, mM, polygon; dim=dim, asfunction=true)
+									ucsUC_Polygon(N, mM, polygon; asfunction=true)
 
 								else 
 
@@ -1256,7 +1254,7 @@ function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) wh
 
 		ucs = iter_ucs(i)
 
-		size(ucs, dim)==correct_nr && return ucs
+		size(ucs, 2)==correct_nr && return ucs
 		
 		# if the correct number of uc-s in the large UC is found
 
