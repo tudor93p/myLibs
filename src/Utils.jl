@@ -25,6 +25,17 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator}
 #
 #---------------------------------------------------------------------------#
 
+#applyMethod(f::Function, methods::List,  
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 function Backtracking(data,
 #											root::Function,
@@ -301,6 +312,8 @@ end
 
 
 function flatmap(f,itr)
+
+#	mapreduce(f, vcat, itr, init=[])
 
 	vcat(map(f,itr)...)
 
@@ -1504,6 +1517,39 @@ end
 #  return A
 #
 #end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function CombsOfVecs(A::AbstractMatrix{<:T}, 
+										 coeff::AbstractMatrix{<:V}; dim
+										 )::Matrix{promote_type(T,V)} where T where V
+
+	dim==2 && return A*coeff
+
+	dim==1 && return coeff*A
+
+	error()
+
+end
+
+
+function CombsOfVecs10(A::AbstractMatrix{<:T},
+											 stopstart...; dim)::Matrix{T} where T 
+
+	CombsOfVecs(A,
+							vectors_of_integers(size(A,dim), stopstart...; dim=dim),
+							dim=dim)
+
+end 
+
+
+
 
 #===========================================================================#
 #
