@@ -686,18 +686,25 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function Quadrant(A::AbstractMatrix, C::AbstractMatrix; dim)::Int
 
-function Quadrant(A::AbstractMatrix)
-
-	size(A,2) == 2 && return Quadrant.(eachrow(A))
-
-	size(A,1) == 2 && return Quadrant.(eachcol(A))
-
-	error("Input not understood")
+	Quadrant(A.-C; dim=dim)
 
 end
 
-function Quadrant(xy::AbstractVector)
+function Quadrant(A::AbstractMatrix; dim)::Int
+
+	Quadrant.(eachslice(A, dims=dim))
+
+end
+
+function Quadrant(xy::AbstractVector, C::AbstractVector)::Int
+
+	Quadrant(xy-C)
+
+end 
+
+function Quadrant(xy::AbstractVector)::Int
 
 	length(xy) == 2 && return Quadrant(atan(xy[2],xy[1]))
 
@@ -706,7 +713,7 @@ function Quadrant(xy::AbstractVector)
 end
 
 
-function Quadrant(theta::Number)
+function Quadrant(theta::Number)::Int
 
 	theta > pi && return Quadrant(theta-2pi)
 	theta <-pi && return Quadrant(theta+2pi)
