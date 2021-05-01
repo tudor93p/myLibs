@@ -12,7 +12,7 @@ import Plots, ConcaveHull, QHull
 
 
 
-export Lattice
+#export Lattice
 
 
 
@@ -669,12 +669,22 @@ end
 
 LattDims(latt::Lattice)::Vector{Int} = latt.LattDims
 
-LattDims(latt::Lattice, d::Int)::Vector{<:Int} = LattDims(latt, [d])
+LattDims(latt::Lattice, d::Int)::Vector{Int} = LattDims(latt, [d])
+
+function LattDims(latt::Lattice, S::Symbol)::Vector{Int} 
+
+	S==:full || error("only works with S=:full")
+
+	return 1:LattDim(latt.LattVec)
+
+end 
+
+
 
 function LattDims(latt::Lattice, 
 									d::AbstractVector{<:Int})::AbstractVector{<:Int}
 
-	@assert issubset(d,	1:LattDim(latt.LattVec)) "invalid operation"
+	@assert issubset(d,	LattDims(latt, :full)) "invalid operation"
 
 	return d
 
@@ -1123,7 +1133,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function ucsUC_Polygon(v, mM, polygon; dim=2, asfunction=false)
+function ucsUC_Polygon(v, mM, polygon; asfunction=false)
+
+	dim=2 
 
 	is_inside = Geometry.PointInPolygon_wn(polygon, 
 																				 order_vertices=true, dim=dim)
@@ -1177,7 +1189,9 @@ ucs_in_UC(N::Real; kwargs...) = ucs_in_UC(hcat(N); kwargs)
 
 ucs_in_UC(N::Utils.List; kw...) = ucs_in_UC(LA.Diagonal(vcat(N...)); kw...) 
 
-function ucs_in_UC(N::AbstractMatrix{T}; dim=2, method2D_cells=:Polygon, kwargs...) where T
+function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) where T
+
+	dim=2
 
 	if T<:Int 
 
