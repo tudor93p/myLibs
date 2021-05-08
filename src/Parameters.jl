@@ -2,77 +2,77 @@ module Parameters
 #############################################################################
 
 
-struct MyParamsAndNames
-
-	allparams::Function
-	
-	params_digits::Function 
-
-	get_fname::Function 
-
-
-	function MyParamsAndNames(M::Module, input_dict::AbstractDict)
-
-					#					allparams::Function=nothing,
-					#					params_digits::Function=nothing,
-					#					get_fname::Function=nothing,
-					#					)
-		# typical constructor 
-	
-		allparams() = Operations.typical_allparams(M, input_dict[:allparams])
-															#	M.usedkeys  required
-
-		for i=1:M.NrParamSets-1
-
-			allparams(args::Vararg{Any,i}) = allparams()
-
-		end 
-
-		return MyParamsAndNames(M, input_dict, allparams)
-
-	end 
-
-
-
-	function MyParamsAndNames(M::Module, 
-														input_dict::AbstractDict, 
-														allparams::Function)
-
-		params_digits = FileNames.typical_params_digits(M, input_dict[:digits])
-															#	M.usedkeys  required
-
-		return MyParamsAndNames(M, allparams, params_digits)
-
-	end 
-
-
-
-
-	function MyParamsAndNames(M::Module,
-														allparams::Function,
-														params_digits::Function)
-
-		get_fname = FileNames.fname(M, 2, params_digits) 
-							#  M.NrParamSets required
-
-		return new(allparams, params_digits, get_fname)
-
-	end 
-
-
-
-	function MyParamsAndNames(allparams::Function,
-														params_digits::Function,
-														get_fname::Function)
-
-		new(allparams, params_digits, get_fname)
-
-	end 
-
-end 
-
-
-
+#struct ParamFlow
+#
+#	allparams::Function
+#	
+#	params_digits::Function 
+#
+#	get_fname::Function 
+#
+#
+#	function ParamFlow(M::Module, input_dict::AbstractDict)
+#
+#					#					allparams::Function=nothing,
+#					#					params_digits::Function=nothing,
+#					#					get_fname::Function=nothing,
+#					#					)
+#		# typical constructor 
+#	
+#		allparams() = Operations.typical_allparams(M, input_dict[:allparams])
+#															#	M.usedkeys  required
+#
+#		for i=1:M.NrParamSets-1
+#
+#			allparams(args::Vararg{Any,i}) = allparams()
+#
+#		end 
+#
+#		return ParamFlow(M, input_dict, allparams)
+#
+#	end 
+#
+#
+#
+#	function ParamFlow(M::Module, 
+#														input_dict::AbstractDict, 
+#														allparams::Function)
+#
+#		params_digits = FileNames.typical_params_digits(M, input_dict[:digits])
+#															#	M.usedkeys  required
+#
+#		return ParamFlow(M, allparams, params_digits)
+#
+#	end 
+#
+#
+#
+#
+#	function ParamFlow(M::Module,
+#														allparams::Function,
+#														params_digits::Function)
+#
+#		get_fname = FileNames.fname(M, 2, params_digits) 
+#							#  M.NrParamSets required
+#
+#		return new(allparams, params_digits, get_fname)
+#
+#	end 
+#
+#
+#
+#	function ParamFlow(allparams::Function,
+#														params_digits::Function,
+#														get_fname::Function)
+#
+#		new(allparams, params_digits, get_fname)
+#
+#	end 
+#
+#end 
+#
+#
+#
 
 
 
@@ -572,7 +572,7 @@ function fname(M::Module, n::Int64=1,args...; kwargs...)::Function
 end
 
 
-function fname(M::Module, n::Int64=1, params_digits::Function, args...; kwargs...)::Function
+function fname(M::Module, n::Int64, params_digits::Function, args...; kwargs...)::Function
 
 	fname(Base.fullname(M)[end-n+1:end], params_digits, args...; kwargs...)
 

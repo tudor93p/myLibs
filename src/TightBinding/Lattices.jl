@@ -2150,6 +2150,90 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+#function Wigner_Seitz(A::AbstractMatrix)
+#
+#	B = view(A, 1:minimum(size(A)),1:minimum(size(A)))
+#
+#	for n in 1:5
+#
+#		Vor = Voronoi(CombsOfVecs10(B, n))
+#
+#		regs = [Vor.vertices[r] for r in Vor.regions if !isempty(r)&&!in(-1,r)]
+#
+#		if !isempty(regs)
+#  
+##			reg = regs[argmin(map(LA.norm ∘ Algebra.Mean, regs))]
+##VoronoiCells 
+##			reg = regs[np.argmin(la.norm(np.mean(regs,axis=1),axis=1))]
+#
+#      return Geometry.Order_PolygonVertices(reg; dim=2)
+#
+#  raise Exception("The Wigner-Seitz cell couldn't be computed!")
+#
+#
+#
+#end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function BrillouinZone(latt::Lattice)::Matrix
+
+	LattDim(latt)==0 && return zeros(1,1)
+
+  K = self.ReciprocalVectors() 
+
+	LattDim(latt)==1 && return hcat(zero(K), K) 
+
+	LattDim(latt)==2 && return Wigner_Seitz(K)
+
+	error()
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function NearbyUCs(latt::Lattice, nr_uc::Int=1; #sublatt_coord=Dict(), 
+									 remove_minus_m=true)::NTuple{3,Matrix}
+
+	ms = Utils.vectors_of_integers(LattDim(latt), nr_uc)
+
+	inds = map(eachcol(ms)) do v 
+
+		!remove_minus_m && return true 
+
+		v==-v && return true 
+
+		return !in(-v,eachcol(ms))
+
+	end 
+
+
+
+	return (ms[:,inds],
+					CombsOfVecs(latt, ms[:,inds]),
+					PosAtoms(latt; kwargs...))
+
+
+
+
+
+
+end 
 
 
 
@@ -2236,6 +2320,7 @@ CH = transpose(B[CH.vertices,:])
 
 
 end 
+
 
 
 
