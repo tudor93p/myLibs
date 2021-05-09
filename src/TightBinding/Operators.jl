@@ -42,7 +42,7 @@ end
 
 function LDOS(Op=[1];kwargs...)
 
-  return Operator(Op,sum_atoms=false;kwargs...)
+  Operator(Op,sum_atoms=false;kwargs...)
 
 
 end
@@ -106,10 +106,14 @@ end
 
 
 
+
+
+
+
 function Partial_PositExpect_fromLDOS(
 								Prob::AbstractMatrix, atoms::AbstractMatrix,
 								dim::Int, f::Function=identity; 
-								convolute=false, delta=0.3,
+								convolute=false, delta=0.3, vsdim=2,
 								kwargs...)
 
 # P[energy, atom] = LDOS at energy, on atom 
@@ -131,12 +135,13 @@ function Partial_PositExpect_fromLDOS(
 		for i in axes(exp_vals,1)
 
 			Pi,fi = Prob_and_fA(i)
-	
-			exp_vals[i,:] = Algebra.Normalize_Rows(Pi,1)*fi
-	
-#			exp_vals[i,:] = LA.norm.(eachrow(Pi),1)
+
+			@warn "WFs on columns" 
+
+			exp_vals[i,:] = Algebra.Normalize(Pi,1; dim=vsdim)*fi
 
 		end
+
 		#	out[energy,some_y] = 	(sum over i in atoms_at_y)(P[energy, i] * f(x[i]))
 		#												/(sum ...) P[energy, i]
 	
@@ -150,18 +155,21 @@ function Partial_PositExpect_fromLDOS(
 	end
 
 
+	sel(X,i) = selectdim(X, [2,1][vsdim], i)
 
 	if !convolute
 
-		uniq_B, inds_B = Utils.Unique(atoms[:, dim_perp], inds="all", sorted=true)
+
+		uniq_B, inds_B = Utils.Unique(sel(atoms, dim_perp),
+																	inds="all", sorted=true)
 
 		return out(uniq_B) do 
 
-			f_A = f.(atoms[:,dim])
+			f_A = f.(sel(atoms, dim))
 
 			return (f_A, function(i) 
 
-											inds_B[i] |> I -> (Prob[:,I], f_A[I])
+						inds_B[i] |> I -> (sel(Prob, I), f_A[I])
 
 									end)
 
@@ -177,7 +185,7 @@ function Partial_PositExpect_fromLDOS(
 
 	(A,dense_A,w_A), (B,dense_B,w_B) = map((dim,dim_perp)) do d
 	
-		v = atoms[:,d]
+		v = sel(atoms, d)
 	
 		u = Utils.Unique(v, sorted=true)
 
@@ -199,13 +207,14 @@ function Partial_PositExpect_fromLDOS(
 												(w_A, w_B);
 												weights="Lorentzian", normalize=false)
 
-		LI = LinearIndices((axes(dense_A,1), axes(dense_B,1)))
+		LI = LinearIndices((axes(dense_A,vsdim), axes(dense_B,vsdim)))
 
 		f_A = f.(dense_A)
 
 		return (f_A, function(i)
+					s = LI[CartesianIndices((axes(dense_A,vsd), i))][:]
 
-						(convProb[:,LI[CartesianIndices((axes(dense_A,1), i))][:]],f_A)
+					(sel(convProb,s), f_A)
 
 				end)
 	end
@@ -227,12 +236,13 @@ end
 
 
 
-function Position_Expectation(axis::Int64,Rs::Matrix{Float64};
-		fpos::Function=identity,nr_at=size(Rs,1),kwargs...)
+function Position_Expectation(axis::Int64, Rs::AbstractMatrix{Float64};
+															fpos::Function=identity,dim=2,
+															nr_at=size(Rs,dim), kwargs...)
 
 
-  return Operator(fpos.(Rs[:,axis]),diag="orbitals",nr_at=nr_at;kwargs...)
-
+  Operator(map(fpos, selectdim(Rs, [2,1][dim], axis)),
+					 diag="orbitals", nr_at=nr_at; kwargs...)
 
 end
 
@@ -243,7 +253,7 @@ end
 
 function Charge(Op_UC,atom;kwargs...)
 
-  return Operator(Op_UC,nr_orb=size(Op_UC,1),purpose="matrixelement",acts_on_atoms=vcat(atom);kwargs...)
+  Operator(Op_UC,nr_orb=size(Op_UC,1),purpose="matrixelement",acts_on_atoms=vcat(atom);kwargs...)
 
 end
 
@@ -251,14 +261,14 @@ end
 
 function Norm(;kwargs...)
 
-  return Operator([1];kwargs...)
+	Operator([1];kwargs...)
 
 end
 
 
 function Overlap(;kwargs...)
 
-  return Operator([1],purpose="matrixelement";kwargs...)
+  Operator([1],purpose="matrixelement";kwargs...)
 
 end
 
@@ -270,8 +280,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Operator(Op::AbstractArray;purpose="expectation",kwargs...)
-
+function Operator(Op::AbstractArray; purpose="expectation", kwargs...)
 
   Op,(nr_at,nr_orb,size_H),diag = Understand_OperatorInput(Op;kwargs...)
 		# checks if the size of Op coincides with 
@@ -281,25 +290,26 @@ function Operator(Op::AbstractArray;purpose="expectation",kwargs...)
 		#	diag can be ["orbitals","atoms","all","no"]
 
 
-
-
-  any(purpose.==["expectation","matrixelement"]) || error("'purpose' should be either 'expectation' or 'matrixelement'")
+	p = findfirst(isequal(purpose), ["expectation","matrixelement"]) 
+	
+	isnothing(p) && error("'purpose' should be either 'expectation' or 'matrixelement', not '$purpose'")
 
 
 
   function choose(operators)
 
-    out = operators[argmax(purpose.==["expectation","matrixelement"])]
+		out = operators[p]
+	
+		!isnothing(out) && return out 
 
-    isnothing(out) && error("This operator cannot be used for '"*purpose*"'")
- 
-    return out
+		error("This operator cannot be used for '$purpose'")
 
   end
 
 
 
 #  println(diag,"  ",purpose,"  ",nr_orb,Op)
+
 
   if diag == "no" 
  
@@ -311,14 +321,15 @@ function Operator(Op::AbstractArray;purpose="expectation",kwargs...)
  
 #    println("1x1")
 #    exit()
-    return Operator_aNumber(Op,nr_orb=nr_orb,nr_at=nr_at;kwargs...) |> choose
+    return Operator_aNumber(Op, nr_orb=nr_orb, nr_at=nr_at; kwargs...) |> choose
  
  
-  elseif diag in ["orbitals","atoms"]
+  elseif diag in ["orbitals", "atoms"]
 
 #    println("decomposable")  
 #    exit()
-    return Operator_Decomposable(Op,diag=diag,nr_orb=nr_orb,nr_at=nr_at;kwargs...) |> choose
+
+    return Operator_Decomposable(Op, diag=diag, nr_orb=nr_orb, nr_at=nr_at; kwargs...) |> choose
 
 
   end
@@ -344,19 +355,20 @@ function Operator_Full(Op::AbstractArray)
 end
 
 
-function Operator_Decomposable(Op::AbstractArray;diag=nothing,
-		sum_atoms::Bool=true,sum_orbitals::Bool=true,
+function Operator_Decomposable(Op::AbstractArray; 
+		diag=nothing,
+		sum_atoms::Bool=true, sum_orbitals::Bool=true,
 		acts_on=nothing,
-		nr_at=nothing,nr_orb=nothing,Kwargs...)
+		nr_at=nothing, nr_orb=nothing, Kwargs...)
 
-  if isnothing(diag) || !(diag in ["orbitals","atoms"])
+  if isnothing(diag) || !in(diag,["orbitals","atoms"])
     error("Please specify if the operator is diagonal in atoms or orbitals")
   end
 
   
 
 
-  function get_acts_on(acts_on_,diag_,nr_at_,nr_orb_)
+  function get_acts_on(acts_on_, diag_, nr_at_, nr_orb_)
   
     !isnothing(acts_on_) && return acts_on_
   
@@ -371,19 +383,18 @@ function Operator_Decomposable(Op::AbstractArray;diag=nothing,
 
   function argsinds(acts_on_,diag_,nr_at_,nr_orb_)
 
-  
-    diag_=="atoms" && return (1:nr_orb_,acts_on_)
+    diag_=="atoms" && return (1:nr_orb_, acts_on_)
 
-    diag_=="orbitals" && return (acts_on_,1:nr_at_)
+    diag_=="orbitals" && return (acts_on_, 1:nr_at_)
 
   end
 
 
-  function repeatf(acts_on_,diag_,nr_at_,nr_orb_)
+  function repeatf(acts_on_, diag_, nr_at_, nr_orb_)
 
     if diag_=="atoms" 
 
-      return o -> Repeat_Operator_ManyAtoms(o,length(acts_on_),nr_orb_)
+      return o -> Repeat_Operator_ManyAtoms(o, length(acts_on_), nr_orb_)
      
     elseif diag_=="orbitals" 
 
@@ -395,13 +406,12 @@ function Operator_Decomposable(Op::AbstractArray;diag=nothing,
 
 
 
-  acts_on = get_acts_on(acts_on,diag,nr_at,nr_orb)
+  acts_on = get_acts_on(acts_on, diag, nr_at, nr_orb)
 		# if acts_on not specified, all orbitals/atoms are assumed
 
 
 
-
-  inds = TBmodel.Hamilt_indices_all(argsinds(acts_on,diag,nr_at,nr_orb)...,nr_orb;iter=diag)
+  inds = TBmodel.Hamilt_indices_all(argsinds(acts_on,diag,nr_at,nr_orb)..., nr_orb; iter=diag)
 	# for each item in iter: gives the indices of wf components
 	#		on which the operator acts
 
@@ -409,21 +419,22 @@ function Operator_Decomposable(Op::AbstractArray;diag=nothing,
 		# indices for all the wf components on which the operator acts
 
 
-  Repeat_Many = repeatf(acts_on,diag,nr_at,nr_orb)
+  Repeat_Many = repeatf(acts_on, diag, nr_at, nr_orb)
 		# repeat the operator for several atoms/orbitals 
 
 
 
-
-  if ((diag=="atoms") & sum_atoms) | ((diag=="orbitals") & sum_orbitals)
+  if (diag=="atoms" && sum_atoms) | (diag=="orbitals" && sum_orbitals)
 #  if sum_action
 
     FullOp = ndims(Op)==1 ? LA.diag(Repeat_Many(LA.diagm(0=>Op))) : Repeat_Many(Op)
 
 
 
-    return [(P;kwargs...) -> ExpectationValues(P,FullOp,all_inds),
-	(Pl,Pr=Pl;kwargs...) -> MatrixElements(Pl,Pr,FullOp,all_inds)]
+
+    return [(P;kwargs...) -> ExpectationValues(P, FullOp, all_inds), 
+
+	(Pl,Pr=Pl;kwargs...) -> MatrixElements(Pl, Pr, FullOp, all_inds)]
 
   end
 
@@ -516,22 +527,34 @@ end
 # 
 #---------------------------------------------------------------------------#
 
-function ExpectationValues(P,M,inds=:;iterate=false)
+function ExpectationValues(P::AbstractMatrix,M::AbstractVector,inds=Colon(); 
+													 iterate=false)
+
+  ExpectationValues_DiagOp(P, M, inds; iterate=iterate) 
+
+end 
 
 
+function ExpectationValues(P::AbstractMatrix, M::AbstractMatrix, inds=Colon();
+													 iterate=false)
 
-  ndims(M) == 1 && return ExpectationValues_DiagOp(P,M,inds;iterate=iterate) 
-
-  return ExpectationValues_FullOp(P,M,inds;iterate=iterate)
+	ExpectationValues_FullOp(P, M, inds; iterate=iterate)
 
 end
 
 
-function MatrixElements(Pl,Pr,M,inds=:)
 
-  ndims(M) == 1 && return MatrixElements_DiagOp(Pl,Pr,M,inds)
- 
-  return MatrixElements_FullOp(Pl,Pr,M,inds)
+function MatrixElements(Pl::AbstractMatrix, Pr::AbstractMatrix,
+												M::AbstractVector, inds=Colon())
+
+	MatrixElements_DiagOp(Pl,Pr,M,inds)
+end 
+
+
+function MatrixElements(Pl::AbstractMatrix, Pr::AbstractMatrix,
+												M::AbstractMatrix, inds=Colon())
+
+	MatrixElements_FullOp(Pl, Pr, M, inds)
 
 end
 
@@ -540,31 +563,57 @@ end
 # ---- 
 
 
-function ExpectationValues_DiagOp(P,M,inds=:;iterate=false) 
+function ExpectationValues_DiagOp(P::AbstractMatrix, M::AbstractVector,
+																	inds=:; dim=2, iterate=false) 
 
-  !iterate && return transpose(abs2.(P[inds,:]))*reshape(M,:,1)
+	if !iterate 
+		A = abs2.(selectdim(P, [2,1][dim], inds))
 
-  return hcat(map(i->ExpectationValues_DiagOp(P,M,i)[:],inds)...)
+		dim==2 && return reshape(M,1,:)*A 
+		dim==1 && return A*reshape(M,:,1) 
+
+	end 
+
+
+	return mapreduce(hcat, inds) do i 
+		
+		 ExpectationValues_DiagOp(P, M, i)[:] 
+
+	end 
+
 end
 
 
-function MatrixElements_DiagOp(Pl,Pr,M,inds=:)
+function MatrixElements_DiagOp(Pl::AbstractMatrix, Pr::AbstractMatrix,
+															 M::AbstractVector, inds=:; dim=2)
+	@warn "vectors on columns might not work "
 
-  return Pl[inds,:]'*(reshape(M,:,1).*Pr[inds,:])
+	dim==2 && return Pl[:,inds]'*(reshape(M,1,:).*Pr[:,inds])
+
+
+	dim ==1 && return Pl[inds,:]'*(reshape(M,:,1).*Pr[inds,:])
 
 end
 
-function MatrixElements_FullOp(Pl,Pr,M,inds=:)
+function MatrixElements_FullOp(Pl::AbstractMatrix,Pr::AbstractMatrix,M::AbstractMatrix,inds=:; dim=2)
 
-  return Pl[inds,:]'*M*Pr[inds,:]
+#	selectdim(Pl, dim, inds)
+
+#	Utils.CombsOfVecs(M,selectdim(Pr, dim, inds))
+
+
+  dim==1 && return Pl[inds,:]'*M*Pr[inds,:]
+
+	dim==2 && return Pl[:,inds]'*M*Pr[:,inds]
 
 end
 
 
 
 
-
-function ExpectationValues_FullOp(P,M,inds=:;iterate=false)
+function ExpectationValues_FullOp(P::AbstractMatrix, M::AbstractMatrix,
+																	inds=:; iterate=false)
+@warn "vectors on columns might now work"
 
   !iterate && return reshape(LA.diag(MatrixElements_FullOp(P,P,M,inds)),:,1)
 
@@ -734,11 +783,6 @@ end
 #---------------------------------------------------------------------------#
 
 
-function N(P)
-
-  return P ./ reshape(LA.norm.(eachcol(P)),1,:)
-
-end
 
 
 

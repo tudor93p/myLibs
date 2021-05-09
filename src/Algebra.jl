@@ -1011,15 +1011,15 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Normalize(A::AbstractArray, p::Real=2; dims=nothing, tol=1e-12)
+function Normalize(A::AbstractArray, p::Real=2; dim=nothing, tol=1e-12)
 
-	isnothing(dims) && return A/LA.norm(A, p)
+	isnothing(dim) && return A/LA.norm(A, p)
 
-	N = LA.norm.(eachslice(A, dims=dims), p)
+	N = LA.norm.(eachslice(A, dims=dim), p)
 
 	N[N.<tol] .= tol
 
-  return A./reshape(N, [d==dims ? Colon() : 1 for d in 1:ndims(A)]...)
+  return A./reshape(N, [d==dim ? Colon() : 1 for d in 1:ndims(A)]...)
 										
 end
 
