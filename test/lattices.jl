@@ -116,8 +116,15 @@ l5 = Lattices.SquareLattice()
 
 
 
+for item in Lattices.NearbyUCs(l5)
 
+	println()
 
+	foreach(println, eachcol(item))
+
+	println()
+
+end
 
 
 

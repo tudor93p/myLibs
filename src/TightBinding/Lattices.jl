@@ -2208,17 +2208,17 @@ end
 
 
 function NearbyUCs(latt::Lattice, nr_uc::Int=1; #sublatt_coord=Dict(), 
-									 remove_minus_m=true)::NTuple{3,Matrix}
+									 remove_minus_m=true, kwargs...)::NTuple{3,Matrix}
 
-	ms = Utils.vectors_of_integers(LattDim(latt), nr_uc)
+	ms = Utils.vectors_of_integers(LattDim(latt), nr_uc, dim=2)
 
-	inds = map(eachcol(ms)) do v 
+	inds = map(enumerate(eachcol(ms))) do (i,v)
 
 		!remove_minus_m && return true 
 
 		v==-v && return true 
 
-		return !in(-v,eachcol(ms))
+		return !in(-v,eachcol(ms[:,1:i]))
 
 	end 
 

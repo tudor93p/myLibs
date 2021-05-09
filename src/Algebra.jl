@@ -1125,11 +1125,15 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function dot(A::AbstractArray,B::AbstractArray)::Number
+dot(A::Number, B::Number)::Number = dot([A],[B])
+dot(A::Number, B::AbstractVector)::Number = dot([A],B)
+dot(A::AbstractVector, B::Number)::Number = dot(A,[B])
 
-  i = 1:min(length(A),length(B))
+function dot(A::AbstractVector, B::AbstractVector)::Number
 
-  return LA.dot(A[i],B[i])
+  i = 1:min(length(A), length(B))
+
+  return LA.dot(A[i], B[i])
 
 end
 

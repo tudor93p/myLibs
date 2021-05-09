@@ -111,7 +111,14 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function flat_indsvals(i::Int64,j::Int64,v::AbstractMatrix,d0::Int64=1)::Matrix
+function flat_indsvals(i::Int64, j::Int64, v::Number, d0::Int64=1)::Matrix
+
+	flat_indsvals(i, j, hcat(v), d0)
+
+end 
+
+
+function flat_indsvals(i::Int64, j::Int64, v::AbstractMatrix, d0::Int64=1)::Matrix
 
   I,J,V = SpA.findnz(SpA.sparse(v))
 
@@ -127,13 +134,14 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function indsvals_to_Tm(indsvals,n,m=n)
+function indsvals_to_Tm(indsvals::AbstractMatrix, n::Int64, m::Int64=n
+											 )::SpA.SparseMatrixCSC
 
-  types = (Int64,Int64,Complex{Float64})
+	types = (Int64, Int64, ComplexF64)
 
-  hopps = (t.(c) for (t,c) in zip(types,eachcol(indsvals)))
-  
-  return SpA.sparse(hopps...,n,m)
+	hopps = (convert(Vector{t}, c) for (t,c) in zip(types, eachcol(indsvals)))
+
+  return SpA.sparse(hopps..., n, m)
 
 end
 
@@ -146,9 +154,10 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_hopps(atom_i,Ri,Rsj,hopping,hopp_cutoff,d0)
+function get_hopps(atom_i::Int, Ri::AbstractVector, Rsj::AbstractMatrix, hopping::Function, hopp_cutoff::Float64, d0::Int)::Matrix{ComplexF64}
 
-  hopps = hopping.([Ri],eachrow(Rsj))
+
+  hopps = hopping.([Ri],eachcol(Rsj))
 		# compute the hopping amplitudes from Ri to all Rj-s
 
 
@@ -156,9 +165,10 @@ function get_hopps(atom_i,Ri,Rsj,hopping,hopp_cutoff,d0)
 		# check which amplitudes are nonzero
 
 
-  length(atoms_js) == 0 && return zeros(Complex{Float64},0,3)
+  isempty(atoms_js) && return zeros(0, 3)
 
-  return vcat(flat_indsvals.([atom_i],atoms_js,hopps[atoms_js],[d0])...)
+  return vcat(flat_indsvals.([atom_i], atoms_js, hopps[atoms_js], [d0])...)
+
 
 end
 
@@ -172,19 +182,23 @@ end
 #---------------------------------------------------------------------------#
 
 
-function HoppingMatrix(Rsi::AbstractMatrix,Rsj::AbstractMatrix=Rsi;parallel=false,Hopping,Nr_Orbitals=1,hopp_cutoff=1e-6,kwargs...)
+function HoppingMatrix(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
+											 Hopping::Function, Nr_Orbitals=1, 
+											 parallel=false, hopp_cutoff=1e-6, kwargs...
+											 )::SpA.SparseMatrixCSC
 
 # Nr_Orbitals = trunc(Int64,sqrt(length(Hopping(Rsi[1,:],Rsj[1,:]))))
 
-  return indsvals_to_Tm(vcat(
+  indsvals_to_Tm(vcat(
 
-      (parallel ? pmap : map)(enumerate(eachrow(Rsi))) do (i,Ri)
+      (parallel ? pmap : map)(enumerate(eachcol(Rsi))) do (i,Ri)
       	# for each atom i at position Ri
 
-      return get_hopps(i,Ri,Rsj,Hopping,hopp_cutoff,Nr_Orbitals)
+				return get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, Nr_Orbitals)
+
 	  	# find the atoms where it hopps and the amplitudes
 
-    end...),size(Rsi,1)*Nr_Orbitals,size(Rsj,1)*Nr_Orbitals)
+    end...),size(Rsi,2)*Nr_Orbitals, size(Rsj,2)*Nr_Orbitals)
 
 end
 
@@ -195,15 +209,19 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Compute_Hopping_Matrices(Lattice;
-																	dist_tol=1e-5,parallel=false,	kwargs...)
+function Compute_Hopping_Matrices(
+						Lattice::NTuple{3,AbstractArray};
+						dist_tol=1e-5,parallel=false,	kwargs...
+						)::Tuple{SpA.SparseMatrixCSC, Any}
 
-  ms, Rms, AtomsUC = Lattice
+
+#  ms, Rms, AtomsUC = Lattice 
+
 
   # 'AtomsUC' 	-> the positions of the atoms in the central unit cell
   # 'Rms'	-> the positions of the unit cells around the central one
   # 'ms'	-> the integer vectors 𝐦  designating those unit cells
-  	#	-> one 𝐦 vector on each line of the matrix ms
+  	#	-> one 𝐦 vector on each column of the matrix ms
 	#	-> 𝐦 has the same length as the number of lattice vectors
 	# 	-> each UC in the list is 𝐑_𝐦 = Σ_j (m_j ⋅ 𝐚_j)
 
@@ -214,15 +232,27 @@ function Compute_Hopping_Matrices(Lattice;
   # Nr_Orbitals -> the size of the matrix f(ri,rj) 
   # ...
 
-  ms,Rms = map(A -> ndims(A) == 2 ? Utils.ArrayToList(A) : A, [ms,Rms])
+	AtomsUC = Lattice[3] 
+
+	ms,Rms = map(Lattice[1:2]) do A 
+
+		ndims(A)<2 && return A 
+
+		ndims(A)==2 && return collect(eachcol(A))
+
+		error()
+
+	end 
+
+#  ms,Rms = map(A -> ndims(A) == 2 ? Utils.ArrayToList(A) : A, [ms,Rms])
 
 	# if few procs, Rms will be distributed. Otherwise -> atoms
 	
-  Tms = ( parallel && nprocs() <= size(Rms,1) ? pmap : map)(Rms) do Rm
+  Tms = (parallel && nprocs()<=size(Rms,2) ? pmap : map)(Rms) do Rm
 
-    return HoppingMatrix(AtomsUC,	hcat(Rm...) .+ AtomsUC;
+    HoppingMatrix(AtomsUC,	Rm .+ AtomsUC;
 													kwargs...,
-      										parallel = parallel && nprocs() > size(Rms,1)
+      										parallel = parallel && nprocs()>size(Rms,2)
       										)
   end
 
@@ -230,16 +260,17 @@ function Compute_Hopping_Matrices(Lattice;
   nonzeroT = findall(SpA.nnz.(Tms) .> 0)
 		# check which T_𝐦  contain only zeros
 
-  intra = findfirst(LA.norm.(Rms) .< dist_tol)
+
+	intra = findfirst(m -> m==-m, ms)
+										
 		# corresponds to the intra-cell hopping
 
   inter = nonzeroT[nonzeroT .!= intra]
 		# correspond to the non-zero inter-cell hopping
 
-  inter_out = length(inter)>0 ? map(A->A[inter],[ms,Rms,Tms]) : nothing
+  inter_out = !isempty(inter) ? map(A->A[inter], [ms,Rms,Tms]) : nothing
 
-  return Tms[intra],inter_out
-
+  return Tms[intra], inter_out
 
 end
 
@@ -252,13 +283,13 @@ end
 
 function Bloch_Hamilt(Lattice; argH::String="",savefile="",	Hopping...)
 			
-  data = Compute_Hopping_Matrices(Lattice;Hopping...)
+  data = Compute_Hopping_Matrices(Lattice; Hopping...)
 
   isempty(savefile) || error("Save_Hamilt_Data not yet rewritten")
 
 	# Save_Hamilt_Data(savefile,mRT...)
 
-  return Assemble_Bloch_Hamiltonian(data...,argH=argH)
+  return Assemble_Bloch_Hamiltonian(data...; argH=argH)
 
 end
 
@@ -281,17 +312,22 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Assemble_Bloch_Hamiltonian(intra,inter;argH::String="")
+function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, inter::Nothing=nothing; kwargs...)::Function
 
-  isnothing(inter) && return H_no_k(aux=nothing) = intra
 	# if this is a finite system or the Hamiltonian is simply local
+	
+	H_no_k(args...) = intra 
 
+end 
+	
+function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, inter::Utils.List;
+																		argH::String="")::Function
 
   (ms,Rms,Tms) = inter
 
-  argH = get_argH(argH,ms,Rms)
+  argH = get_argH(argH, ms, Rms)
 
-  iter = zip(Tms,[Rms,ms][findfirst(argH .== ["k","phi"])])
+  iter = zip(Tms, [Rms,ms][findfirst(argH .== ["k","phi"])])
 
 
   return function h(k)
@@ -535,21 +571,23 @@ function Hopping_Term_fromTBfile(filename)
 
   #TBmodel.Save_Hamilt_Data(filename,ms,Rms,Tms) #was done before
 
-  return Hopping_Term_fromTBmatr(Read_Hamilt_Data(filename)...)
+  Hopping_Term_fromTBmatr(Read_Hamilt_Data(filename)...)
 
 end
 
 
 function Hopping_Term_fromTBmatr(ms,Rs,Ts)
 
-  return function condition_value_maxdist(same,ax=axes(Rs,2))
+  function condition_value_maxdist(same,ax=axes(Rs,1))
 
 
-    gooddist(ri,rj) = same.(eachrow(Rs[:,ax]),[(ri .- rj)[ax]])
+    gooddist(ri,rj) = same.(eachcol(Rs[ax,:]),[(ri .- rj)[ax]])
 
     cond(ri,rj) = any(gooddist(ri,rj))
+
     val(ri,rj)  = Ts[argmax(gooddist(ri,rj))]
-    maxdist = maximum(LA.norm.(eachrow(Rs[:,ax])))*1.05
+
+    maxdist = maximum(LA.norm, eachcol(Rs[ax,:]))*1.05
    
     return cond,val,maxdist
 

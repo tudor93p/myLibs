@@ -71,9 +71,10 @@ function BasisInfo(using_SC_basis)
 end
 
 
-function SC_Domain(param_H_,dist;indomain=nothing,nr_uc=1,dist_tol=1e-5,hopp_cutoff=1e-6)
-
-
+function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{Float64}; 
+									 indomain=nothing, nr_uc::Int=1, 
+									 dist_tol::Float64=1e-5, hopp_cutoff::Float64=1e-6,
+									 )::Dict{Symbol,Any}
 
 
         # ---------------- initialize parameters --------------------- #      
@@ -91,7 +92,7 @@ function SC_Domain(param_H_,dist;indomain=nothing,nr_uc=1,dist_tol=1e-5,hopp_cut
 					)
 
 
-  param_H = Utils.Combine_NamedTuples(param_H_,default_param_H)
+  param_H = Utils.Combine_NamedTuples(param_H_, default_param_H)
 
 
   using_SC_basis = !isnothing(param_H[:SC_Gap])
@@ -235,7 +236,7 @@ function SC_Domain(param_H_,dist;indomain=nothing,nr_uc=1,dist_tol=1e-5,hopp_cut
   
 #  returnB_Input, (Sum(Hoppings,cond), hopp_cutoff)
 
-	return Dict([
+	return Dict(
 		:Hopping => Sum(Hoppings,cond),
 		:Nr_UCs => nr_uc,	# provided the kind of hoppings above 
 		:hopp_cutoff => hopp_cutoff,
@@ -243,7 +244,7 @@ function SC_Domain(param_H_,dist;indomain=nothing,nr_uc=1,dist_tol=1e-5,hopp_cut
 		:SC_basis => using_SC_basis,
 		:BasisInfo => BasisInfo(using_SC_basis),
 		:Nr_Orbitals => d0,
-		])
+		)
 			
 
 end
