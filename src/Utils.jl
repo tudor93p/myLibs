@@ -1413,16 +1413,21 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function PathConnect(points,n;end_point=true,bounds=[0,1],fdist=identity)
+function PathConnect(points::AbstractMatrix, n::Int; 
+										 end_point::Bool=true, 
+										 bounds::AbstractVector=[0,1],
+										 fdist::Function=identity,
+										 dim::Int=1
+										 )::Tuple{Matrix,Vector}
 
-  size(points,1) == 1 && return points,[0]
+  size(points,dim) == 1 && return points,[0]
 
-  dist = LA.normalize(diff(points,dims=1) |>eachrow .|>LA.norm .|>fdist,1)
+	dist = LA.normalize(eachslice(diff(points,dims=dim),dims=dim) .|> LA.norm ∘ fdist, 1) 
 
   n -= end_point
 
 
-  ns_ = max.(1,Int64.(round.(dist*n)))
+  ns_ = max.(1,Int64.(ceil.(dist*n)))
 
   while sum(ns_) > n 
     ns_[argmax(ns_)] -= 1
@@ -1433,15 +1438,17 @@ function PathConnect(points,n;end_point=true,bounds=[0,1],fdist=identity)
   end
   
 
-  path = vcat(map(axes(points,1)[1:end-1]) do i
+	path = mapreduce([vcat,hcat][dim], axes(points, dim)[1:end-1]) do i
 
-    ep = end_point && i==axes(points,1)[end-1]
+    ep = end_point && i==size(points,dim)-1
 
-    t = range(0, 1, length = ns_[i] + 1 )[1:end-1+ep]
+		t = reshape(range(0, 1, length = ns_[i] + 1 )[1:end-1+ep],
+								[d==dim ? Colon() : 1 for d in 1:2]...)
 
-    return hcat(1 .- t , t)*points[i:i+1,:]
+		return CombsOfVecs(selectdim(points, dim, i:i+1), 
+											 cat(1 .- t , t, dims=[2,1][dim]), dim=dim)
 
-  end...)
+	end
 
 
 
