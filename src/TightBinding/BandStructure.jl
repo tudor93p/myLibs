@@ -85,6 +85,14 @@ end
 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 function Diagonalize(H, kPoints, filename=nothing; 
 										 kLabels=nothing,
 										 kTicks=[0],
@@ -92,7 +100,9 @@ function Diagonalize(H, kPoints, filename=nothing;
 										 parallel=false, operators=[[],[]],
 										 storemethod="dat",
 										 dim=1,
-										 tol=1e-8,  nr_bands=nothing, sigma=tol/10, kwargs...)
+										 tol=1e-8,  
+										 nr_bands=nothing, 
+										 sigma=tol/10, kwargs...)
 
 	k1 = selectdim(kPoints, dim, 1)
 
