@@ -7,4 +7,7 @@ using Test
 #
 #include("tbmodel.jl")
 #
-include("utils.jl")
+#include("utils.jl")
+#
+
+include("bandstr.jl")

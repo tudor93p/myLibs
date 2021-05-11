@@ -5,7 +5,7 @@ using Distributed
 
 import ..DlmF, ..LA, ..SpA, Arpack
 
-import ..Algebra, ..Utils
+import ..Algebra, ..Utils, ..ReadWrite
 
 
 
@@ -15,7 +15,11 @@ import ..Algebra, ..Utils
 #
 #---------------------------------------------------------------------------#
 
-function get_eigen(H,evect=false;tol=1e-8,nr_bands=nothing,sigma=tol/10)
+function get_eigen(H::Function, 
+									 evect::Bool=false; 
+									 tol::Float64=1e-8, 
+									 nr_bands=nothing, 
+									 sigma::Float64=tol/10)::Function 
 
 
   if isnothing(nr_bands)
@@ -27,11 +31,10 @@ function get_eigen(H,evect=false;tol=1e-8,nr_bands=nothing,sigma=tol/10)
  
   end
 
-
-  sigma = isnothing(sigma) ? tol/10 : sigma
+	
 
   Areigs(k) = Arpack.eigs(H(k), nev=nr_bands, 
-																sigma=sigma, 
+																sigma=Utils.Assign_Value(sigma, tol/10),
 																tol=tol,
 																ritzvec=evect)
 
@@ -65,11 +68,16 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_nrbands(nr_bands, H0, lim=0.2)
+function get_nrbands(nr_bands::Nothing, args...)::Nothing
 
-  nH = size(H0,1)
+	nothing 
 
-  !isnothing(nr_bands) && nr_bands < nH*lim && return nr_bands
+end 
+
+
+function get_nrbands(nr_bands::Int, H0::AbstractMatrix, lim::Float64=0.2)::Union{Nothing, Int}
+
+	nr_bands < size(H0,1)*lim && return nr_bands
 
   return nothing
 
@@ -83,11 +91,14 @@ function Diagonalize(H, kPoints, filename=nothing;
 										 filemethod="new", 
 										 parallel=false, operators=[[],[]],
 										 storemethod="dat",
+										 dim=1,
 										 tol=1e-8,  nr_bands=nothing, sigma=tol/10, kwargs...)
 
-  k1 = kPoints[1,:]
+	k1 = selectdim(kPoints, dim, 1)
 
-	nr_bands_calc = get_nrbands(nr_bands,H(k1))
+	rest_ks = Base.Iterators.drop(eachslice(kPoints, dims=dim), 1)
+
+	nr_bands_calc = get_nrbands(nr_bands, H(k1))
 
   eig = get_eigen(H, !isempty(operators[1]); 
 									tol=tol, nr_bands=nr_bands_calc, sigma=sigma)
@@ -109,7 +120,7 @@ function Diagonalize(H, kPoints, filename=nothing;
 
 		inds = max(m-1,0) + min(length(e)-M,0) .+ (1:nr_bands)
 	
-		return (e[inds], p[:,inds] )
+		return (e[inds], p[:,inds] ) # vectors come on columns 
 
 	end
 
@@ -129,7 +140,7 @@ function Diagonalize(H, kPoints, filename=nothing;
 
 		hcat(E1, Op1...),
 
-		(parallel ? pmap : map)(eachrow(kPoints[2:end,:])) do k
+		(parallel ? pmap : map)(rest_ks) do k
 
 			out(k) |> out_k -> hcat(out_k[1], out_k[2]...)
 
@@ -138,7 +149,7 @@ function Diagonalize(H, kPoints, filename=nothing;
 
 
 
-	Write!, outdict = Utils.Write_NamesVals(filename,  storemethod, 
+	Write!, outdict = ReadWrite.Write_NamesVals(filename,  storemethod, 
 																		["Energy";operators[1]], result, bounds;
 																		tol=tol, filemethod=filemethod)
 
@@ -146,14 +157,15 @@ function Diagonalize(H, kPoints, filename=nothing;
 
 
 
-	if size(kPoints,1)==1
+	if size(kPoints,dim)==1
 	
 		return Write!("kLabels", reshape(range(0,1,length=size(result,1)),:,1), outdict)
 
 
 	end	
 
-	kLabels = Utils.Assign_Value(kLabels, range(0,1,length=size(kPoints,1)))
+
+	kLabels = Utils.Assign_Value(kLabels, range(0,1,length=size(kPoints,dim)))
 
 	kLabels = reshape(repeat(kLabels,
 													 inner=div(size(result,1), length(kLabels))),:,1)
@@ -205,7 +217,7 @@ function TimeEvolution_expH(psi0,es,vs,ts,filename,operators=[[],[]];tol=1e-7)
 
 
 
-  Write, = Utils.Write_NamesVals(filename; tol=tol)
+  Write, = ReadWrite.Write_NamesVals(filename; tol=tol)
 
   Write("Time",ts)
   Write("Eigenvals",es)
