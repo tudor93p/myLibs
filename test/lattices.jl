@@ -127,12 +127,11 @@ for item in Lattices.NearbyUCs(l5)
 end
 
 
+Lattices.ReduceDim!(l5,1)
 
+@show Lattices.ReciprocalVectors(l5)
 
-
-
-
-
+@show Lattices.BrillouinZone(l5)
 
 
 

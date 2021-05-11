@@ -2180,6 +2180,22 @@ end
 #
 #end 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function ReciprocalVectors(latt::Lattice)::Matrix 
+
+	LattVec(inv(latt.LattVec[LattDims(latt, :full), :]), LattDims(latt))
+
+end 
+
+	
+
 #===========================================================================#
 #
 #
@@ -2188,11 +2204,13 @@ end
 
 function BrillouinZone(latt::Lattice)::Matrix
 
-	LattDim(latt)==0 && return zeros(1,1)
+	LattDim(latt)==0 && return zeros(0,1)
 
-  K = self.ReciprocalVectors() 
+  K = ReciprocalVectors(latt) 
 
 	LattDim(latt)==1 && return hcat(zero(K), K) 
+
+	error()
 
 	LattDim(latt)==2 && return Wigner_Seitz(K)
 
