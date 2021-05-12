@@ -428,7 +428,10 @@ end
 
 #[0,0,0,0,0,0,3,1,1,1] => [1:6,7:7,8:10]
 
-function IdentifySectors(list,sectors=[],start=0; tol=1e-8)
+function IdentifySectors(list::AbstractVector, 
+												 sectors::Vector{UnitRange}=[], 
+												 start::Int=0; 
+												 tol=1e-8)::Vector{UnitRange}
 
 	for i in axes(list,1)
 
@@ -536,7 +539,7 @@ end
 
 
 
-function isTuple(arg::T, Ti=Any) where T
+function isTuple(arg::T, Ti=Any)::Bool where T
 
 	if T<:Type 
 
@@ -564,7 +567,7 @@ end
 
 
 
-function isList(arg::T, Ti=Any) where T
+function isList(arg::T, Ti=Any)::Bool where T
 
 	for S in [AbstractVector, AbstractSet]
 
@@ -596,7 +599,7 @@ function isList(arg::T, Ti=Any) where T
 end
 
 
-function isList(;T=Any)
+function isList(;T=Any)::Bool
 
 	arg -> isList(arg, T)
 	
@@ -614,7 +617,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function flat(list_of_lists...; keep=nothing)
+function flat(list_of_lists...; keep=nothing)::Vector 
 
 	i = findfirst(list_of_lists) do x 
 
@@ -905,7 +908,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Random_Items(list, n=rand(axes(list,1)); distinct=true)
+function Random_Items(list::List, n=rand(axes(list,1)); distinct=true)::List
 
 	if distinct
 	
@@ -973,7 +976,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function is_dict_or_JLDAW(D)
+function is_dict_or_JLDAW(D)::Bool
 
 	D isa AbstractDict && return true 
 
@@ -1004,7 +1007,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Rescale(A, mM0, mM1=A)
+function Rescale(A::AbstractArray, mM0, mM1=A)::AbstractArray
 
   m0,M0 = extrema(mM0)
 
@@ -1360,40 +1363,65 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function lrpad(x,N=[2,2];p='.')
+function lrpad(x::Real, N::Number; kwargs...)::String
 
-	isa(N,Number) && return lrpad(x,[N,N];p=p)
+	lrpad(x, [N,N]; kwargs...)
 
-  return rstrip(join([f(s[1:min(length(s),n)],n,'0') for (s,f,n) in zip(split(string(Float64(x)),'.'),[lpad,rpad],N)],p),p)
+end 
+
+function lrpad(x::Real, N::AbstractVector{Int}=[2,2]; p='.')::String 
+
+  rstrip(join([f(s[1:min(length(s),n)],n,'0') for (s,f,n) in zip(split(string(Float64(x)),'.'),[lpad,rpad],N)],p),p)
 
 end
 
 
-function nr2string(nr::T,digits=2) where T
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
-	if T<:Union{Tuple,AbstractArray}# && any(t->typeof(nr[1])<:t,types)
 
-		return map(n->nr2string(n,digits),nr) |> join
+function nr2string(nr::List, args...)::Vector{String}
 	
-	end
+	map(n->nr2string(n, args...), nr)
 
-	Union{Number,AbstractString} |> t-> T<:t || error("Please provide $t")
+end 
 
 
 
-	isempty(digits) && return string(nr)
 
-	digits isa Number && return nr2string(nr,[digits,digits])
+function nr2string(nr::Union{Number,AbstractString}, digits::Number=2)::String 
+	nr2string(nr, [digits,digits])
 
-  if nr isa AbstractString
+end 
 
-    nr_ = tryparse(Float64,nr)
- 
-    return isnothing(nr_) ? nr : nr2string(nr_,digits)
- 
-  end
 
+
+function nr2string(nr::Union{Number,AbstractString}, digits::AbstractVector{Int})::String 
+
+	isempty(digits) && return string(nr) 
+
+	length(digits)==1 && return nr2string(nr, [digits; 0]) 
+
+	return nr2string(nr, digits)
+
+end  
+
+
+function nr2string(nr::AbstractString, args...)::String
+
+	nr_ = tryparse(Float64, nr)
+
+	return isnothing(nr_) ? nr : nr2string(nr_, args...)
+	
+end 
+
+
+function nr2string(nr::Real, digits::AbstractVector{Int})::String
 
   left,right = split(string(round(Float64(abs(nr)),digits=digits[2])),'.')
 
@@ -1403,9 +1431,63 @@ function nr2string(nr::T,digits=2) where T
 
 	right = rpad(right[1:min(end,digits[2])],digits[2],'0')
 
-  return join([left,right],'p')
+	return string(left,'p',right)
 
 end
+
+
+#===========================================================================#
+#
+# Recast a vector as a single-column (dim=2) or single-row matrix (dim=1) 
+# 	works with any-dimensional arrays
+#
+#---------------------------------------------------------------------------#
+
+
+function VecAsMat(V::AbstractArray, dim::Int)::AbstractMatrix
+
+	dim==2 && return reshape(V, :, 1)  # Column vector 
+
+	dim==1 && return reshape(V, 1, :) # Row vector 
+
+	error() 
+
+end 
+
+
+function VecAsMat(dim::Int)::Function 
+
+	function vam(V::AbstractArray)::AbstractMatrix 
+
+		VecAsMat(V, dim) 
+
+	end 
+
+end 
+
+
+function sel(dim::Int)::Function 
+
+	function out(A::AbstractArray, inds)  
+
+		selectdim(A, dim, inds) 
+
+	end 
+
+end 
+
+
+function sel(dim::Int, inds)::Function 
+
+	function out(A::AbstractArray)  
+
+		selectdim(A, dim, inds) 
+
+	end 
+
+end 
+
+
 
 #===========================================================================#
 #
@@ -1436,26 +1518,26 @@ function PathConnect(points::AbstractMatrix, n::Int;
   while sum(ns_) < n
     ns_[argmin(ns_)] += 1
   end
-  
+ 
+
+	dim2 = [2,1][dim] 
 
 	path = mapreduce([vcat,hcat][dim], axes(points, dim)[1:end-1]) do i
 
     ep = end_point && i==size(points,dim)-1
 
-		t = reshape(range(0, 1, length = ns_[i] + 1 )[1:end-1+ep],
-								[d==dim ? Colon() : 1 for d in 1:2]...)
-
+		t = range(0, 1, length = ns_[i] + 1)[1:end-1+ep] |> VecAsMat(dim2)
+	
 		return CombsOfVecs(selectdim(points, dim, i:i+1), 
-											 cat(1 .- t , t, dims=[2,1][dim]), dim=dim)
+											 cat(1 .- t , t, dims=dim2), dim=dim)
 
 	end
-
 
 
   xticks = bounds[1] .+ cumsum([0;dist]).*diff(bounds)
 #  xticks = cumsum([1:ns_])
  
-  return path,xticks
+  return path, xticks
 
 end
 
@@ -1540,13 +1622,13 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function CombsOfVecs(A::AbstractMatrix{<:T}, 
-										 coeff::AbstractMatrix{<:V}; dim
+function CombsOfVecs(vecs::AbstractMatrix{<:T}, 
+										 coeff::AbstractMatrix{<:V}; dim::Int
 										 )::Matrix{promote_type(T,V)} where T where V
 
-	dim==2 && return A*coeff
+	dim==2 && return vecs*coeff # Vectors are on columns 
 
-	dim==1 && return coeff*A
+	dim==1 && return coeff*vecs # the vectors are on lines 
 
 	error()
 

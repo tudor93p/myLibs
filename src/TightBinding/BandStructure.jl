@@ -110,7 +110,9 @@ function Diagonalize(H, kPoints, filename=nothing;
 
 	nr_bands_calc = get_nrbands(nr_bands, H(k1))
 
-	operators = Utils.Assign_Value(operators, [[],[]])
+	if isnothing(operators)
+		operators = [[],[]]
+	end 
 
   eig = get_eigen(H, !isempty(operators[1]); 
 									tol=tol, nr_bands=nr_bands_calc, sigma=sigma)

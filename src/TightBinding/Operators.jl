@@ -112,18 +112,18 @@ end
 
 function Partial_PositExpect_fromLDOS(
 								Prob::AbstractMatrix, atoms::AbstractMatrix,
-								dim::Int, f::Function=identity; 
+								D::Int, f::Function=identity; 
 								convolute=false, delta=0.3, vsdim=2,
 								kwargs...)
 
 # P[energy, atom] = LDOS at energy, on atom 
 # or: P[wf_index, atom] = localiz.prob on atom of a certain wf
 
-#	A = the coordinates 'dim'. B =  the perpendicular
+#	A = the coordinates 'D'. B =  the perpendicular
 
 
 
-	dim_perp = ifelse(dim==1, 2, ifelse(dim==2, 1, nothing)) 
+	D_perp = ifelse(D==1, 2, ifelse(D==2, 1, nothing)) 
 
 
 	function out(get_ylim_Pf, param_B)
@@ -138,7 +138,7 @@ function Partial_PositExpect_fromLDOS(
 
 			@warn "WFs on columns" 
 
-			exp_vals[i,:] = Algebra.Normalize(Pi,1; dim=vsdim)*fi
+			exp_vals[i,:] = Algebra.Normalize(Pi,1; dim=dim)*fi
 
 		end
 
@@ -150,22 +150,22 @@ function Partial_PositExpect_fromLDOS(
 
 
 
-		return (param_B, exp_vals, ["x","y","z"][dim_perp], extrema(ylim))
+		return (param_B, exp_vals, ["x","y","z"][D_perp], extrema(ylim))
 
 	end
 
 
-	sel(X,i) = selectdim(X, [2,1][vsdim], i)
+	sel(X,i) = selectdim(X, [2,1][dim], i)
 
 	if !convolute
 
 
-		uniq_B, inds_B = Utils.Unique(sel(atoms, dim_perp),
+		uniq_B, inds_B = Utils.Unique(sel(atoms, D_perp),
 																	inds="all", sorted=true)
 
 		return out(uniq_B) do 
 
-			f_A = f.(sel(atoms, dim))
+			f_A = f.(sel(atoms, D))
 
 			return (f_A, function(i) 
 
@@ -183,7 +183,7 @@ function Partial_PositExpect_fromLDOS(
 	
 
 
-	(A,dense_A,w_A), (B,dense_B,w_B) = map((dim,dim_perp)) do d
+	(A,dense_A,w_A), (B,dense_B,w_B) = map((D, D_perp)) do d
 	
 		v = sel(atoms, d)
 	
@@ -207,12 +207,12 @@ function Partial_PositExpect_fromLDOS(
 												(w_A, w_B);
 												weights="Lorentzian", normalize=false)
 
-		LI = LinearIndices((axes(dense_A,vsdim), axes(dense_B,vsdim)))
+		LI = LinearIndices((axes(dense_A,dim), axes(dense_B,dim)))
 
 		f_A = f.(dense_A)
 
 		return (f_A, function(i)
-					s = LI[CartesianIndices((axes(dense_A,vsd), i))][:]
+					s = LI[CartesianIndices((axes(dense_A,dim), i))][:]
 
 					(sel(convProb,s), f_A)
 
