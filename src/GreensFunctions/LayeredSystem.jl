@@ -19,7 +19,7 @@ module LayeredSystem
 import ..LA 
 
 
-import ..Utils, ..Graph, ..TBmodel 
+import ..Utils, ..Graph, ..TBmodel, ..Lattices
 
 
 
@@ -189,7 +189,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Distribute_Atoms(Atoms, isbond, LeadContacts)
+function Distribute_Atoms(Atoms, isbond, LeadContacts; dim=1)
 			"""	
 	Atoms::Array{Float64,2} -> positions of atoms in the scattering region
 
@@ -207,9 +207,9 @@ function Distribute_Atoms(Atoms, isbond, LeadContacts)
 
 	function f(layer, candidates, out=Dict{Int64,Int64}())
 
-		if isempty(candidates) || size(Atoms,1)==out.count
+		if isempty(candidates) || size(Atoms,dim)==out.count
 		
-			Set(keys(out))==Set(axes(Atoms,1)) && return layer-1,out
+			Set(keys(out))==Set(axes(Atoms,dim)) && return layer-1,out
 
 			error("There are unallocated atoms.")
 
@@ -217,11 +217,15 @@ function Distribute_Atoms(Atoms, isbond, LeadContacts)
 
 		merge!(out, Dict(c=>layer for c in candidates))
 
-		candidates = filter(setdiff(axes(Atoms,1), keys(out))) do i
+		candidates = filter(setdiff(axes(Atoms,dim), keys(out))) do i
 
-										any(j -> isbond(Atoms[j,:], Atoms[i,:]), candidates)
-											
-								end
+							any(candidates) do j 
+
+								isbond(selectdim(Atoms, dim, j), selectdim(Atoms, dim, i))
+
+							end 
+		end 
+
 
 		return f(layer+1, candidates, out)
 
@@ -247,7 +251,7 @@ function Distribute_Atoms(Atoms, isbond, LeadContacts)
 
 			:IndsAtomsOfLayer => IndsAtomsOfLayer,
 
-			:AtomsOfLayer => L->Atoms[IndsAtomsOfLayer(L),:],
+			:AtomsOfLayer => L->selectdim(Atoms, dim, IndsAtomsOfLayer(L)),
 
 						)
 
@@ -299,12 +303,12 @@ end
 
 
 function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
-											 get_leadcontacts=false, kwargs...)
+											 get_leadcontacts=false, dim=1, kwargs...)
 
 															#	all atoms belong to the same layer 
 	if LayerAtom=="trivial" 
 	
-		s = size(Atoms,1)
+		s = size(Atoms,dim)
 
 		
 
@@ -313,7 +317,7 @@ function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
 								
 								:LayerOfAtom => i -> (1<=i<=s ? 1 : nothing),
 								
-								:IndsAtomsOfLayer => l->(l==1 ? range(1,s,step=1) : nothing),
+								:IndsAtomsOfLayer => l->(l==1 ? UnitRange(1,s) : nothing),
 								
 								:AtomsOfLayer => L->Atoms )
 
@@ -329,7 +333,7 @@ function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 
-	out = Distribute_Atoms(Atoms, kwargs[:isBond], LeadContacts)
+	out = Distribute_Atoms(Atoms, kwargs[:isBond], LeadContacts; dim=dim)
 
 	!get_leadcontacts && return out
 
@@ -340,9 +344,15 @@ end
 
 
 
-function LayerAtomRels(arg1, LayerAtom_; get_leadcontacts=false, kwargs...)
+function LayerAtomRels(latt::Lattices.Lattice, LayerAtom_; kwargs...)
 
-	Atoms = arg1 isa AbstractMatrix ? arg1 : arg1.PosAtoms()
+	LayerAtomRels(Lattices.PosAtoms(latt), LayerAtom_; kwargs...)
+
+end 
+
+
+function LayerAtomRels(Atoms::AbstractMatrix, LayerAtom_; 
+											 get_leadcontacts=false, kwargs...)
 
 	out = (LayerAtom, LeadContacts) = LayerAtomRels_(
 																				Atoms, LayerAtom_; 
