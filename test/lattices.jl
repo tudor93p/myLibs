@@ -134,6 +134,31 @@ Lattices.ReduceDim!(l5,1)
 @show Lattices.BrillouinZone(l5)
 
 
+println()
+println()
+
+
+
+
+
+n = [3,5]
+
+L = Lattices.Superlattice(Lattices.SquareLattice("A"), [3,2], Labels=x->x[1])
+
+
+@show L 
+
+
+
+@show Lattices.labelToComponent(L, labels_contain="B")
+
+
+
+
+
+
+
+
 
 
 

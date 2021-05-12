@@ -322,32 +322,88 @@ end
 #	 ?? 	(D,k), (kind,k), (kind, D, k), ()
 
 
+
+
+
+
+
+
+
 function applyOnLattAtoms(f::Function, latt::Lattice)::Vector
 
 	map(latt) do (kind,D)
 
-		for args in ((D,), (kind,), (kind, D),) 
-
-			applicable(f, args...) && return f(map(copy, args)...)
-
-		end 
-
-
-		return map(sublatt_labels(D)) do k 
-
-			for args in ((D[k],), (kind, D[k]), (D[k],k), (kind, D[k], k))
-
-				applicable(f, args...) && return f(map(copy, args)...)
-
-			end 
-
-			error("No method of 'f' could be used")
-
-		end 
+		applyOnLattAtoms(f, latt, kind, D)
 
 	end
 	
 end 
+
+
+
+function applyOnLattAtoms(f::Function, latt::Lattice, 
+													kind::Symbol, D::AbstractDict=latt[kind])
+
+	for args in ((D,), (kind,), (kind, D),) 
+
+		applicable(f, args...) && return f(map(copy, args)...)
+
+	end 
+
+	return map(sublatt_labels(D)) do k 
+
+		applyOnLattAtoms(f, latt, kind, k, D[k]) 
+
+	end 
+
+end 
+
+
+function applyOnLattAtoms(f::Function, red_op::Function, latt::Lattice, 
+													kind::Symbol, D::AbstractDict=latt[kind])
+
+	mapreduce(red_op, sublatt_labels(D)) do k 
+
+		applyOnLattAtoms(f, latt, kind, k, D[k]) 
+
+	end 
+
+end 
+
+
+function applyOnLattAtoms(f::Function, latt::Lattice, 
+													kind::Symbol, k::Any,
+													atoms::AbstractMatrix=latt[kind][k])
+
+	for args in ((atoms,), (kind, atoms), 
+							 (atoms, k), (kind, atoms, k),
+							 (kind, k),
+							 )
+
+		applicable(f, args...) && return f(map(copy, args)...)
+
+	end 
+
+	error("No method of 'f' could be used")
+
+end 
+
+
+#function applyOnLattAtoms(f::Function, #latt::Lattice, 
+#													kind::Symbol, atoms::AbstractMatrix)
+#	
+#	for args in ((atoms,), (kind, atoms))
+#
+#		applicable(f, args...) && return f(map(copy, args)...)
+#
+#	end 
+#
+#	error("No method of 'f' could be used")
+#
+#end 
+#
+
+
 
 
 
@@ -860,6 +916,7 @@ function sublatt_labels(latt::Lattice; kind::Symbol=:Atoms)::Vector
 
 end 
 
+
 function sublatt_labels(D::OrderedDict)::Vector 
 
 	collect(keys(D))
@@ -911,9 +968,9 @@ function sublattices_contain(latt::Lattice, inp::Utils.List; kwargs...)
 
 	all_sl = sublatt_labels(latt; kwargs...)
 
-	sl = filter(s->any(i->occursin(i,s), inp), all_sl) 
+	return filter(s->any(i->occursin(i,s), inp), all_sl) 
 
-	return isempty(sl) ? all_sl : sl 
+#	return isempty(sl) ? all_sl : sl 
 
 	#isempty(sl) && error("Wrong sublattice labels!")
 
@@ -944,29 +1001,67 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function parse_input_labels(latt::Lattice, kind::Symbol, labels_contain, label::Nothing=nothing)::Vector
+
+	sublattices_contain(latt, labels_contain, kind=kind)
+
+end 
+
+
+function parse_input_labels(latt::Lattice, kind::Symbol, labels_contain, label)::Vector
+
+	in(label, sublatt_labels(latt, kind)) ? [label] : []
+
+end 
+
+
+
 
 function PosAtoms(latt::Lattice;
 									labels_contain=nothing,
 									label=nothing,
-#									f=(sl,P)->P,
 									kind=:Atoms,
-									kwargs...
-									)
+									kwargs...)::Matrix
 
-	SL = if !isnothing(label)
-		
-					in(label, sublatt_labels(latt, kind)) ? [label] : []
-					
-					else 
-		
-						sublattices_contain(latt, labels_contain)
+	SL = parse_input_labels(latt, kind, labels_contain, label) 
 
-				end 
+	E = EmptyPos(latt) 
 
-	return mapreduce(s-> latt[kind][s], hcat, SL, init=EmptyPos(latt))
+	isempty(SL) && return E 
 
-end
+	return applyOnLattAtoms(hcat, latt, kind) do atoms::AbstractMatrix,k::Any
 
+		in(k, SL) ? atoms : E 
+
+	end 
+
+end 
+
+
+
+function labelToComponent(latt::Lattice;
+													labels_contain=nothing,
+													label=nothing,
+													kind=:Atoms,
+													kwargs...)::Vector{String}
+	
+	SL = parse_input_labels(latt, kind, labels_contain, label) 
+
+	@show SL 
+
+
+	E = String[]
+
+	isempty(SL) && return E
+
+	applyOnLattAtoms(vcat, latt, kind) do atoms::AbstractMatrix,k::String
+
+		in(k,SL) ? labelToComponent(k, atoms) : E
+
+	end
+
+
+end 
 
 
 
@@ -1345,9 +1440,18 @@ function labelToComponent(L::String)::String
 
 end
 
+
+function labelToComponent(L::String, atoms::AbstractMatrix)::Vector{String}
+
+	repeat([labelToComponent(L)], size(atoms,2))
+
+end 
+
+
+
 function componentToLabel(L)::String
 
-	string(labelCompStart,L,labelCompStop)
+	string(labelCompStart, L, labelCompStop)
 
 end 
 
@@ -1355,7 +1459,11 @@ function Labels_ManyUCs(P::Pair, uc_labels::AbstractVector)::Vector{String}
 
 	Labels_ManyUCs(repeat([P.first], size(P.second,2)), uc_labels)
 
-end
+end 
+
+
+
+
 
 function Labels_ManyUCs(atom_labels::AbstractVector,
 												uc_labels::AbstractVector;
