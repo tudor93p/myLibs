@@ -966,13 +966,15 @@ function sublattices_contain(latt::Lattice, inp::Utils.List; kwargs...)
 	
 	# find all sublattices which contain items of inp 
 
-	all_sl = sublatt_labels(latt; kwargs...)
+	filter(sublatt_labels(latt; kwargs...)) do s
+	
+		any(inp) do i 
 
-	return filter(s->any(i->occursin(i,s), inp), all_sl) 
+			occursin(string(i), string(labelToComponent(s))) 
 
-#	return isempty(sl) ? all_sl : sl 
+		end 
 
-	#isempty(sl) && error("Wrong sublattice labels!")
+	end 
 
 end 
 
@@ -1430,6 +1432,7 @@ function labelToComponent(L::String)::String
 
 	elseif length(comp)<1
 
+		return L
 		error("No component cue could be found in label '$L'")
 
 	else 
@@ -1441,7 +1444,14 @@ function labelToComponent(L::String)::String
 end
 
 
-function labelToComponent(L::String, atoms::AbstractMatrix)::Vector{String}
+function labelToComponent(L::T)::T where T
+	
+	L
+
+end 
+
+
+function labelToComponent(L, atoms::AbstractMatrix)::Vector
 
 	repeat([labelToComponent(L)], size(atoms,2))
 

@@ -150,7 +150,10 @@ L = Lattices.Superlattice(Lattices.SquareLattice("A"), [3,2], Labels=x->x[1])
 
 
 
-@show Lattices.labelToComponent(L, labels_contain="B")
+@show Lattices.labelToComponent(L, labels_contain="1") 
+@show Lattices.PosAtoms(L, labels_contain="1") 
+
+
 
 
 
