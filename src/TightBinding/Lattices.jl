@@ -1049,9 +1049,6 @@ function labelToComponent(latt::Lattice;
 	
 	SL = parse_input_labels(latt, kind, labels_contain, label) 
 
-	@show SL 
-
-
 	E = String[]
 
 	isempty(SL) && return E
