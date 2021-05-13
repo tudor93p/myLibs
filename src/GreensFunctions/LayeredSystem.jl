@@ -19,7 +19,7 @@ module LayeredSystem
 import ..LA 
 
 
-import ..Utils, ..Graph, ..TBmodel, ..Lattices
+import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps
 
 
 
@@ -139,7 +139,7 @@ function LeadAtomOrder(nr_at=0;
 
 	out = Dict()
 	
-	cumLSizes = Utils.recursive_cumsum(LSizes, nr_at)
+	cumLSizes = ArrayOps.recursive_cumsum(LSizes, nr_at)
 
 
 	for (LN,LS,cLS) in zip(LNames, LSizes, cumLSizes)

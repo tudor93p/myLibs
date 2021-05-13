@@ -309,15 +309,13 @@ function GF_Decimation(HoppMatr::Function,NrLayers::Int64;LeftLead=nothing,Right
 		end
 	end
 
-
-
 	return  Energy -> GF_Decimation_fromGraph(Energy,g,translate)
 
 end
 
 
 
-function GF_Decimation_fromGraph(Energy,g,translate=nothing)
+function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 
 	setEnergy_LeadGF,
 	islead,
