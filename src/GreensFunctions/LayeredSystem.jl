@@ -457,7 +457,14 @@ end
 
 function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 
-	function (name::String,index::Int64)
+	function slicer(name::Symbol, index::Int64)
+
+		slicer(string(name), index)
+
+	end 
+
+
+	function slicer(name::String,index::Int64)
 
 		name == "Layer" && return (name,index),(Colon(),)
 
@@ -473,13 +480,31 @@ function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 
 		length(atoms) == 1 && return ("Layer",layer),(Colon(),)
 		
-		return ("Layer",layer), (TBmodel.Hamilt_indices(vcat(1:Nr_Orbitals...),
+		return ("Layer",layer), (TBmodel.Hamilt_indices(collect(1:Nr_Orbitals),
 															indexin(index,atoms)[1],
 															#findfirst(isequal(index),atoms),
 															Nr_Orbitals)
 														,)
-
 	end
+
+
+	function slicer(name::Union{String,Symbol}, index::Int64, args...)
+
+		out1 = slicer(name, index)
+
+		isnothing(out1) && return nothing 
+
+		out2 = slicer(args...)
+
+		isnothing(out2) && return nothing 
+
+		(ni1,slice1),(ni2,slice2) = out1,out2
+
+		return (ni1...,ni2...),(slice1...,slice2...)
+	
+	end 
+
+
 		
 end
 
@@ -555,7 +580,7 @@ function Combine_Leads(leads,atoms,label)
 
 #	f(k,j,E) = [item(E) for item in f(k,j)]
 
-	nr_ucs = maximum(length.(f(:head)))
+	nr_ucs = maximum(length, f(:head))
 
 
 	lattice_out = Dict(
@@ -714,10 +739,13 @@ function Distribute_Leads(Leads, LeadContacts; NrLayers, LayerOfAtom, AtomsOfLay
 		length(allleads)==1 && return (side,index),(Colon(),)
 
 	 	lead = findfirst(isequal(name),allleads)
+
+
+		R = Utils.sepLengths_cumulRanges(LeadSizes[side][min(end,index)], lead) 
+
 	
-		boundaries = cumsum([0;LeadSizes[side][min(end,index)]])
-	
-		return (side,index),(boundaries[lead]+1:boundaries[lead+1],)
+		return (side,index), R
+
 
 	end
 
@@ -763,6 +791,9 @@ function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, Nr_Orb
 		return (ni1...,ni2...),(slice1...,slice2...)
 	
 	end
+
+
+
 
 
 	function slicer(name_::Union{String,Symbol}, index::Int64)

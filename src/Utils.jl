@@ -866,6 +866,10 @@ function Distribute_Work(allparamcombs,do_work;arg_pos=1,kwargs0...)
 end
 
 
+
+
+
+
 #===========================================================================#
 #
 #
@@ -885,11 +889,11 @@ function sepLengths_cumulRanges(L::AbstractVector{Int},
 
 	i>j && error("'j'=$j must be at least 'i'=$i")
 
-	range(1+sum(L[1:i-1]),step=1,length=sum(L[i:j]))
+	return range(1+sum(L[1:i-1]),step=1,length=sum(L[i:j]))
 
 end 
 
-
+#sepLengths_cumulRanges(L)[i:j+1]
 
 function sepLengths_cumulRanges(As::Any)::Vector{OrdinalRange{Int,Int}}
 
