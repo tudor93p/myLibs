@@ -143,6 +143,38 @@ function EqualDistributeBallsToBoxes(list::Any, boxes::Int)::Vector{Int}
 end 
 
 
+function PropDistributeBallsToBoxes(balls::Int, sizes::AbstractVector{<:Number})::Vector{Int} 
+
+	float_ns = balls*LA.normalize(sizes, 1) # proportional distribution 
+
+	int_ns = Int64.(round.(float_ns))		# rough distribution 
+
+
+	while sum(int_ns) > balls 
+
+		nonzero_inds = findall(>(0), int_ns)
+
+		isempty(nonzero_inds) && return int_ns 
+
+		jmax = argmax(int_ns[nonzero_inds] - float_ns[nonzero_inds])
+
+		int_ns[nonzero_inds[jmax]] -= 1 
+
+  end
+
+  while sum(int_ns) < balls 
+
+		int_ns[argmin(int_ns - float_ns)] += 1
+
+  end
+
+	return int_ns 
+
+end 
+
+
+
+
 function EqualDistributeBallsToBoxes_cumulRanges(args...)
 
 	d = EqualDistributeBallsToBoxes(args[1:2]...)
@@ -150,6 +182,9 @@ function EqualDistributeBallsToBoxes_cumulRanges(args...)
 	return sepLengths_cumulRanges(d, args[3:end]...)
 
 end 
+
+
+
 
 
 #===========================================================================#
@@ -1499,38 +1534,54 @@ end
 #
 #---------------------------------------------------------------------------#
 
+
+
+
+
+
 function PathConnect(points::AbstractMatrix, n::Int; 
 										 end_point::Bool=true, 
 										 bounds::AbstractVector=[0,1],
 										 fdist::Function=identity,
 										 dim::Int=1
-										 )::Tuple{Matrix,Vector}
+										 )::Tuple{Matrix,Vector{Float64}}
 
-  size(points,dim) == 1 && return points,[0]
-
-	dist = LA.normalize(eachslice(diff(points,dims=dim),dims=dim) .|> LA.norm ∘ fdist, 1) 
-
-  n -= end_point
+	nr_intervals = size(points, dim) - 1
+	
+	nr_intervals >= 0 || return points,[]
 
 
-  ns_ = max.(1,Int64.(ceil.(dist*n)))
+	dist = fdist.(LA.norm.(eachslice(diff(points,dims=dim),dims=dim)))
+	
+	xticks = Rescale(cumsum([0;dist]), bounds) 
 
-  while sum(ns_) > n 
-    ns_[argmax(ns_)] -= 1
-  end
 
-  while sum(ns_) < n
-    ns_[argmin(ns_)] += 1
+	if n <= nr_intervals + end_point 
+	
+		return selectdim(points, dim, 1:n), xticks[1:n]
+
+	end 
+	
+
+	ns = PropDistributeBallsToBoxes(n-end_point, dist)  
+
+
+	for i in findall(ns .== 0)[1:min(end,count(ns.>0))]
+
+		ns[argmax(ns)] -= 1 # "steal" one unit 
+
+		ns[i] += 1
+
   end
  
 
 	dim2 = [2,1][dim] 
 
-	path = mapreduce([vcat,hcat][dim], axes(points, dim)[1:end-1]) do i
+	path = mapreduce([vcat,hcat][dim], 1:nr_intervals) do i
 
-    ep = end_point && i==size(points,dim)-1
+    ep = end_point && i==nr_intervals
 
-		t = range(0, 1, length = ns_[i] + 1)[1:end-1+ep] |> VecAsMat(dim2)
+		t = range(0, 1, length = ns[i] + 1)[1:end-!ep] |> VecAsMat(dim2)
 	
 		return CombsOfVecs(selectdim(points, dim, i:i+1), 
 											 cat(1 .- t , t, dims=dim2), dim=dim)
@@ -1538,9 +1589,6 @@ function PathConnect(points::AbstractMatrix, n::Int;
 	end
 
 
-  xticks = bounds[1] .+ cumsum([0;dist]).*diff(bounds)
-#  xticks = cumsum([1:ns_])
- 
   return path, xticks
 
 end

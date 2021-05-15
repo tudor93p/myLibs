@@ -303,7 +303,7 @@ end
 
 
 function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
-											 get_leadcontacts=false, dim=1, kwargs...)
+											 get_leadcontacts=false, dim, kwargs...)
 
 															#	all atoms belong to the same layer 
 	if LayerAtom=="trivial" 
@@ -376,7 +376,7 @@ end
 #---------------------------------------------------------------------------#
 
 function PlotLayerAtoms_asGraph(Atoms, LayerAtom;
-																isBond, 
+																isBond, dim,
 																Leads=[], LeadContacts=nothing,
 																graph_fname="",
 																kwargs...) 
@@ -384,19 +384,19 @@ function PlotLayerAtoms_asGraph(Atoms, LayerAtom;
 	isempty(graph_fname) | isnothing(Atoms) && return 
 
 	LeadContacts = get_LeadContacts(Atoms; Leads=Leads, isBond=isBond,
-																	LeadContacts=LeadsContacts)
+																	LeadContacts=LeadsContacts,dim=dim)
 
-	colorrule(i) = 1<=i<=size(Atoms,1) ? LayerAtom[:LayerOfAtom](i) : 0
+	colorrule(i) = 1<=i<=size(Atoms,dim) ? LayerAtom[:LayerOfAtom](i) : 0
 
-	l_atoms = [vcat(L[:head]...) for L in Leads]
+	l_atoms = [cat(L[:head]...,dims=dim) for L in Leads]
 
 	a_label(i) = string(i, i in vcat(LeadContacts...) ? "*" : "") 
 
-	l_labels = [repeat([L[:label]],s) for (L,s) in zip(Leads,size.(l_atoms,1))]
+	l_labels = [repeat([L[:label]],s) for (L,s) in zip(Leads,size.(l_atoms,dim))]
 
-	labels = map(string, vcat(a_label.(axes(Atoms,1)), l_labels...))
+	labels = map(string, vcat(a_label.(axes(Atoms,dim)), l_labels...))
 
-	Graph.PlotAtoms_asGraph(vcat(Atoms,l_atoms...), isBond;
+	Graph.PlotAtoms_asGraph(cat(Atoms,l_atoms..., dims=dim), isBond;
 														colorrule = colorrule, 
 														nodelabel = i->labels[i],
 														fname = graph_fname)

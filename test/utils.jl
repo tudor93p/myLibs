@@ -30,6 +30,12 @@ p2 = Utils.PathConnect(transpose(P), 100,dim=2)[1]
 
 
 
+n = 123 
+v = [1,0,3,1]
+
+d =  Utils.PropDistributeBallsToBoxes(n, v)
+
+@show d sum(d) n Utils.LA.normalize(d,1)*sum(v)
 
 
 
