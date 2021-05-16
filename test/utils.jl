@@ -40,16 +40,17 @@ d =  Utils.PropDistributeBallsToBoxes(n, v)
 
 v = [1,1,3,1]
 
-@show Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v)[1]
-@show Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v)[2]
+println.(Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10))
+
+println() 
+
+println.(Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v))
 
 
 
 
-
-
-
-
+@show Utils.PathConnect([],100)
+@show Utils.PathConnect([],100,v)
 
 
 
