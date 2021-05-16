@@ -558,6 +558,22 @@ end
 
 
 
+function Write_PhysObs(filename::Function, storemethod::AbstractString,
+											 target_dict::AbstractDict, 
+											 target_obs=keys(target_dict);
+											 kwargs...)
+
+	Write!,outdict = Utils.Write_PhysObs(filename, storemethod)
+	
+	for obs in target_obs 
+		
+		Write!(obs, target_dict[obs], outdict)
+
+	end
+
+	return outdict
+
+end 
 
 
 
