@@ -6,7 +6,7 @@ using myLibs: Utils
 P = rand(10,7) 
 
 
-p1 = Utils.PathConnect(P, 100)[1]
+p1 = Utils.PathConnect(P, 100, dim=1)[1]
 
 
 @show size(p1)
@@ -37,6 +37,11 @@ d =  Utils.PropDistributeBallsToBoxes(n, v)
 
 @show d sum(d) n Utils.LA.normalize(d,1)*sum(v)
 
+
+v = [1,1,3,1]
+
+@show Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v)[1]
+@show Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v)[2]
 
 
 

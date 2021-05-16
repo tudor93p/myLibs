@@ -1536,23 +1536,46 @@ end
 
 
 
+function PathConnect(points::AbstractVector, n::Int;
+										 kwargs...)::Tuple{Vector,Vector{Float64}} 
+
+	PathConnect(points, n, LA.norm.(diff(points)); kwargs...)
+
+end 
+
+function PathConnect(points::AbstractVector, n::Int, dist::AbstractVector;
+										 kwargs...)::Tuple{Vector,Vector{Float64}}
+
+	reshape.(PathConnect(VecAsMat(points, 1), n, dist; dim=2, kwargs...), :)
+
+end 
 
 
+#										 fdist::Function=identity,
 
 function PathConnect(points::AbstractMatrix, n::Int; 
+										 dim::Int=1, kwargs...)::Tuple{Matrix,Vector{Float64}}
+
+	PathConnect(points, n,
+							LA.norm.(eachslice(diff(points,dims=dim),dims=dim));
+							dim=dim, kwargs...)
+
+end 
+
+
+
+
+function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 										 end_point::Bool=true, 
 										 bounds::AbstractVector=[0,1],
-										 fdist::Function=identity,
-										 dim::Int=1
-										 )::Tuple{Matrix,Vector{Float64}}
+										 dim=1,
+										 )
+
 
 	nr_intervals = size(points, dim) - 1
-	
-	nr_intervals >= 0 || return points,[]
 
+	nr_intervals >= 0 || return points, [] 
 
-	dist = fdist.(LA.norm.(eachslice(diff(points,dims=dim),dims=dim)))
-	
 	xticks = Rescale(cumsum([0;dist]), bounds) 
 
 
