@@ -9,6 +9,7 @@ import ..LA
 import Dates, Combinatorics
 
 
+using Distributed 
 
 using OrderedCollections:OrderedDict
 import Random
@@ -1571,11 +1572,12 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 										 dim=1,
 										 )
 
-
 	nr_intervals = size(points, dim) - 1
 
 
 	nr_intervals >= 0 || return points, [] 
+
+	nr_intervals==length(dist) || error("There should be $nr_intervals distance(s), you provided ",length(dist))
 
 	xticks = Rescale(cumsum([0;dist]), bounds) 
 
@@ -1616,6 +1618,90 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
   return path, xticks
 
 end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function RecursiveMerge_(;kwargs...)::Function  
+
+	(args...) -> RecursiveMerge_(args...; kwargs...)
+
+end 
+
+
+function RecursiveMerge_(x::Union{<:Number,<:AbstractVector{<:Number}}, 
+									y::Number;
+									kwargs...)::AbstractVector{<:Number}
+	
+	vcat(x, y)
+
+end 
+
+function RecursiveMerge_(u::AbstractVector{<:Number},
+									v::AbstractVector{<:Number}; 
+									dim=2, kwargs...)::AbstractMatrix{<:Number}
+	
+	cat(VecAsMat(u, dim), VecAsMat(v, dim), dims=dim)
+
+end 
+
+function RecursiveMerge_(u::AbstractMatrix{<:Number},
+									v::AbstractVector{<:Number}; 
+									dim=2, kwargs...)::AbstractMatrix{<:Number}
+	
+	cat(u, VecAsMat(v, dim), dims=dim)
+
+end 
+
+
+function RecursiveMerge_(A::T, B::T; kwargs...)::T where T<:AbstractDict 
+
+	RecursiveMerge(A, B; kwargs...)
+
+end 
+
+function RecursiveMerge(args...; kwargs...)::AbstractDict 
+
+	mergewith(RecursiveMerge_(;kwargs...), args...)
+
+end  
+
+function RecursiveMerge(; kwargs...)::Function 
+
+	(args...) -> RecursiveMerge(args...; kwargs...)
+
+end  
+
+
+function RecursiveMerge(arg::AbstractDict; kwargs...)::AbstractDict 
+
+	arg 
+
+end  
+
+function RecursiveMerge(arg::List; kwargs...)
+
+	isList(arg, AbstractDict) || error("Argument not understood")
+
+	return RecursiveMerge(arg...; kwargs...)
+
+end 
+
+	
+
+function RecursiveMerge(f::Function, iter::List; parallel=false, kwargs...)
+
+	RecursiveMerge((parallel ? pmap : map)(f, iter); kwargs...)
+
+end 
+
 
 
 

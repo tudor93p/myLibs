@@ -2305,7 +2305,7 @@ end
 
 function ReciprocalVectors(latt::Lattice)::Matrix 
 
-	LattVec(inv(latt.LattVec[LattDims(latt, :full), :]), LattDims(latt))
+	LattVec(2pi*inv(latt.LattVec[LattDims(latt, :full), :]), LattDims(latt))
 
 end 
 
