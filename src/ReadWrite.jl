@@ -530,7 +530,7 @@ function Write_PhysObs(filename::Function, storemethod::AbstractString;
 	
 		if storemethod=="jld"
 
-			Write!(obs, get_data(vals), outdict)
+			Write!(obs, vals, outdict)
 
 		elseif storemethod=="dat" 
 			
