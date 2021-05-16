@@ -277,6 +277,8 @@ function tolNF(tol::Real)
 end 
 
 
+
+
 function Unique(V::AbstractArray{T};
 								dim=1,
 								tol=1e-8, inds=nothing,
@@ -336,6 +338,15 @@ function Unique(V::AbstractArray{T};
 
 	return V[first.(I)], I
 
+
+end 
+
+Unique(V::Tuple; kwargs...) = Unique(collect(V); kwargs...)
+
+
+function EnumUnique(V; kwargs...)
+	
+	zip(Unique(V; kwargs..., inds=:all)...)
 
 end 
 

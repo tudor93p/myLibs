@@ -4,7 +4,7 @@ module ReadWrite
 import ..DlmF
 import FileIO#,JLD
 
-import ..Utils
+import ..Utils, ..ArrayOps
 
 
 #===========================================================================#
@@ -345,117 +345,132 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function flattenDictEntries(D::AbstractDict; onlykeys=false, 
-																							onlyvals=nothing,
-																							)
+function flattenDict_AssertType(D::AbstractDict{K,V})::Int where {K,V}
+
+	for (i,T) in enumerate([Number, AbstractArray])#, AbstractDict])
+
+		(V<:T || isa(first(D).second,T)) && return i
+
+	end 
+
+	error()
+
+	return 0
+
+end 
+
+
+function flattenDict_Iter(D::AbstractDict)
+
+	T = flattenDict_AssertType(D) 
+
+	T==1 && return (nothing,nothing,D,nothing)
+
+	newkey(k,CIs...) = join([k;map(I->join(Tuple(I),"-"), CIs)...], "_")  
+
+	T==2 && return ((k,I,V[I],newkey(k,I)) for (k,V) in pairs(D) 
+																					for I in CartesianIndices(V))
+
+	error()
+
+
+end 
+
+
+function flattenDict_Keys(D::AbstractDict)::Vector{<:Any}
 
 	any(occursin.("_",keys(D))) && error("The keys already contain the character '_'. The result will not be read correctly.")
 
-	T = typeof( first(D).second )
+	T = flattenDict_AssertType(D) 
+
+	T==1 && return collect(keys(D))
+
+	T==2 && return [newk for (_,_,_,newk) in flattenDict_Iter(D)]
+
+end 
 
 
-	onlykeys && !isnothing(onlyvals) && error("The kwargs 'onlykeys' and 'onlyvals' are mutually exclusive")
+function flattenDict(D::AbstractDict)::AbstractDict{<:Any, <:Number}
 
-#	getkeys(D) = [D[k] for k in Keys]
+	T = flattenDict_AssertType(D)  
 
-	if T<:Number 
-		
-		onlykeys && return collect(keys(D))
-		
-		isnothing(onlyvals) && return D
-
-		onlyvals isa Bool && return collect(values(D))
-
-		onlyvals isa AbstractString && return D[onlyvals]
-
-		isList(onlyvals, AbstractString) && return [D[k] for k in onlyvals]
-
-		error("'onlyvals=$onlyvals' not supported")
-
-	end 
+	T==1 && return D 
 	
-	T<:AbstractArray || error("$T not supported")
+	T==2 && return Dict(k=>v for (_,_,v,k) in flattenDict_Iter(D))
 
-	key(k,I) = string(k, "_", join(Tuple(I),"-")) 
+end 
 
-	iter = ((k,I,V[I]) for (k,V) in pairs(D) for I in CartesianIndices(V))
+function flattenDict_Vals(D::AbstractDict, vals::Bool=true)::Vector{<:Number}
+
+	vals || error()
+
+	T = flattenDict_AssertType(D)  
+
+	T==1 && return collect(values(D))
+
+	T==2 && return [v for (_,_,v,_) in flattenDict_Iter(D)]
+
+	error()
+
+end 
 
 
-	onlykeys && return [key(k,I) for (k,I,v) in iter]
+function flattenDict_Vals(D::AbstractDict, K::AbstractString)::Number
 
-	onlyvals isa Bool && return [v for (k,I,v) in iter]
+	for (_,_,v,k) in flattenDict_Iter(D) 
 
-	if onlyvals isa AbstractString 
-	
-		for (k,I,v) in iter 
-
-			key(k,I)==onlyvals && return v
-
-		end
+		k==K && return v
 
 	end
 
+	error()
+
+end 
 
 
-	out = Dict(key(k,I)=>v for (k,I,v) in iter)
+function flattenDict_Vals(D::AbstractDict, Ks::Utils.List)::Vector{<:Number}
 
-	isnothing(onlyvals) && return out
+	flattenDict_AssertType(D)  
 
-	isList(onlyvals, AbstractString) && return [out[k] for k in onlyvals]
+	newD = flattenDict(D) 
 
-
-	error("'onlyvals=$onlyvals' not supported")
-
-
+	return [newD[k] for k in Ks]
+	
 end								
 
 
 
-#function restoreDictEntries(d::AbstractDict)
-#
-#	!occursin("-",first(keys(d))) && return d 
-#
-#	K = collect(keys(d))
-#
-#	sK = hcat(split.(K,"-")...)
-#
-#	return Dict(map(unique(sK[1,:])) do label 
-#
-#		select = label.==sK[1,:]
-#		
-#		return label => Array_from_ListIndsVals(
-#												transpose(parse.(Int, sK[2:end, select])),
-#												[d[k] for k in K[select]])
-#	end)
-#
-#end 
 
-function restoreDictEntries(matrix::AbstractMatrix, legend)
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function restoreDictEntries(matrix::AbstractMatrix, legend)::Dict{String, <:Any}
 											
 	K = string.(legend[:])
 
-	!all(occursin.("_",K)) && return Dict(zip(K,eachcol(matrix)))
-
-	sK = hcat(map(legend) do L
-					
-						left,right = split(L,"_")
-
-						return vcat(left,split(right,"-"))
-
-					 end...)
-
-#	column: [label, inds...]
+	!all(occursin.("_",K)) && return Dict(zip(K,matrix[:]))
 
 
-	return Dict(map(unique(sK[1,:])) do label 
+	all_labels, all_inds = Utils.zipmap(legend) do L 
 
-		select = label.==sK[1,:] 	# all elements corresp to label
-		
-		return label => Array_from_ListIndsVals(
-												transpose(parse.(Int, sK[2:end, select])),
-												eachcol(matrix[:,select])
-																						)
+		left,right = split(L,"_")
+
+		return (left, parse.(Int, split(right,"-")))
+	
+	end 
+
+
+	return Dict(map(Utils.EnumUnique(all_labels)) do (label, loc)
+
+		Pair(string(label),
+				 ArrayOps.Array_from_ListIndsVals(all_inds[loc], matrix[loc]))
 	end)
+
 
 end 
 
@@ -472,65 +487,29 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Write_PhysObs(filename, storemethod; tol=1e-7)
+function Write_PhysObs(filename::Function, storemethod::AbstractString;
+											 kwargs...)
 
-	function assert_type(v)
+	get_legend(vals::AbstractDict)::Vector = sort(flattenDict_Keys(vals), by=string)
+	get_legend(vals)::Nothing = nothing	 
 
-		isa(v, Number) && return 1 
+
+	get_matrix(vals::AbstractVecOrMat, a...)::AbstractVecOrMat{<:Number} = vals
+
+	get_matrix(vals::Number, a...)::Vector{<:Number} = [vals] 
+
+	function get_matrix(vals::AbstractDict, legend::AbstractVector
+											)::Vector{<:Number} 
 		
-		isa(v, AbstractDict) && return 3 
-
-		isList(v, Number) && return 2 
-
-
-		error(typeof(v)," not supported")
+		flattenDict_Vals(vals, legend)
 
 	end 
 
 
-	concat(f,vals) = vcat([reshape(f(v),1,:) for v in vals]...)
-# above: preallocate and avoid vcat ?
-
-	function get_legend(vals)
-
-		assert_type(vals[1]) in [1,2] && return nothing
-		
-		return sort(flattenDictEntries(vals[1], onlykeys=true))
-
-	end 
-
-	function get_matrix(vals)
-
-		assert_type(vals[1]) in [1,2] && return concat(vcat, vals)
-
-		return concat(v->flattenDictEntries(v; onlyvals=get_legend(vals)), vals)
-
-
-	end 
-
-	function get_data(vals)
-
-		assert_type(vals[1]) in [1,2] && return concat(vcat, vals)
-
-		K = collect(keys(vals[1]))
-
-		(T,S,I0) = vals[1][K[1]] |> a -> (eltype(a), size(a), fill(:, ndims(a)))
-
-		data = Dict(k=>zeros(T, (length(vals), S...)) for k in K) 
-
-		for (i,val) in enumerate(vals), (k,v) in pairs(val) 
-
-			data[k][i, I0...] = v
-
-		end
-
-		return data
-
-	end
 
 
 
-	Write!, = Write_NamesVals(filename, storemethod; tol=tol)
+	Write!, = Write_NamesVals(filename, storemethod; kwargs...)
 
 	legend_file = LegendFile_fromName(storemethod)
 
@@ -551,17 +530,20 @@ function Write_PhysObs(filename, storemethod; tol=1e-7)
 	
 		if storemethod=="jld"
 
-			#return 
 			Write!(obs, get_data(vals), outdict)
 
-		elseif storemethod=="dat"
+		elseif storemethod=="dat" 
+			
+			legend = get_legend(vals) 
 
-			Write!(obs, get_matrix(vals)) 
+			Write!(legend_file(obs), legend, outdict)
+
+
+			Write!(obs, get_matrix(vals, legend)) 
 								# ! careful ! this object is written, not returned 
 
-			Write!(legend_file(obs), get_legend(vals), outdict)
-
-			outdict[obs] = get_data(vals)
+			outdict[obs] = vals 
+								# the original data 
 
 		end
 
@@ -573,6 +555,9 @@ function Write_PhysObs(filename, storemethod; tol=1e-7)
 	return new_item!,Dict()
 
 end
+
+
+
 
 
 
@@ -604,7 +589,7 @@ function Read_PhysObs(filename, Names, storemethod)
 
 			obs = obsf(legend)
 
-			!haskey(out, obs) && error("Legend exists, but no obs?")
+			haskey(out, obs) || error("Legend exists, but no obs?")
 
 			out[obs] = restoreDictEntries(pop!(out, obs), pop!(out, legend))
 	

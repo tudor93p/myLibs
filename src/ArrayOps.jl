@@ -371,22 +371,10 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Array_from_ListIndsVals(inds::AbstractVector, vals)::Array
-
-	Array_from_ListIndsVals(reshape(inds,:,1), vals)
-
-end 
-
-function Array_from_ListIndsVals(inds::AbstractMatrix, vals::Any, shape...)::Array  
-
-	Utils.isList(vals) || error("Wrong type")
-
-	return Array_from_ListIndsVals(inds, collect(vals), shape...)
-
-end 
 
 function Array_from_ListIndsVals(inds::AbstractMatrix, 
-																 vals::AbstractArray, shape...)::Array
+																 vals::AbstractVector, 
+																 shape::AbstractVector)::Array
 
 	v0 = first(vals)
 
@@ -405,11 +393,43 @@ function Array_from_ListIndsVals(inds::AbstractMatrix,
 end
 
 
-function Array_from_ListIndsVals(inds::AbstractMatrix, vals)::Array
 
-	Array_from_ListIndsVals(inds, vals, maximum.(eachcol(inds))...)
+function Array_from_ListIndsVals(inds::Tuple, args...)::Array
+
+	Array_from_ListIndsVals(collect(inds), args...)
+
+end
+
+function Array_from_ListIndsVals(inds::AbstractVector{<:Number}, 
+																 args...)::Array
+
+	Array_from_ListIndsVals(Utils.VecAsMat(inds, 2), args...) # column vector 
 
 end 
+
+
+function Array_from_ListIndsVals(inds::AbstractVector{<:AbstractVector{<:Number}}, args...)::Array
+
+	Array_from_ListIndsVals(vcat((Utils.VecAsMat(i, 1) for i in inds)...),
+													args...)
+
+end 
+
+
+
+function Array_from_ListIndsVals(inds::AbstractMatrix, vals)::Array
+
+	Array_from_ListIndsVals(inds, vals, maximum.(eachcol(inds)))
+
+end 
+
+
+#function Array_from_ListIndsVals(inds::AbstractMatrix, vals::Utils.List, args...)::Array  
+#
+#	Array_from_ListIndsVals(inds, collect(vals), args...)
+#
+#end 
+
 
 
 #===========================================================================#
