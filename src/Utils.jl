@@ -1636,42 +1636,47 @@ function RecursiveMerge_(;kwargs...)::Function
 end 
 
 
-function RecursiveMerge_(x::Union{<:Number,<:AbstractVector{<:Number}}, 
-									y::Number;
-									kwargs...)::AbstractVector{<:Number}
-	
-	vcat(x, y)
+function RecursiveMerge_(x::Union{<:Number,<:AbstractVector{<:Number}},
+												 y::Number;
+												 kwargs...)::AbstractVector{<:Number}
+
+	vcat(x,y)
 
 end 
 
 function RecursiveMerge_(u::AbstractVector{<:Number},
-									v::AbstractVector{<:Number}; 
-									dim=2, kwargs...)::AbstractMatrix{<:Number}
+												 v::AbstractVector{<:Number}; 
+												 dim=2, kwargs...)::AbstractMatrix{<:Number}
 	
 	cat(VecAsMat(u, dim), VecAsMat(v, dim), dims=dim)
 
 end 
 
 function RecursiveMerge_(u::AbstractMatrix{<:Number},
-									v::AbstractVector{<:Number}; 
-									dim=2, kwargs...)::AbstractMatrix{<:Number}
+												 v::AbstractVector{<:Number}; 
+												 dim=2, kwargs...)::AbstractMatrix{<:Number}
 	
 	cat(u, VecAsMat(v, dim), dims=dim)
 
 end 
 
 
-function RecursiveMerge_(A::T, B::T; kwargs...)::T where T<:AbstractDict 
-
+function RecursiveMerge_(A::AbstractDict{Ka,Va}, B::AbstractDict{Kb,Vb}; 
+												 kwargs...)::AbstractDict{promote_type(Ka,Kb), Any} where {Ka,Kb,Va,Vb}
+	
 	RecursiveMerge(A, B; kwargs...)
 
 end 
 
-function RecursiveMerge(args...; kwargs...)::AbstractDict 
 
-	mergewith(RecursiveMerge_(;kwargs...), args...)
+function RecursiveMerge(arg1::AbstractDict, args...; kwargs...)::AbstractDict{<:Any, Any} 
+
+	# mergewith does not preserve OrderedDict! It turns it into Dict 
+	
+	merge(RecursiveMerge_(;kwargs...), empty(arg1, Any), arg1, args...)
 
 end  
+
 
 function RecursiveMerge(; kwargs...)::Function 
 
@@ -1680,13 +1685,13 @@ function RecursiveMerge(; kwargs...)::Function
 end  
 
 
-function RecursiveMerge(arg::AbstractDict; kwargs...)::AbstractDict 
+function RecursiveMerge(arg::AbstractDict{K,V}; kwargs...)::AbstractDict{K,V} where {K,V}
 
 	arg 
 
 end  
 
-function RecursiveMerge(arg::List; kwargs...)
+function RecursiveMerge(arg::List; kwargs...)::AbstractDict{<:Any, Any}
 
 	isList(arg, AbstractDict) || error("Argument not understood")
 
@@ -1696,7 +1701,7 @@ end
 
 	
 
-function RecursiveMerge(f::Function, iter::List; parallel=false, kwargs...)
+function RecursiveMerge(f::Function, iter::List; parallel=false, kwargs...)::AbstractDict{<:Any, Any}
 
 	RecursiveMerge((parallel ? pmap : map)(f, iter); kwargs...)
 

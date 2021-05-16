@@ -54,12 +54,28 @@ println.(Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v))
 
 
 
+println() 
+
+d = Utils.RecursiveMerge(1:10) do i 
+
+		Dict(	
+			 "x"=>rand()+i,
+			 "y"=>rand(3).+i,
+			 "z"=>Dict("z1"=>rand(),"z2"=>rand(2)), 	
+			 "t"=>OrderedDict("t1"=>Dict(1=>rand()), "t2"=>3)
+			 )
+
+end 
 
 
-
-
-
-
+@show d["x"] |> size  
+println()
+@show d["y"] |> size 
+println()
+@show d["z"]["z1"] |> size 
+@show d["z"]["z2"] |> size 
+@show d["t"] |> typeof
+@show d["t"]["t1"] |> typeof
 
 
 
