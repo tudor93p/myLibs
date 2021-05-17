@@ -413,6 +413,11 @@ end
 #
 #---------------------------------------------------------------------------#
 
+#LayerAtom::AbstractDict, 
+#														Slicer::Function,
+#														VirtLeads::AbstractDict=Dict(),
+#														LeadRels::AbstractDict=Dict(); 
+
 function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
 
 	LayerAtom, LeadContacts = LayerAtomRels(args...;
@@ -427,18 +432,21 @@ function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
 	if isnothing(Nr_Orbitals) || (
 													!isempty(Leads) && !haskey(Leads[1],:intracell)
 																																			)
-		return LayerAtom, LeadRels, VirtLeads
+		return LayerAtom, LeadRels, VirtLeads 
 
 	end
 	
 	Slicer = LeadLayerSlicer(;LeadRels..., LayerAtom..., VirtLeads...,
 																				 				Nr_Orbitals=Nr_Orbitals)
 	
-	return LayerAtom, delete!(LeadRels,:LeadSlicer), VirtLeads, Slicer
+#	return LayerAtom, delete!(LeadRels,:LeadSlicer), VirtLeads, Slicer 
+
+	return LayerAtom, Slicer, delete!(LeadRels,:LeadSlicer), VirtLeads 
+
+
+
 
 end
-
-
 
 
 
