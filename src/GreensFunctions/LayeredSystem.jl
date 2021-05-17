@@ -413,10 +413,6 @@ end
 #
 #---------------------------------------------------------------------------#
 
-#LayerAtom::AbstractDict, 
-#														Slicer::Function,
-#														VirtLeads::AbstractDict=Dict(),
-#														LeadRels::AbstractDict=Dict(); 
 
 function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
 
@@ -642,7 +638,11 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Distribute_Leads(Leads, LeadContacts; NrLayers, LayerOfAtom, AtomsOfLayer, IndsAtomsOfLayer, Nr_Orbitals=nothing, kwargs...)
+function Distribute_Leads(Leads, LeadContacts::AbstractVector{<:Int}; 
+													NrLayers::Int, LayerOfAtom::Function, 
+													AtomsOfLayer::Function, 
+													IndsAtomsOfLayer::Function, 
+													Nr_Orbitals=nothing, kwargs...)
 
 	isempty(Leads) && return Dict(),Dict()
 
@@ -702,14 +702,15 @@ function Distribute_Leads(Leads, LeadContacts; NrLayers, LayerOfAtom, AtomsOfLay
 
 	length(VirtLeads) > length(LeadSizes) && return (
 																									 
-		VirtLeads, Dict(	:SideOfLead => SideOfLead, 
+		 VirtLeads, Dict{Symbol,Function}(	
+											:SideOfLead => SideOfLead, 
 											:LeadsOfSide => LeadsOfSide,
-											:LeadSlicer => nothing,
+									#		:LeadSlicer => nothing,
 
 										))
 
 
-	nr_at = sum(length.(IndsAtomsOfLayer.(1:NrLayers)))
+	nr_at = sum(length∘IndsAtomsOfLayer, 1:NrLayers)
 
 	AtomsInLead,LeadOfAtom = Utils.FindPartners(LeadAtomOrder(nr_at; VirtLeads...))
 
@@ -758,7 +759,8 @@ function Distribute_Leads(Leads, LeadContacts; NrLayers, LayerOfAtom, AtomsOfLay
 	end
 
 	
-	return VirtLeads, Dict(	:SideOfLead => SideOfLead, 
+	return VirtLeads, Dict{Symbol,Function}(
+													:SideOfLead => SideOfLead, 
 													:LeadsOfSide => LeadsOfSide,
 													:LeadSlicer => slicer
 												)
