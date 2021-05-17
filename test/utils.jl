@@ -83,7 +83,7 @@ println()
 
 FSM = "dat"
 
-fname(x) = string("test1/",x)
+fname(x) = string("test/savefile/",x)
 
 Write!,outdict = ReadWrite.Write_PhysObs(fname, FSM)
 
@@ -111,6 +111,10 @@ end
 
 
 
+
+@show Utils.IdentifySectors([1,1,1,3,4,5,5,1]) 
+
+@show Utils.IdentifyRanges([1,1,2,3,4,5,5,1])
 
 
 

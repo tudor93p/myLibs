@@ -475,24 +475,29 @@ end
 
 #[0,0,0,0,0,0,3,1,1,1] => [1:6,7:7,8:10]
 
+function IdentifySectors(f::Function, iter::AbstractVector, 
+												 args...; kwargs...)::Vector{UnitRange}
+
+	IdentifySectors(map(f, iter), args...; kwargs...)
+
+end 
+
 function IdentifySectors(list::AbstractVector, 
-												 sectors::Vector{UnitRange}=[], 
+												 sectors::Vector{UnitRange{Int}}=UnitRange{Int}[], 
 												 start::Int=0; 
-												 tol=1e-8)::Vector{UnitRange}
+												 tol=1e-8)::Vector{UnitRange{Int}} 
+
+	update(j) = vcat(sectors, UnitRange{Int}[1+start:j+start])
 
 	for i in axes(list,1)
 
-		if isapprox(list[i],list[1],atol=tol)		# within the sector
+		if isapprox(list[i], list[1], atol=tol)		# still within the sector
 		
-			i==length(list) && return vcat(sectors,[1+start:i+start])
-																			# sector ended abruptly
+			i==length(list) && return update(i) # sector ended abruptly
 
-		else  # sector ended at i-1
+		else  # sector ended already at i-1
 
-			return IdentifySectors(list[i:end],
-														 vcat(sectors,[1+start:i-1+start]),
-														 start+i-1;
-														 tol=tol)
+			return IdentifySectors(list[i:end], update(i-1), start+i-1; tol=tol)
 
 		end
 	end
@@ -509,7 +514,8 @@ end
 #---------------------------------------------------------------------------#
 
 
-function IdentifyRanges(list)
+function IdentifyRanges(list::AbstractVector{<:Int}
+												)::Vector{Union{Int,UnitRange{Int}}}
 
 	D2 = (diff(diff(list)).==0)
 
@@ -557,9 +563,9 @@ function IdentifyRanges(list)
 #
 #	end
 
-	sector(i) = findfirst(s->i in s,sectors) 
+	sector(i) = Assign_Value(findfirst(s->in(i,s),sectors),0)
 
-	vcat(map(IdentifySectors(map(sector,axes(list,1)))) do S
+	vcat(map(IdentifySectors(sector, axes(list,1))) do S
 
 		!in(S,sectors) && return list[S]
 
