@@ -638,13 +638,15 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Distribute_Leads(Leads, LeadContacts::AbstractVector{<:Int}; 
-													NrLayers::Int, LayerOfAtom::Function, 
-													AtomsOfLayer::Function, 
-													IndsAtomsOfLayer::Function, 
-													Nr_Orbitals=nothing, kwargs...)
+function Distribute_Leads(
+							Leads, 
+							LeadContacts::AbstractVector{<:AbstractVector{<:Int}}; 
+							NrLayers::Int, LayerOfAtom::Function, 
+							AtomsOfLayer::Function, 
+							IndsAtomsOfLayer::Function, 
+							Nr_Orbitals=nothing, kwargs...)
 
-	isempty(Leads) && return Dict(),Dict()
+	isempty(Leads) && return Dict(),Dict{Symbol,Function}()
 
 
 	lead_distrib = Dict(("LeftLead",1)=>[])
@@ -700,9 +702,9 @@ function Distribute_Leads(Leads, LeadContacts::AbstractVector{<:Int};
 
 	LeadsOfSide(s) = LeadsOfSide_(string(s))
 
-	length(VirtLeads) > length(LeadSizes) && return (
-																									 
-		 VirtLeads, Dict{Symbol,Function}(	
+	length(VirtLeads) > length(LeadSizes) && return (VirtLeads, 
+								
+								Dict{Symbol,Function}(	
 											:SideOfLead => SideOfLead, 
 											:LeadsOfSide => LeadsOfSide,
 									#		:LeadSlicer => nothing,
