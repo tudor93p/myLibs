@@ -116,7 +116,9 @@ end
 
 @show Utils.IdentifyRanges([1,1,2,3,4,5,5,1])
 
+@show Utils.IdentifyRanges([1,1,3,5,7,5,5,1,2,3])
 
+@show Utils.IdentifyRanges(Utils.Random_Items(1:10))
 
 
 

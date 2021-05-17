@@ -515,7 +515,7 @@ end
 
 
 function IdentifyRanges(list::AbstractVector{<:Int}
-												)::Vector{Union{Int,UnitRange{Int}}}
+												)::Vector{Union{Int,OrdinalRange{Int,Int}}}
 
 	D2 = (diff(diff(list)).==0)
 
@@ -565,7 +565,7 @@ function IdentifyRanges(list::AbstractVector{<:Int}
 
 	sector(i) = Assign_Value(findfirst(s->in(i,s),sectors),0)
 
-	vcat(map(IdentifySectors(sector, axes(list,1))) do S
+	return flatmap(IdentifySectors(sector, axes(list,1))) do S
 
 		!in(S,sectors) && return list[S]
 
@@ -573,9 +573,11 @@ function IdentifyRanges(list::AbstractVector{<:Int}
 		
 		step = list[a+1]-list[a]
 
-		return [step==1 ? (list[a]:list[b]) : (list[a]:step:list[b])]
+		step==1 && return [UnitRange(list[a], list[b])]
+		
+		return [StepRange(list[a], step, list[b])]
 
-	end...)
+	end
 
 
 end
