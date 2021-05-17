@@ -640,7 +640,7 @@ end
 
 function Distribute_Leads(
 							Leads, 
-							LeadContacts::AbstractVector{<:AbstractVector{<:Int}}; 
+							LeadContacts;#::AbstractVector{<:AbstractVector{<:Int}}; 
 							NrLayers::Int, LayerOfAtom::Function, 
 							AtomsOfLayer::Function, 
 							IndsAtomsOfLayer::Function, 
