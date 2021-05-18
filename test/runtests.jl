@@ -7,7 +7,7 @@ using Test
 #
 #include("tbmodel.jl")
 #
-include("utils.jl")
+#include("utils.jl")
 #
 
 #include("bandstr.jl") 
@@ -17,4 +17,4 @@ include("utils.jl")
 
 #include("layeredsystem.jl")
 
-
+include("param.jl")

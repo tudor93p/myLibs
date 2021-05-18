@@ -1,83 +1,95 @@
 module Parameters
 #############################################################################
 
+import ...OrderedDict, ...Utils 
+
+
+const ODict = Union{<:OrderedDict, <:NamedTuple}
+const UDict = AbstractDict
+const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
 
 #struct ParamFlow
 #
 #	allparams::Function
+#
+#	usedkeys::Union{<:Nothing, <:Vector{<:Symbol}, <:Function}
 #	
 #	params_digits::Function 
 #
-#	get_fname::Function 
+#	path::String  
 #
-#
-#	function ParamFlow(M::Module, input_dict::AbstractDict)
-#
-#					#					allparams::Function=nothing,
-#					#					params_digits::Function=nothing,
-#					#					get_fname::Function=nothing,
-#					#					)
-#		# typical constructor 
-#	
-#		allparams() = Operations.typical_allparams(M, input_dict[:allparams])
-#															#	M.usedkeys  required
-#
-#		for i=1:M.NrParamSets-1
-#
-#			allparams(args::Vararg{Any,i}) = allparams()
-#
-#		end 
-#
-#		return ParamFlow(M, input_dict, allparams)
-#
-#	end 
-#
-#
-#
-#	function ParamFlow(M::Module, 
-#														input_dict::AbstractDict, 
-#														allparams::Function)
-#
-#		params_digits = FileNames.typical_params_digits(M, input_dict[:digits])
-#															#	M.usedkeys  required
-#
-#		return ParamFlow(M, allparams, params_digits)
-#
-#	end 
-#
-#
-#
-#
-#	function ParamFlow(M::Module,
-#														allparams::Function,
-#														params_digits::Function)
-#
-#		get_fname = FileNames.fname(M, 2, params_digits) 
-#							#  M.NrParamSets required
-#
-#		return new(allparams, params_digits, get_fname)
-#
-#	end 
-#
-#
-#
-#	function ParamFlow(allparams::Function,
-#														params_digits::Function,
-#														get_fname::Function)
-#
-#		new(allparams, params_digits, get_fname)
-#
-#	end 
+#	get_fname::Function
 #
 #end 
 #
 #
 #
+#function ParamFlow(M::Module, input_dict::AbstractDict)
+#
+#				#					allparams::Function=nothing,
+#				#					params_digits::Function=nothing,
+#				#					get_fname::Function=nothing,
+#				#					)
+#	# typical constructor 
 
-
-
-
-
+#3	function allparams(args::Vararg{AbstractDict,N}) where N 
+#3
+#3		N < NrParamSets || error() 
+#3
+#3		return Operations.typical_allparams(M, input_dict[:allparams])
+#3														#	M.usedkeys  required
+#3
+#3	end 
+#3#
+#	return ParamFlow(M, input_dict, allparams)
+#
+#end 
+#
+#
+#
+#function ParamFlow(M::Module, 
+#													input_dict::AbstractDict, 
+#													allparams::Function)
+#
+#
+#	params_digits = FileNames.typical_params_digits(M, input_dict[:digits])
+#														#	M.usedkeys  required
+#
+#	return ParamFlow(M, allparams, params_digits)
+#
+#end 
+#
+#
+#
+#
+#function ParamFlow(M::Module,
+#													allparams::Function,
+#													params_digits::Function)
+#
+#
+#	get_fname = identity#FileNames.fname(M, 2, params_digits) 
+#						#  M.NrParamSets required
+#
+#	return ParamFlow(allparams, params_digits, get_fname)
+#
+#end 
+##
+##
+##
+##	function ParamFlow(allparams::Function,
+##														params_digits::Function,
+##														get_fname::Function)
+##
+##		new(allparams, params_digits, get_fname)
+##
+##	end 
+#
+#
+#
+#
+#
+#
+#
 
 
 
@@ -90,7 +102,7 @@ module Parameters
 module Operations
 #############################################################################
 
-import ...OrderedDict, ...Utils
+import ..UODict, ...Utils
 
 import Random 
 
@@ -103,13 +115,12 @@ import Random
 #---------------------------------------------------------------------------#
 
 
-function combine_functions_addrem(args...)
+function combine_functions_addrem(args...)::Function
 
 	good_fs = Utils.flat(args...; keep=x->isa(x,Function))
 
-	function combined_addrem(l::Int, p::T) where T
-		
-		T<:Union{AbstractDict,NamedTuple} || return combined_addrem.(l,p)
+
+	function combined_addrem(l::Int, p::T)::T where T<:UODict
 
 		p1 = copy(p)
 
@@ -123,16 +134,33 @@ function combine_functions_addrem(args...)
 
 	end
 
+	function combined_addrem(l::Int, p::Utils.List)::Vector
+		
+		combined_addrem.(l,p)
+
+	end 
+
+
 	return combined_addrem
 
 end 
 
 
-function combine_functions_cond(args...)
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function combine_functions_cond(args...)::Function
 
 	good_fs = Utils.flat(args...; keep=x->isa(x,Function))
 
-	return function combined_cond(P, l::Int)
+	return function combined_cond(P::T, l::Int)::Bool where T<:UODict
 
 		for cond in good_fs
 			
@@ -222,9 +250,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function convertKey_toPlot(p,k;separator="__")
+function convertKey_toPlot(p::UODict, k; separator="__")::String 
 
-	:Label in keys(p) && return join([p[:Label], k], separator) 
+	haskey(p,:Label) && return join([p[:Label], k], separator) 
 
 	return string(k)
 
@@ -409,52 +437,63 @@ end
 #
 #---------------------------------------------------------------------------#
 
+#function typical_allparams(M::Module, args...)
+#
+#	typical_allparams(M.usedkeys, args...)
+#
+#end
 
-function typical_allparams(usedkeys, allp)
+function typical_allparams(usedkeys::Function, args...)::Dict{Symbol,Any}
 
-	filter(p->p.first in usedkeys, OrderedDict{Symbol,Any}(pairs(allp)))
-
-end
-
-
-
-#function merge_allparams(Ms::Vararg{Module,N}; args=[], kwargs...) where N
-function merge_allparams(inputs...; args=[], kwargs...)
-
-
-	out = map(inputs) do i
-	
-						typeof(i)<:Module && return i.allparams(args...; kwargs...)
-				
-						typeof(i)<:AbstractDict && return i
-																# already the result of typical_allparams
-			
-						return typical_allparams(i...)
-				
-					end
-					
-#	Utils.isList(out,AbstractDict)
-
-	eltype(out) <: Union{NamedTuple,AbstractDict} && return merge(out...)
-
-	if Utils.isList(eltype(out),Union{NamedTuple,AbstractDict})
-
-		return [merge(o...) for o in zip(out...)]
-
-	end
-
-	println()
-
-	println(out)
-
-
-	error("Element type not undestood")
+	typical_allparams(usedkeys(), args...)
 
 end
 
 
 
+function typical_allparams(usedkeys::AbstractVector{<:Symbol},
+													 allp::UODict)::Dict{Symbol,Any}
 
+	Dict(Symbol(k)=>allp[k] for k in intersect(keys(allp),usedkeys))
+
+end
+
+
+
+##function merge_allparams(Ms::Vararg{Module,N}; args=[], kwargs...) where N
+#function merge_allparams(inputs...; args=[], kwargs...)
+#
+#
+#	out = map(inputs) do i
+#	
+#						typeof(i)<:Module && return i.allparams(args...; kwargs...)
+#				
+#						typeof(i)<:AbstractDict && return i
+#																# already the result of typical_allparams
+#			
+#						return typical_allparams(i...)
+#				
+#					end
+#					
+##	Utils.isList(out,AbstractDict)
+#
+#	eltype(out) <: Union{NamedTuple,AbstractDict} && return merge(out...)
+#
+#	if Utils.isList(eltype(out),Union{NamedTuple,AbstractDict})
+#
+#		return [merge(o...) for o in zip(out...)]
+#
+#	end
+#
+#
+#
+#	error("Element type not undestood")
+#
+#end
+#
+#
+#
+#
 
 #===========================================================================#
 #
@@ -462,7 +501,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function replace_parameter_fs(getP, Keys, level=1)
+function replace_parameter_fs(getP, Keys, level=1)::Tuple{Function,Function}
 
 	isa(level,Int) || Utils.isList(level, Int) || error()
 
@@ -496,15 +535,69 @@ end
 
 
 #############################################################################
-module FileNames
+#module FileNames
 #############################################################################
 
-import ...Utils
 
-const ROOT = "Data"
+struct mystruct 
+
+	usedkeys::Union{<:Nothing, <:Vector{<:Symbol}, <:Function}
+	
+	params_digits::Function 
+
+	path::String  
+
+	get_fname::Function
 
 
-using OrderedCollections: OrderedDict 
+	function mystruct(usedkeys, params_digits::Function, path::String)::mystruct
+
+		function get_fname(args::Vararg{<:UODict})::Function
+			
+			fname(tostr([path, tostr(params_digits, args...)]))
+
+		end  
+
+		return new(usedkeys, params_digits, path, get_fname)
+
+	end 
+
+
+	function mystruct(usedkeys, params_digits::Function, path)::mystruct
+
+		mystruct(usedkeys, params_digits, prefix(path))
+
+	end 
+
+	function mystruct(usedkeys, args_params_digits::Tuple, path)::mystruct
+
+		mystruct(usedkeys, typical_params_digits(args_params_digits...), path)
+
+	end 
+
+	function mystruct(usedkeys::Union{<:AbstractVector{<:Symbol}, <:Function},
+										digits::ODict, path)::mystruct
+
+		mystruct(usedkeys, (usedkeys, digits), path)
+	
+	end  
+
+	function mystruct(params_digits::Union{<:Tuple, <:Function}, path)::mystruct
+
+		mystruct(nothing, params_digits, path)
+	
+	end 
+
+end 
+
+
+									
+#import ...Utils
+
+#jconst ROOT = "Data"
+
+
+#using OrderedCollections: OrderedDict 
 
 #===========================================================================#
 #
@@ -516,73 +609,99 @@ using OrderedCollections: OrderedDict
 # path = "root/sometask/signature(pA1)/signature(pA2)/sinature(pB)/..."
 
 
+#function fname(name::AbstractString, func::Function, arg; kwargs...)::Function
+#	strings = Utils.flatmapif(params_to_string, !isempty, [func(args)])
+#
+#	fname 
+#	prefix = mkpath(join([ROOT;name; strings],"/"))
+#
+#	return (x::AbstractString="") -> string(prefix, "/", x) 
+#
+#end
+#
+#
 
 
 
 
-function fname(name::String, func::Function, arg; ignore=[])::Function
+tostr(x::AbstractString)::String = x
 
-	strings = Utils.flatmapif(params_to_string, !isempty, [func(args)])
-	
-	prefix = mkpath(join([ROOT;name; strings],"/"))
+tostr(x::Symbol)::String = string(x)
 
-	return (x="") -> prefix*"/"*x
+tostr(x::Utils.List)::String = join(Utils.mapif(tostr, !isempty, x),"/")
 
-end
+tostr(M::Module)::String = tostr(Base.fullname(M)[2:end]) # exclude :Main
 
 
 
-function fname(name::String, func::Function, args...; ignore=[])::Function
 
-	strings = Utils.flatmapif(params_to_string, !isempty, func(args...))
-
-
-	prefix = mkpath(join([ROOT; name; strings],"/"))
-
-	return (x="") -> prefix*"/"*x
-
-end
+#function prefix(path::Union{<:AbstractString,<:Utils.List}, func::Function, 
+#							 kwargs...)::String where N 
+#
+#	prefix(path; kwargs...)
+#
+#end 
 
 
+function tostr(func::Function, arg::UODict)::String
 
-function fname(name::Union{AbstractVector,Tuple}, args...; 
-							 																		kwargs...)::Function
-	fname(join(name,"/"), args...; kwargs...)
+	params_to_string(func(arg))
 
-end
-
-function fname(name::Union{AbstractVector,Tuple}; kwargs...)::Function
-
-	(args...; kw1...)-> fname(join(name,"/"), args...; kwargs..., kw1...)
-
-end
+end 
 
 
-#function fname(name::AbstractVector, args...; kwargs...)
+function tostr(func::Function, args::Vararg{<:UODict}; kwargs...)::String
 
-#	fname(join(name,"/"), args...; kwargs...)
+	args  .|> func .|> params_to_string |> tostr
 
+end 
+
+
+
+#function fname(name::Union{AbstractVector,Tuple}; kwargs...)::Function
+#
+#	(args...; kw1...)-> fname(join(name,"/"), args...; kwargs..., kw1...)
+#
+#end
+
+#function fname(M::Module, n::Int64=1, args...; kwargs...)::Function
+#
+#	fname(M, n, M.params_digits, args...; kwargs...)
+#
+#end
+#
+#
+#function fname(M::Module, n::Int64, params_digits::Function, args...; kwargs...)::Function
+#
+#	fname(Base.fullname(M)[end-n+1:end], params_digits, args...; kwargs...)
+#
 #end
 
 
-function fname(M::Module, n::Int64=1,args...; kwargs...)::Function
+prefix(path)::String  = mkpath(tostr(path))
 
-	fname(M, n, M.params_digits, args...; kwargs...)
-
-end
-
-
-function fname(M::Module, n::Int64, params_digits::Function, args...; kwargs...)::Function
-
-	fname(Base.fullname(M)[end-n+1:end], params_digits, args...; kwargs...)
-
-end
+prefix(path...)::String = prefix(path)
 
 
 
+function fname(path::AbstractString)::Function 
+
+	function strfname(x::AbstractString="")::String 
+		
+		tostr([path, x])
+
+	end 
+
+end 
 
 
 
+#function fname(args...)::Function
+
+#	prefix(args...)
+							 
+
+#
 #===========================================================================#
 #
 # Turn one set of parameters into a string
@@ -590,17 +709,26 @@ end
 #---------------------------------------------------------------------------#
 
 
-function params_to_string(params,usedkeys,Digits;separator='-')
+function params_to_string(args::Vararg;
+													separator::Union{<:AbstractString,<:Char}='-'
+													)::String
+	
+	params, usedkeys, digits = params_digits_(args...)
 
-	K = intersect(keys(Digits),intersect(keys(params),usedkeys))
+	K = intersect(keys(digits), intersect(keys(params), usedkeys))
 
 	isempty(K) && return ""
 
-  return join([Utils.nr2string(params[k],Digits[k]) for k in K],separator)
+  return join([Utils.nr2string(params[k], digits[k]) for k in K], separator)
 
 end
 
-params_to_string((p,u,d);kwargs...) = params_to_string(p,u,d;kwargs...)
+function params_to_string(args::Tuple; kwargs...)::String 
+
+	params_to_string(args...; kwargs...)
+
+end 
+
 
 
 
@@ -614,96 +742,120 @@ params_to_string((p,u,d);kwargs...) = params_to_string(p,u,d;kwargs...)
 #
 #---------------------------------------------------------------------------#
 
-function typical_params_digits(M::Module, args...)::Function
-
-	typical_params_digits(M.usedkeys, args...)
-
-end
-
-function typical_params_digits(usedkeys::AbstractVector{Symbol}=[], 
-															digits::T=Dict())::Function where T<:Union{NamedTuple,OrderedDict}
-
-	(P::AbstractDict) -> (P, usedkeys, digits)
-
-end
-
-
-function merge_params_digits(args::Vararg{Any,N}) where N
-	
-	N==1 && return merge_params_digits(args...)
-				# apparently one argument is given, must be in fact a group
-				
-	function result(P...) 
-
-
-		tuples_ = map(args) do arg 
-			
-			typeof(arg)<:Module && return arg.params_digits(P...)
-			
-			typeof(arg)<:Function && return arg(P...)
-			
-			return arg
-			
-		end
-
-
-		out(tuples) = Tuple(map(enumerate([merge, union, merge])) do (i,f)
-	
-													f([t[i] for t in tuples]...)
-
-												end)
-
-
-#		tuples_ = ((p1,u1,d1), (p2,u2,d2) etc)
-
-		tuples_[1][1] isa Union{AbstractDict,NamedTuple} && return out(tuples_)
-
-	
-#		tuples_ = ( [ (pi1,ui1,di1) etc ], [ (pj1,uj2,dj2) etc ], etc  )
-
-		return [out(tuples) for tuples in zip(tuples_...)]
-
-#		out( (pi1,ui1,di1), (pj1,uj1,dj1) ), out( (pi2,ui2,...), (j2) )
-
-	end
+#function typical_params_digits(M::Module, args...)::Function
+#
+#	typical_params_digits(M.usedkeys, args...)
+#
+#end
 
 
 
-	for arg in args
+function params_digits_(P::Tp, usedkeys::Function, digits::Td
+											 )::Tuple{Tp, AbstractVector{Symbol}, Td} where {
+																								Tp<:UODict, Td<:ODict}
 
-		typeof(arg)<:Module && continue
+	params_digits_(P, usedkeys(P), digits)
 
-		typeof(arg)<:Function && continue
+end 
 
-		(p, u, d) = arg
-		
-		return result(p)
 
-#		if at least one tuple (p, u ,d) is given, will return the total tuple 
-#								(total_p, total_u, total_d)
-			
-	end
+function params_digits_(P::Tp, usedkeys::Tu, digits::Td
+											)::Tuple{Tp, Tu, Td} where {Tp<:UODict,
+																									Tu<:AbstractVector{Symbol},
+																									Td<:ODict}
 
-	return (P...) -> result(P...)
-	
+	(P, usedkeys, digits)
 
-	
-# if only modules are given, 
-#						 return the function which computes the total tuple
+end 
+
+
+
+
+function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
+																							 <:Function}=Symbol[],
+															 digits::ODict=OrderedDict())::Function
+
+	(P::UODict) -> params_digits_(P, usedkeys, digits)
 
 end
 
 
-
-
-
+#function merge_params_digits(args::Vararg{Any,N}) where N
+#	
+#	N==1 && return merge_params_digits(args...)
+#				# apparently one argument is given, must be in fact a group
+#				
+#	function result(P...) 
+#
+#
+#		tuples_ = map(args) do arg 
+#			
+#			typeof(arg)<:Module && return arg.params_digits(P...)
+#			
+#			typeof(arg)<:Function && return arg(P...)
+#			
+#			return arg
+#			
+#		end
+#
+#
+#		out(tuples) = Tuple(map(enumerate([merge, union, merge])) do (i,f)
+#	
+#													f([t[i] for t in tuples]...)
+#
+#												end)
+#
+#
+##		tuples_ = ((p1,u1,d1), (p2,u2,d2) etc)
+#
+#		tuples_[1][1] isa Union{AbstractDict,NamedTuple} && return out(tuples_)
+#
+#	
+##		tuples_ = ( [ (pi1,ui1,di1) etc ], [ (pj1,uj2,dj2) etc ], etc  )
+#
+#		return [out(tuples) for tuples in zip(tuples_...)]
+#
+##		out( (pi1,ui1,di1), (pj1,uj1,dj1) ), out( (pi2,ui2,...), (j2) )
+#
+#	end
+#
+#
+#
+#	for arg in args
+#
+#		typeof(arg)<:Module && continue
+#
+#		typeof(arg)<:Function && continue
+#
+#		(p, u, d) = arg
+#		
+#		return result(p)
+#
+##		if at least one tuple (p, u ,d) is given, will return the total tuple 
+##								(total_p, total_u, total_d)
+#			
+#	end
+#
+#	return (P...) -> result(P...)
+#	
+#
+#	
+## if only modules are given, 
+##						 return the function which computes the total tuple
+#
+#end
+#
+#
+#
+#
+#
 
 
 
 
 
 #############################################################################
-end
+#end
 #############################################################################
 
 

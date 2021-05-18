@@ -1458,7 +1458,11 @@ function nr2string(nr::Union{Number,AbstractString}, digits::Number=2)::String
 
 end 
 
+function nr2string(nr::Union{Number,AbstractString}, digits::Tuple)::String 
 
+	nr2string(nr, collect(digits))
+
+end 
 
 function nr2string(nr::Union{Number,AbstractString}, digits::AbstractVector{Int})::String 
 
