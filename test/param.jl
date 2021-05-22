@@ -1,9 +1,16 @@
 using myLibs: Parameters 
 using OrderedCollections: OrderedDict 
+using Combinatorics: powerset
+
 
 module M 
+#export usedkeys
+usedkeys(args...) = [:X]
+a=3 
 
+digits = (X=(3,3),) 
 
+path = "abc" 
 end 
 
 function usedkeys()
@@ -81,24 +88,59 @@ println()
 
 pd = Parameters.typical_params_digits(usedkeys, input_dict[:digits])
 
+for pd_ in [pd, (usedkeys, input_dict[:digits]), input_dict[:digits]] 
 
-FN = Parameters.mystruct(usedkeys, pd, Parameters.prefix("", M,ROOT))
+	for path in [ROOT, (ROOT,M)]
+
+	local args = Any[usedkeys, pd_, path]
+	
+	for inds in powerset(1:length(args)) 
+	
+		args_ = copy(args) 
+	
+		for i in inds 
+	
+			args_[i] = M
+	
+		end 
+			
+	
+		local FN = Parameters.FilenameGenerator(args_...)
+	
+		@show FN.get_fname(P)("f")
+
+		local PF = Parameters.ParamFlow(identity, args_...)
+
+		PF.get_fname(P)("f")==FN.get_fname(P)("f") || error()
+
+
+		local PF = Parameters.ParamFlow(input_dict, args_...)
+
+		@show PF.allparams() 
+
+		println()
 
 
 
-FN = Parameters.mystruct(usedkeys, (usedkeys, input_dict[:digits]), 
-												 ("", M,ROOT))
+	end 
 
-FN = Parameters.mystruct(usedkeys, input_dict[:digits], (ROOT, M)) 
-@show FN.get_fname(P)("sa")
-
-FN = Parameters.mystruct((usedkeys, input_dict[:digits]),ROOT)
-
-@show FN
+end 
+end 
 
 
 
 
+
+
+
+
+FN = Parameters.FilenameGenerator((usedkeys, input_dict[:digits]),ROOT)
+
+
+
+@show FN.get_fname(P)("f") 
+
+println() 
 
 
 
