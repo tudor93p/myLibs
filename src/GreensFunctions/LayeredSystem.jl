@@ -928,7 +928,8 @@ end
 #---------------------------------------------------------------------------#
 
 
-function LayeredSystem_toGraph(HoppMatr,NrLayers;LeftLead=nothing,RightLead=nothing)
+function LayeredSystem_toGraph(HoppMatr, NrLayers::Int;
+															 LeftLead=nothing, RightLead=nothing)
 					"""			 
 	HoppMatr(unit_cell_n,unit_cell_m) = Hamiltonian between the two layers
 
@@ -946,7 +947,7 @@ function LayeredSystem_toGraph(HoppMatr,NrLayers;LeftLead=nothing,RightLead=noth
 #	LeftLead  = CheckLead(LeftLead,"LeftLead")
 #	RightLead = CheckLead(RightLead,"RightLead")
 
-	Leads = filter(!isnothing,[LeftLead,RightLead])
+	Leads = filter(!isnothing, [LeftLead,RightLead])
 
 
 	NrLeadUCs = if isempty(Leads) 0 else
@@ -979,13 +980,13 @@ function LayeredSystem_toGraph(HoppMatr,NrLayers;LeftLead=nothing,RightLead=noth
 
 	for Lead in Leads,i in 1:NrLeadUCs
 
-			Graph.add_vertex!(g,Dict(vcat(
+			Graph.add_vertex!(g,Dict(
 							:type=>"VirtualLead",
 							:name=>(Lead[:label],i),
 							:H => Lead[:intracell][min(i,end)],
 							(i>1 ? [] : [:GFf => Lead[:GF],])... 
 					# the GF for all lead unit cells will be stored in the lead head. 
-												 )))
+												 ))
 	end
 
   node = Graph.node_by_prop!(g,:name)
@@ -1029,6 +1030,126 @@ end
 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function Plot_Graph(plot_graph::Nothing=nothing, args...)
+
+end 
+
+function Plot_Graph(fname::AbstractString, args...)
+
+	Plot_Graph((fname, nothing), args...)
+
+end 
+
+function Plot_Graph((fname,IndsAtomsOfLayer)::Tuple, NrLayers::Int, g)
+
+	indomain(i) = 1<=i<=NrLayers
+
+	function nodelabel(i::Int)::String
+		
+		n = join(g[i,:name]," ")
+		
+		isnothing(IndsAtomsOfLayer) && return n 
+
+		indomain(i) || return n 
+	
+		return n*" ("*join(Utils.IdentifyRanges(IndsAtomsOfLayer(i))," ")*")"
+
+	end 
+
+
+	Graph.Plot_Graph(Graph.SimpleDiGraph(g),
+									 fname=fname,
+									 nodelabel=nodelabel,
+									 colorrule=indomain)
+	
+end 
+
+
+
+function LayeredSystem_toGraph(NrLayers::Int;
+															 LeftLead=nothing, RightLead=nothing)
+					"""			 
+	NrLayers -> upper bound of n,m  (lower bound is 1)
+
+	If any leads are specified, they must contain
+		-	an identifier :label => label::String
+
+				"""
+
+
+#	LeftLead  = CheckLead(LeftLead,"LeftLead")
+#	RightLead = CheckLead(RightLead,"RightLead")
+
+	Leads = filter(!isnothing, [LeftLead,RightLead])
+
+	NrLeadUCs = 1
+
+  g = Graph.MetaDiPath(NrLayers)
+
+	Graph.set_props!(g,Dict(:NrLayers=>NrLayers,
+													:UCsLeads=>NrLeadUCs,
+													:LeadLabels=>[Lead[:label] for Lead in Leads]
+											 ))
+
+	for i in 1:NrLayers
+
+		Graph.set_props!(g,i,Dict(:type=>"Layer",
+														 	:name=>("Layer",i),
+															)
+														)
+	end
+
+
+	for Lead in Leads, i in 1:NrLeadUCs
+
+			Graph.add_vertex!(g,Dict(
+							:type=>"VirtualLead",
+							:name=>(Lead[:label],i),
+												 ))
+	end
+
+  node = Graph.node_by_prop!(g,:name)
+
+
+	
+	if !isnothing(RightLead)
+
+		Graph.add_edge!(g, NrLayers,
+										node(RightLead[:label],1))
+
+		for i in 1:NrLeadUCs-1
+
+				Graph.add_edge!(g,node(RightLead[:label], i),
+													node(RightLead[:label], i+1),
+											)
+			end 
+	end
+
+	if !isnothing(LeftLead)
+
+		Graph.add_edge!(g,node(LeftLead[:label], 1),
+											1
+											)
+
+		for i in 1:NrLeadUCs-1
+
+				Graph.add_edge!(g, node(LeftLead[:label],i+1),
+													 node(LeftLead[:label],i),
+											)
+		end # intercell is given in the u direction: opposite to i+1->i 
+	end
+
+
+	return g
+
+end
 
 
 

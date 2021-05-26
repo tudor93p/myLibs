@@ -289,27 +289,33 @@ function GF_Decimation(Hopping, VirtLeads=Dict(), LeadLayerSlicer=nothing;
 end
 
 
-function GF_Decimation(HoppMatr::Function,NrLayers::Int64;LeftLead=nothing,RightLead=nothing,translate=nothing,plot_graph=nothing)
+
+
+function GF_Decimation(HoppMatr::Function, NrLayers::Int64; 
+											 LeftLead=nothing, RightLead=nothing, 
+											 translate=nothing, plot_graph=nothing)
 
 	g = LayeredSystem.LayeredSystem_toGraph(HoppMatr,NrLayers;LeftLead=LeftLead,RightLead=RightLead)
 
 
-	if !isnothing(plot_graph)
+#	if !isnothing(plot_graph)
+#
+#		graph_fname,IndsAtomsOfLayer = plot_graph
+#
+#		if !isempty(graph_fname)
+#		
+#			nodelabel2(i) = (1<=i<=NrLayers ? (" ("*join(Utils.IdentifyRanges(IndsAtomsOfLayer(i))," ")*")") : "")
+#
+#			nodelabel(i) = join(g[i,:name]," ")* (isnothing(IndsAtomsOfLayer) ? "" : nodelabel2(i))
+#
+#			Graph.Plot_Graph(Graph.SimpleDiGraph(g),fname=graph_fname,nodelabel=nodelabel,colorrule= i-> 1<=i<=NrLayers )
+#
+#		end
+#	end
 
-		graph_fname,IndsAtomsOfLayer = plot_graph
+	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g)
 
-		if !isempty(graph_fname)
-		
-			nodelabel2(i) = (1<=i<=NrLayers ? (" ("*join(Utils.IdentifyRanges(IndsAtomsOfLayer(i))," ")*")") : "")
-
-			nodelabel(i) = join(g[i,:name]," ")* (isnothing(IndsAtomsOfLayer) ? "" : nodelabel2(i))
-
-			Graph.Plot_Graph(Graph.SimpleDiGraph(g),fname=graph_fname,nodelabel=nodelabel,colorrule= i-> 1<=i<=NrLayers )
-
-		end
-	end
-
-	return  Energy -> GF_Decimation_fromGraph(Energy,g,translate)
+	return Energy -> GF_Decimation_fromGraph(Energy, g, translate)
 
 end
 

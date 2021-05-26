@@ -108,10 +108,9 @@ end
 
 function Plot_Graph(g;fname="graph",nodelabel=string,edgelabel=e->"",colorrule=i->1)
 
+	isempty(fname) && return
 
 	bgcolors = ["green","red","olive","blue","yellow","magenta","brown","cyan","orange"]
-
-
 
 
 

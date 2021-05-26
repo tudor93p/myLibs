@@ -1,4 +1,4 @@
-using myLibs:Lattices, LayeredSystem 
+using myLibs:Lattices, LayeredSystem, Algebra
 
 
 atoms = Lattices.PosAtoms(Lattices.Superlattice(Lattices.SquareLattice(), [10,7]))
@@ -17,6 +17,10 @@ D = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2)
 
 
 
+leads = Dict(:RightLead=>Dict(:label=>"A"), :LeftLead=>Dict(:label=>"B"))	 
+
+g = LayeredSystem.LayeredSystem_toGraph(D[:NrLayers]; leads...)
 
 
+LayeredSystem.Plot_Graph(("test10",D[:IndsAtomsOfLayer]) ,D[:NrLayers],g)
 
