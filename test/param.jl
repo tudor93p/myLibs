@@ -151,6 +151,33 @@ println()
 
 
 
+input_dict = Dict(:allparams=>(
+										length = [10,20],
+									 	width = [7],
+										Barrier_height = [0,0.5],
+										SCpx_magnitude = [0.6],
+										),
+
+									 :digits=>(
+											length = (3, 0),
+
+											Barrier_height = (1,3),
+										)	
+									
+									)
+
+usedkeys2 = [:length, :width, :SCpx_magnitude]
+
+FN = Parameters.FilenameGenerator(usedkeys2, input_dict[:digits], "Data")
+
+
+@show FN.usedkeys 
+
+
+PF = Parameters.ParamFlow((1,input_dict[:allparams]), usedkeys2, input_dict[:digits], "Data")
+
+
+@show PF.allparams()
 
 
  

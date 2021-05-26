@@ -527,8 +527,13 @@ function FilenameGenerator(usedkeys, args_params_digits::Tuple, path)::FilenameG
 
 end 
 
-function FilenameGenerator(usedkeys::Union{<:AbstractVector{<:Symbol}, <:Function},
-									digits::ODict, path)::FilenameGenerator
+function FilenameGenerator(usedkeys::Union{<:AbstractVector{<:Symbol}, 
+																					 <:Function},
+													 digits::ODict, 
+													 path
+													 )::FilenameGenerator
+
+	@show usedkeys
 
 	FilenameGenerator(usedkeys, (usedkeys, digits), path)
 
@@ -878,9 +883,10 @@ struct ParamFlow
 	
 		function allparams(args::Vararg{<:UODict,N}) where N 
 	
-			N < NrParamSets || error() 
-			return Operations.typical_allparams(FNG.usedkeys, 
-																					input_dict[:allparams])
+			N < NrParamSets || error()  
+
+			return Operations.typical_allparams(FNG.usedkeys, input_dict)
+			
 	
 		end 
 	
