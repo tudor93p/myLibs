@@ -501,7 +501,7 @@ function FilenameGenerator(usedkeys::Union{<:Nothing,
 
 	function get_fname(args::Vararg{<:UODict})::Function
 		
-		fname(tostr([path, tostr(params_digits, args...)]))
+		fname(prefix([path, tostr(params_digits, args...)]))
 
 	end  
 
