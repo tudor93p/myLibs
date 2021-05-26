@@ -8,6 +8,8 @@ module M
 usedkeys(args...) = [:X]
 a=3 
 
+NrParamSets = 2 
+
 digits = (X=(3,3),) 
 
 path = "abc" 
@@ -118,6 +120,8 @@ for pd_ in [pd, (usedkeys, input_dict[:digits]), input_dict[:digits]]
 
 		@show PF.allparams() 
 
+		println(Parameters.ParamFlow((M,input_dict[:allparams]), 
+																 args_...).allparams())
 		println()
 
 

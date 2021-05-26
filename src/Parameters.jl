@@ -910,7 +910,14 @@ struct ParamFlow
 		return ParamFlow(allparams, FNG)
 	 
 	end
-	
+
+
+	function ParamFlow((M, input_dict)::Tuple{<:Module,<:UODict}, 
+										 args...)::ParamFlow
+
+		ParamFlow((M.NrParamSets, input_dict), args...)
+
+	end 
 
 end 
 
