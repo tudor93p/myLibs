@@ -505,7 +505,7 @@ function FilenameGenerator(usedkeys::Union{<:Nothing,
 
 	end  
 
-	return FilenameGenerator(usedkeys, params_digits, path, get_fname)
+	return FilenameGenerator(usedkeys, params_digits, prefix(path), get_fname)
 
 end 
 
@@ -532,8 +532,6 @@ function FilenameGenerator(usedkeys::Union{<:AbstractVector{<:Symbol},
 													 digits::ODict, 
 													 path
 													 )::FilenameGenerator
-
-	@show usedkeys
 
 	FilenameGenerator(usedkeys, (usedkeys, digits), path)
 
@@ -666,26 +664,26 @@ end
 #end
 
 
-#prefix(path)::String  = mkpath(tostr(path))
-function prefix(path)::String 
-	
-	s = tostr(path)
-
-	@show s 
-
-
-	@show pwd() 
-
-	@show ispath(pwd()*"/"*s)
-
-	mkpath(s) 
-
-	@show ispath(pwd()*"/"*s)
-	println()
-
-	return s 
-
-end 
+prefix(path)::String  = mkpath(tostr(path))
+#function prefix(path)::String 
+#	
+#	s = tostr(path)
+#
+#	@show s 
+#
+#
+#	@show pwd() 
+#
+#	@show ispath(pwd()*"/"*s)
+#
+#	mkpath(s) 
+#
+#	@show ispath(pwd()*"/"*s)
+#	println()
+#
+#	return s 
+#
+#end 
 
 prefix(path...)::String = prefix(path)
 
