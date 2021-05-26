@@ -666,7 +666,26 @@ end
 #end
 
 
-prefix(path)::String  = mkpath(tostr(path))
+#prefix(path)::String  = mkpath(tostr(path))
+function prefix(path)::String 
+	
+	s = tostr(path)
+
+	@show s 
+
+
+	@show pwd() 
+
+	@show ispath(pwd()*"/"*s)
+
+	mkpath(s) 
+
+	@show ispath(pwd()*"/"*s)
+	println()
+
+	return s 
+
+end 
 
 prefix(path...)::String = prefix(path)
 
