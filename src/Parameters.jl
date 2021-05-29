@@ -560,18 +560,6 @@ function FilenameGenerator_(usedkeys::Union{<:Vector{<:Symbol}, <:Function},
 
 end 
 
-#
-#function FilenameGenerator(usedkeys::Union{<:Vector{<:Symbol}, <:Function}, 
-#													 path::Union{<:AbstractString,<:Tuple},
-#													 params_digits::Module,
-#													 )::FilenameGenerator 
-#
-#	FilenameGenerator(usedkeys, path, get1(params_digits, :params_digits))
-#
-#end
-										
-#
-
 function FilenameGenerator_(digits::ODict,
 													 path::Union{<:AbstractString,<:Tuple},
 													 params_digits::Function,
@@ -580,8 +568,6 @@ function FilenameGenerator_(digits::ODict,
 	FilenameGenerator(nothing, digits, prefix(path), params_digits)
 
 end 
-
-#
 
 
 
@@ -1067,9 +1053,23 @@ struct ParamFlow
 	end 
 
 
+	function ParamFlow(allparams::Function, arg1, arg2, args...)::ParamFlow
+	
+		ParamFlow(allparams, FilenameGenerator(arg1, arg2, args...))
+	 
+	end
 
-	
-	
+
+	function ParamFlow(N::Union{<:Nothing, <:Int}, allparams::Function, 
+										 arg1, arg2, args...)::ParamFlow
+
+		ParamFlow(N, allparams, FilenameGenerator(arg1, arg2, args...))
+
+	end 
+
+
+
+
 	function ParamFlow(NrParamSets::Int, input_dict::UODict, args...)::ParamFlow
 	
 		FNG = FilenameGenerator(args...) 
@@ -1079,19 +1079,14 @@ struct ParamFlow
 			N < NrParamSets || error()  
 
 			return Operations.typical_allparams(FNG.usedkeys, input_dict)
-			
 	
 		end 
-	
+
 		return ParamFlow(NrParamSets, allparams, FNG)
 	 
 	end
 
-	function ParamFlow(input_dict::UODict, args...)::ParamFlow 
 
-		ParamFlow(1, input_dict, args...)
-
-	end 
 
 	function ParamFlow(M::Module, input_dict::UODict, args...)::ParamFlow
 
@@ -1100,12 +1095,16 @@ struct ParamFlow
 	end 
 
 
+	function ParamFlow(input_dict::UODict, args...)::ParamFlow 
 
-	function ParamFlow(allparams::Function, arg1, arg2, args...)::ParamFlow
-	
-		ParamFlow(allparams, FilenameGenerator(arg1, arg2, args...))
-	 
-	end
+		ParamFlow(1, input_dict, args...)
+
+	end 
+
+
+
+
+
 
 #	function ParamFlow(N::Union{<:Nothing,<:Int},
 #										 allparams::Function, arg1, arg2, args...)::ParamFlow

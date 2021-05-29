@@ -190,7 +190,15 @@ FN = Parameters.FilenameGenerator(usedkeys2, input_dict[:digits], "Data")
 PF = Parameters.ParamFlow(input_dict[:allparams], usedkeys2, input_dict[:digits], "Data")
 
 
-PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2, input_dict[:digits], "Data")
+@show PF.allparams()
+
+PF = Parameters.ParamFlow(identity, usedkeys2, input_dict[:digits], "Data")
+
+@show PF.allparams(0)
+
+
+PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2, 
+													input_dict[:digits], "Data")
 
 
 @show PF.allparams()
