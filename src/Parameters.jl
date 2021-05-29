@@ -467,37 +467,53 @@ end
 
 struct FilenameGenerator 
 
-	usedkeys::Union{<:Nothing, <:Vector{<:Symbol}, <:Function}
+	# --- storage, for future function generation --- # 
 	
-	params_digits::Function 
+	usedkeys::Union{<:Nothing, <:Vector{<:Symbol}, <:Function}
 
+	digits::Union{<:Nothing, <:ODict}
+
+
+	# --- actually used functions --- #  
+	
 	path::String  
+
+	params_digits::Function 
 
 	get_fname::Function
 
 end 
 
 
-function get1(M::T, ks::Vararg{<:Symbol}) where T 
+function get1(M, k::Symbol)
 
-	T<:Module || return M
+	M isa Module || return M 
 
-	i = findfirst(in(names(M, all=true)), ks)
-							
-	!isnothing(i) && return getproperty(M, ks[i]) 
+	k in names(M, all=true) && return getproperty(M, k)
 
-	error("None of $ks found in module $M")
+	return nothing 
 
 end 
 
 
-# ----- # 
 
-function FilenameGenerator(usedkeys::Union{<:Nothing, 
-																	<:Vector{<:Symbol}, 
-																	<:Function}, 
-									params_digits::Function, 
-									path::String)::FilenameGenerator
+function get1(M, ks...) 
+
+	[get1(M, k) for k in ks]
+
+end 
+
+
+
+# --- All 4 args are given --- # 
+
+function FilenameGenerator(usedkeys::Union{<:Nothing,
+																					 <:Vector{<:Symbol},
+																					 <:Function}, 
+													 digits::Union{<:Nothing, <:ODict},
+													 path::AbstractString,
+													 params_digits::Function,
+													 )::FilenameGenerator
 
 	function get_fname(args::Vararg{<:UODict})::Function
 		
@@ -505,75 +521,177 @@ function FilenameGenerator(usedkeys::Union{<:Nothing,
 
 	end  
 
-	return FilenameGenerator(usedkeys, params_digits, prefix(path), get_fname)
+	return FilenameGenerator(usedkeys, digits, prefix(path), 
+													 params_digits, get_fname)
 
 end 
 
 
+# --- Only 3 args are given --- # 
 
+function FilenameGenerator_(usedkeys::Union{<:Vector{<:Symbol}, <:Function}, 
+													 digits::ODict,
+													 path::Union{<:AbstractString,<:Tuple},
+													 )::FilenameGenerator 
 
-
-function FilenameGenerator(usedkeys, params_digits::Function, path)::FilenameGenerator
-
-	FilenameGenerator(get1(usedkeys, :usedkeys), params_digits, 
-					 prefix(get1(path,:path)))
-
-end 
-
-function FilenameGenerator(usedkeys, args_params_digits::Tuple, path)::FilenameGenerator
-
-	FilenameGenerator(get1(usedkeys, :usedkeys), 
-					 typical_params_digits(args_params_digits...), path)
+	FilenameGenerator(usedkeys, digits, prefix(path), 
+										typical_params_digits(usedkeys, digits))
 
 end 
 
-function FilenameGenerator(usedkeys::Union{<:AbstractVector{<:Symbol}, 
-																					 <:Function},
-													 digits::ODict, 
-													 path
-													 )::FilenameGenerator
 
-	FilenameGenerator(usedkeys, (usedkeys, digits), path)
+function FilenameGenerator_(usedkeys::Union{<:Vector{<:Symbol}, <:Function}, 
+													 digits::ODict,
+													 params_digits::Function,
+													 )::FilenameGenerator 
 
-end  
+	FilenameGenerator(usedkeys, digits, "", params_digits)
 
-function FilenameGenerator(M_usedkeys::Module, digits::ODict, path)::FilenameGenerator
+end 
 
-	FilenameGenerator(get1(M_usedkeys, :usedkeys), digits, path)
+
+function FilenameGenerator_(usedkeys::Union{<:Vector{<:Symbol}, <:Function}, 
+													 path::Union{<:AbstractString,<:Tuple},
+													 params_digits::Function,
+													 )::FilenameGenerator 
+
+	FilenameGenerator(usedkeys, nothing, prefix(path), params_digits)
+
+
+end 
+
+#
+#function FilenameGenerator(usedkeys::Union{<:Vector{<:Symbol}, <:Function}, 
+#													 path::Union{<:AbstractString,<:Tuple},
+#													 params_digits::Module,
+#													 )::FilenameGenerator 
+#
+#	FilenameGenerator(usedkeys, path, get1(params_digits, :params_digits))
+#
+#end
+										
+#
+
+function FilenameGenerator_(digits::ODict,
+													 path::Union{<:AbstractString,<:Tuple},
+													 params_digits::Function,
+													 )::FilenameGenerator 
+
+	FilenameGenerator(nothing, digits, prefix(path), params_digits)
+
+end 
+
+#
+
+
+
+
+function FilenameGenerator(args::Vararg{<:Any,3})::FilenameGenerator
+
+	function promising_candidate((FG,args), candidate::ODict)::Bool
+
+		allunique(keys(candidate)) && length(candidate)<=length(args)
+		
+	end 
 	
-end  
+	
+	function accept_sol((FG,args,), candidate::ODict)::Bool
+	
+		length(candidate)==length(args) || return false 
+		
+		return hasmethod(FG, typeof.(values(candidate)))
+	
+#usedkeys::Union{<:Nothing,
+#																					 <:Vector{<:Symbol},
+#																					 <:Function}, 
+#													 digits::Union{<:Nothing, <:ODict},
+#													 path::AbstractString,
+#													 params_digits::Function,
+	end 
+	
+	
+	function possible_extensions((FG, args,), candidate::ODict)
+	
+		i = length(candidate)+1  
+
+		i>length(args) && return []
+	
+		A = args[i]
 
 
-function FilenameGenerator(usedkeys, M_digits::Module, args...)::FilenameGenerator
+		isa(A, Module) || return [merge(OrderedDict(), candidate, OrderedDict(i=>A)),]
+	
+		K = [(:usedkeys, :digits), (:digits, :path), (:path, :params_digits)][i]
 
-	FilenameGenerator(usedkeys, get1(M_digits, :digits, :params_digits), args...)
+		return map(intersect(names(A, all=true), setdiff(K, keys(candidate)))) do k
+	
+			merge(OrderedDict(), candidate, OrderedDict(k=>getproperty(A, k)))
+	
+		end 
+	
+	end 
+
+
+	function output((FG, args), solutions, candidate)
+	
+#		push!(solutions, FG(values(candidate)...)) 
+		push!(solutions, candidate)
+
+		length(solutions)>1 && @warn "Ambiguous args."
+
+
+#		if length(solutions)>1 
+#			
+#			println() 
+#
+#			for s in solutions
+#
+#				for (k,v) in s
+#
+#					println(k,"\t",v)
+#
+#				end
+#				println()
+#	
+#			end 
+#
+#			error("\nAmbiguous args")
+#		end 
+	
+	end 
+	
+	sols = Utils.Backtracking((FilenameGenerator_, args),
+			 										  possible_extensions,
+			 										  promising_candidate,
+			 										  accept_sol,
+			 										  output,
+			 										  data->OrderedDict()
+			 										  ) 
+
+	length(sols)>1 && @warn "Random sol used"
+
+#	return sols[1]
+	
+	return FilenameGenerator_(values(rand(sols))...)
+	
+end 
+
+
+
+
+#
+## --- Minimal input --- # 
+
+function FilenameGenerator(path::Union{<:AbstractString, <:Module}, 
+													 params_digits::Union{<:Function, <:Module}
+													)::FilenameGenerator
+
+	FilenameGenerator(nothing, nothing, 
+										get1(path, :path),
+										get1(params_digits, :params_digits))
 
 end 
-#
-#	function FilenameGenerator(usedkeys, params_digits, M_path::Module)::FilenameGenerator
-#
-#		FilenameGenerator(usedkeys, params_digits, get1(M_path, :path))
-#
-#	end 
 
-
-
-
-
-
-
-
-function FilenameGenerator(params_digits::Union{<:Tuple, <:Function}, path)::FilenameGenerator
-
-	FilenameGenerator(nothing, params_digits, path)
-
-end 
-
-function FilenameGenerator(M_params_digits::Module, path)::FilenameGenerator
-
-	FilenameGenerator(get1(M_params_digits, :params_digits), path) 
-
-end 
 
 
 
@@ -753,23 +871,27 @@ end
 #
 #end
 
+get_usedkeys(usedkeys::Nothing, args...)::Nothing = nothing 
 
+function get_usedkeys(usedkeys::AbstractVector{<:Symbol}, 
+											args...)::Vector{Symbol}
 
-function params_digits_(P::Tp, usedkeys::Function, digits::Td
-											 )::Tuple{Tp, AbstractVector{Symbol}, Td} where {
-																								Tp<:UODict, Td<:ODict}
-
-	params_digits_(P, usedkeys(P), digits)
+	usedkeys
 
 end 
 
+get_usedkeys(usedkeys::Function, P::UODict)::Vector{Symbol} = usedkeys(P)
 
-function params_digits_(P::Tp, usedkeys::Tu, digits::Td
-											)::Tuple{Tp, Tu, Td} where {Tp<:UODict,
-																									Tu<:AbstractVector{Symbol},
-																									Td<:ODict}
+get_usedkeys(usedkeys::Function)::Function = usedkeys
 
-	(P, usedkeys, digits)
+
+
+function params_digits_(P::Tp, 
+												uk::Union{<:AbstractVector{<:Symbol}, <:Function}, 
+												digits::Td
+											 )::Tuple{Tp, Vector{Symbol}, Td} where {Tp<:UODict, 
+																															 Td<:ODict}
+	(P, get_usedkeys(uk, P), digits)
 
 end 
 
@@ -785,71 +907,107 @@ function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
 end
 
 
-#function merge_params_digits(args::Vararg{Any,N}) where N
-#	
+
+function union_usedkeys(uks_...)
+
+	union_usedkeys_(map(get_usedkeys, uks_)...)
+
+end 
+
+
+function union_usedkeys_(uks...)
+
+	any(isnothing, uks) && return nothing 
+
+	Utils.isList(uks, AbstractVector{<:Symbol}) && return union(uks...)
+
+	if Utils.isList(uks, Union{<:Function, AbstractVector{<:Symbol}})
+		
+		return function usedkeys(P::UODict)::Vector{Symbol}
+
+			union_usedkeys_((get_usedkeys(uk, P) for uk in uks)...)
+
+		end
+
+	end 
+
+	error() 
+
+end 
+
+
+
+
+
+#function get_params_digits(S::Union
+
+
+function combine_params_digits(args::Vararg{Any,N}) where N
+	
 #	N==1 && return merge_params_digits(args...)
-#				# apparently one argument is given, must be in fact a group
-#				
-#	function result(P...) 
-#
-#
-#		tuples_ = map(args) do arg 
-#			
-#			typeof(arg)<:Module && return arg.params_digits(P...)
-#			
-#			typeof(arg)<:Function && return arg(P...)
-#			
-#			return arg
-#			
-#		end
-#
-#
-#		out(tuples) = Tuple(map(enumerate([merge, union, merge])) do (i,f)
-#	
-#													f([t[i] for t in tuples]...)
-#
-#												end)
-#
-#
-##		tuples_ = ((p1,u1,d1), (p2,u2,d2) etc)
-#
-#		tuples_[1][1] isa Union{AbstractDict,NamedTuple} && return out(tuples_)
-#
-#	
-##		tuples_ = ( [ (pi1,ui1,di1) etc ], [ (pj1,uj2,dj2) etc ], etc  )
-#
-#		return [out(tuples) for tuples in zip(tuples_...)]
-#
-##		out( (pi1,ui1,di1), (pj1,uj1,dj1) ), out( (pi2,ui2,...), (j2) )
-#
-#	end
-#
-#
-#
-#	for arg in args
-#
-#		typeof(arg)<:Module && continue
-#
-#		typeof(arg)<:Function && continue
-#
-#		(p, u, d) = arg
-#		
-#		return result(p)
-#
-##		if at least one tuple (p, u ,d) is given, will return the total tuple 
-##								(total_p, total_u, total_d)
-#			
-#	end
-#
-#	return (P...) -> result(P...)
-#	
-#
-#	
-## if only modules are given, 
-##						 return the function which computes the total tuple
-#
-#end
-#
+				# apparently one argument is given, must be in fact a group
+				
+	function result(P...) 
+
+
+		tuples_ = map(args) do arg 
+			
+			typeof(arg)<:Module && return arg.params_digits(P...)
+			
+			typeof(arg)<:Function && return arg(P...)
+			
+			return arg
+			
+		end
+
+
+
+		out(tuples) = Tuple(map(enumerate([merge, union, merge])) do (i,f)
+	
+													f([t[i] for t in tuples]...)
+
+												end)
+
+
+#		tuples_ = ((p1,u1,d1), (p2,u2,d2) etc)
+
+		tuples_[1][1] isa UODict && return out(tuples_)
+
+	
+#		tuples_ = ( [ (pi1,ui1,di1) etc ], [ (pj1,uj2,dj2) etc ], etc  )
+
+		return [out(tuples) for tuples in zip(tuples_...)]
+
+#		out( (pi1,ui1,di1), (pj1,uj1,dj1) ), out( (pi2,ui2,...), (j2) )
+
+	end
+
+
+
+	for arg in args
+
+		typeof(arg)<:Module && continue
+
+		typeof(arg)<:Function && continue
+
+		(p, u, d) = arg
+		
+		return result(p)
+
+#		if at least one tuple (p, u ,d) is given, will return the total tuple 
+#								(total_p, total_u, total_d)
+			
+	end
+
+	return (P...) -> result(P...)
+	
+
+	
+# if only modules are given, 
+#						 return the function which computes the total tuple
+
+end
+
 #
 #
 #
@@ -865,36 +1023,54 @@ end
 
 struct ParamFlow
 
+	# --- own properties --- # 
+
+	NrParamSets::Union{<:Nothing, <:Int}
+
 	allparams::Function
 
-	usedkeys::Union{<:Nothing, <:Vector{<:Symbol}, <:Function}
-	
-	params_digits::Function 
 
+
+	# --- storage, for future function generation --- # 
+	
+	usedkeys::Union{<:Nothing, <:Vector{<:Symbol}, <:Function}
+
+	digits::Union{<:Nothing, <:ODict}
+
+
+	# --- actually used functions --- #  
+	
 	path::String  
 
-	get_fname::Function
+	params_digits::Function 
+
+	get_fname::Function 
+
+
+
+	# --- #
+
+
+
+	function ParamFlow(N::Union{<:Nothing,<:Int}, allparams::Function, 
+										 FNG::FilenameGenerator)::ParamFlow
+	
+		new(N, allparams, (getproperty(FNG, p) for p in propertynames(FNG))...)
+	
+	end 
+
 
 	function ParamFlow(allparams::Function, FNG::FilenameGenerator)::ParamFlow
-	
-		new(allparams, (getproperty(FNG, p) for p in propertynames(FNG))...)
-	
-	end 
-	
-	function ParamFlow(allparams::Function, arg1, arg2, args...)::ParamFlow
-	
-		ParamFlow(allparams, FilenameGenerator(arg1, arg2, args...))
-	 
-	end
-	
-	function ParamFlow(input_dict::UODict, args...)::ParamFlow 
 
-		ParamFlow((1,input_dict), args...)
+		ParamFlow(nothing, allparams, FNG)
 
 	end 
+
+
+
 	
-	function ParamFlow((NrParamSets,input_dict)::Tuple{<:Int,<:UODict}, 
-										 args...)::ParamFlow
+	
+	function ParamFlow(NrParamSets::Int, input_dict::UODict, args...)::ParamFlow
 	
 		FNG = FilenameGenerator(args...) 
 	
@@ -907,17 +1083,36 @@ struct ParamFlow
 	
 		end 
 	
-		return ParamFlow(allparams, FNG)
+		return ParamFlow(NrParamSets, allparams, FNG)
 	 
 	end
 
+	function ParamFlow(input_dict::UODict, args...)::ParamFlow 
 
-	function ParamFlow((M, input_dict)::Tuple{<:Module,<:UODict}, 
-										 args...)::ParamFlow
-
-		ParamFlow((M.NrParamSets, input_dict), args...)
+		ParamFlow(1, input_dict, args...)
 
 	end 
+
+	function ParamFlow(M::Module, input_dict::UODict, args...)::ParamFlow
+
+		ParamFlow(M.NrParamSets, input_dict, args...)
+
+	end 
+
+
+
+	function ParamFlow(allparams::Function, arg1, arg2, args...)::ParamFlow
+	
+		ParamFlow(allparams, FilenameGenerator(arg1, arg2, args...))
+	 
+	end
+
+#	function ParamFlow(N::Union{<:Nothing,<:Int},
+#										 allparams::Function, arg1, arg2, args...)::ParamFlow
+#
+#		ParamFlow(N, allparams, FilenameGenerator(arg1, arg2, args...))
+#
+#	end 
 
 end 
 
@@ -933,6 +1128,26 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function get_usedkeys(S::Union{<:FilenameGenerator, <:ParamFlow})
+
+	S.usedkeys
+
+end 
+
+function get_usedkeys(S::Union{<:FilenameGenerator, <:ParamFlow}, args...)
+
+	get_usedkeys(S.usedkeys, args...)
+
+end 
 
 #############################################################################
 end

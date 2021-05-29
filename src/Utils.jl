@@ -39,32 +39,33 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator}
 
 
 function Backtracking(data,
-#											root::Function,
 											possible_extensions::Function, 
 											promising_candidate::Function, 
 											accept_sol::Function,
-											solutions::Vector{Dict}=Dict[],
-											)::Vector{Dict}
+											root::Function=(x...)->Dict(),
+											solutions=[],
+											)::Vector
 
 	Backtracking(data,
-#							 root,
 							 possible_extensions, 
 							 promising_candidate, 
 							 accept_sol, 
 							 (data, solutions, candidate) -> push!(solutions, candidate),
+							 root,
 							 solutions
 							)
 end 
 
 
 function Backtracking(data,
-#											root::Function,
 											possible_extensions::Function, 
 											promising_candidate::Function, 
 											accept_sol::Function, 
 											output::Function,
-											solutions::Vector{Dict}=Dict[],
-											)::Vector{Dict}
+											root::Function=(x...)->Dict(),
+											solutions=[],
+											)::Vector
+
 
 	function backtrack!(data, solutions, candidate)
 
@@ -91,7 +92,7 @@ function Backtracking(data,
 	end 
 
 
-	backtrack!(data, solutions, Dict())#root(data))
+	backtrack!(data, solutions, root(data))
 
 	return solutions 
 

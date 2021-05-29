@@ -2,8 +2,18 @@ using myLibs: Parameters
 using OrderedCollections: OrderedDict 
 using Combinatorics: powerset
 
+input_dict = Dict(
+
+		:allparams => Dict(:X=>[1],:Y=>[3,4],:T=>[10,20,30]),
+
+#		:digits => OrderedDict(:X=>(1,0), :Y=>(1,1), :Z=>(2,2)),
+		:digits => (X=(1,0), Y=(1,1), Z=(2,2)),
+
+		)
 
 module M 
+
+import ..input_dict,..Parameters
 #export usedkeys
 usedkeys(args...) = [:X]
 a=3 
@@ -13,6 +23,8 @@ NrParamSets = 2
 digits = (X=(3,3),) 
 
 path = "abc" 
+
+params_digits = Parameters.typical_params_digits(usedkeys, input_dict[:digits])
 end 
 
 function usedkeys()
@@ -27,14 +39,6 @@ NrParamSets = 1
 
 
 
-input_dict = Dict(
-
-		:allparams => Dict(:X=>[1],:Y=>[3,4],:T=>[10,20,30]),
-
-#		:digits => OrderedDict(:X=>(1,0), :Y=>(1,1), :Z=>(2,2)),
-		:digits => (X=(1,0), Y=(1,1), Z=(2,2)),
-
-		)
 
 
 
@@ -87,14 +91,16 @@ println()
 #@show get_fname(P,P,P)("nnewfile")
 #
 
+println()
+
 
 pd = Parameters.typical_params_digits(usedkeys, input_dict[:digits])
 
-for pd_ in [pd, (usedkeys, input_dict[:digits]), input_dict[:digits]] 
+#for pd_ in [pd, input_dict[:digits]] 
 
-	for path in [ROOT, (ROOT,M)]
+for path in [ROOT, (ROOT,M)]
 
-	local args = Any[usedkeys, pd_, path]
+	for args in [ Any[usedkeys, path, pd], Any[usedkeys, input_dict[:digits], path]]
 	
 	for inds in powerset(1:length(args)) 
 	
@@ -105,23 +111,26 @@ for pd_ in [pd, (usedkeys, input_dict[:digits]), input_dict[:digits]]
 			args_[i] = M
 	
 		end 
-			
 	
+		@info "args_"
+
+		foreach(println,args_)
+		println()
 		local FN = Parameters.FilenameGenerator(args_...)
 	
 		@show FN.get_fname(P)("f")
 
-		local PF = Parameters.ParamFlow(identity, args_...)
-
-		PF.get_fname(P)("f")==FN.get_fname(P)("f") || error()
-
-
-		local PF = Parameters.ParamFlow(input_dict, args_...)
-
-		@show PF.allparams() 
-
-		println(Parameters.ParamFlow((M,input_dict[:allparams]), 
-																 args_...).allparams())
+#		local PF = Parameters.ParamFlow(identity, args_...)
+#
+#		PF.get_fname(P)("f")==FN.get_fname(P)("f") || error()
+#
+#
+#		local PF = Parameters.ParamFlow(input_dict, args_...)
+#
+#		@show PF.allparams() 
+#
+#		println(Parameters.ParamFlow((M,input_dict[:allparams]), 
+#																 args_...).allparams())
 		println()
 
 
@@ -137,8 +146,8 @@ end
 
 
 
+FN = Parameters.FilenameGenerator(ROOT, pd)
 
-FN = Parameters.FilenameGenerator((usedkeys, input_dict[:digits]),ROOT)
 
 
 
@@ -178,7 +187,10 @@ FN = Parameters.FilenameGenerator(usedkeys2, input_dict[:digits], "Data")
 @show FN.usedkeys 
 
 
-PF = Parameters.ParamFlow((1,input_dict[:allparams]), usedkeys2, input_dict[:digits], "Data")
+PF = Parameters.ParamFlow(input_dict[:allparams], usedkeys2, input_dict[:digits], "Data")
+
+
+PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2, input_dict[:digits], "Data")
 
 
 @show PF.allparams()
@@ -189,6 +201,9 @@ PF = Parameters.ParamFlow((1,input_dict[:allparams]), usedkeys2, input_dict[:dig
 
 
 
+@show Parameters.union_usedkeys(usedkeys2, usedkeys)(P)  
+@show Parameters.union_usedkeys(usedkeys2, usedkeys2)
+@show Parameters.union_usedkeys(usedkeys, PF)(P)
 
 
 
