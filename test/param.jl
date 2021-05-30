@@ -214,7 +214,17 @@ PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2,
 @show Parameters.union_usedkeys(usedkeys, PF)(P)
 
 
+println()
 
+for item  in Parameters.combine_params_digits(PF, PF.params_digits, (P, Symbol[:x],(x=(1,2),)))
+
+	println(item)
+
+end 
+
+println()
+
+@show Parameters.combine_params_digits(PF, PF, PF)(P)
 
 
 

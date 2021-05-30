@@ -882,6 +882,28 @@ function params_digits_(P::Tp,
 end 
 
 
+function params_digits_many(P::Utils.List, args...)::Tuple{<:UODict,
+																													 Vector{Symbol},
+																													 <:ODict}
+	Utils.isList(P, UODict) || error()
+
+	return params_digits_many(merge(P...), args...)
+
+end 
+
+
+
+
+function params_digits_many(P::Tp, args...
+														)::Tuple{Tp, Vector{Symbol}, <:ODict
+																		 } where Tp<:UODict 
+
+	P_, usedkeys, digits = Utils.zipmap(a->get_params_digits(a,P), args)
+
+	return params_digits_(P, union_usedkeys(usedkeys...), merge(digits...))
+
+end
+
 
 
 function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
@@ -924,85 +946,138 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-#function get_params_digits(S::Union
+
+get_params_digits(F::Function)::Function = F
+
+get_params_digits(F::Function, P::UODict)::Tuple = F(P)
+
+get_params_digits(T::Tuple, args...)::Tuple = T
 
 
-function combine_params_digits(args::Vararg{Any,N}) where N
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function combine_params_digits(args...)
 	
 #	N==1 && return merge_params_digits(args...)
 				# apparently one argument is given, must be in fact a group
 				
-	function result(P...) 
+#	(P, get_usedkeys(uk, P), digits) 
 
+	if all(args) do a 
 
-		tuples_ = map(args) do arg 
+		isa(a,ParamFlow) || isa(a,FilenameGenerator) || return false 
+
+		return !isnothing(a.digits) && !isnothing(a.usedkeys)
 			
-			typeof(arg)<:Module && return arg.params_digits(P...)
-			
-			typeof(arg)<:Function && return arg(P...)
-			
-			return arg
-			
-		end
+		end 
+
+		return typical_params_digits(union_usedkeys(args...),
+																 merge((a.digits for a in args)...)
+																 )
+	end 
 
 
+	tups = filter(a->isa(a,Tuple), args)
 
-		out(tuples) = Tuple(map(enumerate([merge, union, merge])) do (i,f)
-	
-													f([t[i] for t in tuples]...)
+	!isempty(tups) && return params_digits_many(first.(tups), args...)
 
-												end)
+	return (P::UODict)->params_digits_many(P, args...)
 
-
-#		tuples_ = ((p1,u1,d1), (p2,u2,d2) etc)
-
-		tuples_[1][1] isa UODict && return out(tuples_)
-
-	
-#		tuples_ = ( [ (pi1,ui1,di1) etc ], [ (pj1,uj2,dj2) etc ], etc  )
-
-		return [out(tuples) for tuples in zip(tuples_...)]
-
-#		out( (pi1,ui1,di1), (pj1,uj1,dj1) ), out( (pi2,ui2,...), (j2) )
-
-	end
+end 
 
 
-
-	for arg in args
-
-		typeof(arg)<:Module && continue
-
-		typeof(arg)<:Function && continue
-
-		(p, u, d) = arg
-		
-		return result(p)
-
-#		if at least one tuple (p, u ,d) is given, will return the total tuple 
-#								(total_p, total_u, total_d)
-			
-	end
-
-	return (P...) -> result(P...)
-	
-
-	
-# if only modules are given, 
-#						 return the function which computes the total tuple
-
-end
-
+#
+#function combine_params_digits(args::Vararg{<:Union{<:ParamFlow,<:FilenameGenerator}})
+#	
+#
+#
+#
+#	function result(P...) 
+#
+#		tuples_ = map(args) do arg 
+#			
+#			typeof(arg)<:Module && return arg.params_digits(P...)
+#			
+#			typeof(arg)<:Function && return arg(P...)
+#			
+#			return arg
+#			
+#		end
+#
+#
+#
+#		out(tuples) = Tuple(map(enumerate([merge, union, merge])) do (i,f)
+#	
+#													f([t[i] for t in tuples]...)
+#
+#												end)
+#
+#
+##		tuples_ = ((p1,u1,d1), (p2,u2,d2) etc)
+#
+#		tuples_[1][1] isa UODict && return out(tuples_)
+#
+#	
+##		tuples_ = ( [ (pi1,ui1,di1) etc ], [ (pj1,uj2,dj2) etc ], etc  )
+#
+#		return [out(tuples) for tuples in zip(tuples_...)]
+#
+##		out( (pi1,ui1,di1), (pj1,uj1,dj1) ), out( (pi2,ui2,...), (j2) )
+#
+#	end
+#
+#
+#
+#	for arg in args
+#
+#		typeof(arg)<:Module && continue
+#
+#		typeof(arg)<:Function && continue
+#
+#		(p, u, d) = arg
+#		
+#		return result(p)
+#
+##		if at least one tuple (p, u ,d) is given, will return the total tuple 
+##								(total_p, total_u, total_d)
+#			
+#	end
+#
+#	return (P...) -> result(P...)
+#	
+#
+#	
+## if only modules are given, 
+##						 return the function which computes the total tuple
+#
+#end
+#
+##
+##
+##
+##
 #
 #
 #
 #
-
-
-
-
-
+#
 #############################################################################
 #end
 #############################################################################
@@ -1136,15 +1211,18 @@ end
 
 
 
-function get_usedkeys(S::Union{<:FilenameGenerator, <:ParamFlow})
-
-	S.usedkeys
-
-end 
 
 function get_usedkeys(S::Union{<:FilenameGenerator, <:ParamFlow}, args...)
 
 	get_usedkeys(S.usedkeys, args...)
+
+end 
+
+
+function get_params_digits(S::Union{<:FilenameGenerator, <:ParamFlow}, 
+													 args...)
+
+	get_params_digits(S.params_digits, args...)
 
 end 
 
