@@ -42,7 +42,7 @@ function Backtracking(data,
 											possible_extensions::Function, 
 											promising_candidate::Function, 
 											accept_sol::Function,
-											root::Function=(x...)->Dict(),
+											root::Function,
 											solutions=[],
 											)::Vector
 
@@ -62,7 +62,7 @@ function Backtracking(data,
 											promising_candidate::Function, 
 											accept_sol::Function, 
 											output::Function,
-											root::Function=(x...)->Dict(),
+											root::Function,
 											solutions=[],
 											)::Vector
 
