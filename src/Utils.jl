@@ -1454,26 +1454,17 @@ end
 
 
 
-function nr2string(nr::Union{Number,AbstractString}, digits::Number=2)::String 
-	nr2string(nr, [digits,digits])
+function nr2string(nr::Real, digits::Number=2)::String 
+
+	nr2string(nr, [digits] )
 
 end 
 
-function nr2string(nr::Union{Number,AbstractString}, digits::Tuple)::String 
+function nr2string(nr::Real, digits::Tuple)::String 
 
-	nr2string(nr, collect(digits))
+	nr2string(nr, convert(Vector{Int}, collect(digits)))
 
 end 
-
-function nr2string(nr::Union{Number,AbstractString}, digits::AbstractVector{Int})::String 
-
-	isempty(digits) && return string(nr) 
-
-	length(digits)==1 && return nr2string(nr, [digits; 0]) 
-
-	return nr2string(nr, digits)
-
-end  
 
 
 function nr2string(nr::AbstractString, args...)::String
@@ -1485,7 +1476,13 @@ function nr2string(nr::AbstractString, args...)::String
 end 
 
 
-function nr2string(nr::Real, digits::AbstractVector{Int})::String
+
+function nr2string(nr::Union{Real,AbstractString}, digits::AbstractVector{Int})::String 
+
+	isempty(digits) && return string(nr) 
+
+	length(digits)==1 && return nr2string(nr, [digits; 0]) 
+
 
   left,right = split(string(round(Float64(abs(nr)),digits=digits[2])),'.')
 

@@ -122,6 +122,15 @@ end
 
 
 
+for n in ["abc",1,10.5], d in [(),1,3,(1,2),(2,)]
+
+	@show n d  
+
+	println(Utils.nr2string(n,d))
+
+	println()
+
+end 
 
 
 
