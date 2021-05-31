@@ -106,7 +106,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Plot_Graph(g;fname="graph",nodelabel=string,edgelabel=e->"",colorrule=i->1)
+function Plot_Graph(g;fname="graph.pdf",nodelabel=string,edgelabel=e->"",colorrule=i->1)
 
 	isempty(fname) && return
 
@@ -125,7 +125,7 @@ function Plot_Graph(g;fname="graph",nodelabel=string,edgelabel=e->"",colorrule=i
 				node_styles=Dict(i=>string("fill=",color(i),"!50") for i in 1:nv(g))
 							 )
 	
-	TikzPictures.save(TikzPictures.PDF(fname),p)
+	TikzPictures.save(TikzPictures.PDF(fname), p)
 
 end
 

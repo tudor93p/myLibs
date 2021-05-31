@@ -871,6 +871,14 @@ get_usedkeys(usedkeys::Function, P::UODict)::Vector{Symbol} = usedkeys(P)
 get_usedkeys(usedkeys::Function)::Function = usedkeys
 
 
+function get_usedkeys(M::Module, args...)
+
+	in(:usedkeys, names(M,all=true)) && return get_usedkeys(M.usedkeys, args...)
+
+	return nothing 
+
+end 
+
 
 function params_digits_(P::Tp, 
 												uk::Union{<:AbstractVector{<:Symbol}, <:Function}, 
@@ -943,6 +951,40 @@ function union_usedkeys_(uks...)
 
 end 
 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function common_NrParamsSets(Ms::Vararg{<:Module})::Union{<:Nothing,<:Int}
+
+	common_NrParamsSets([m for m in Ms])
+
+end 
+
+function common_NrParamsSets(Ms::AbstractVector{<:Module}
+														)::Union{<:Nothing,<:Int}
+
+	Ns = Utils.mapif(>(0), Ms) do m
+
+		!in(:NrParamSets, names(m, all=true)) && return -1 
+		
+		return m.NrParamSets 
+
+	end 
+
+	isempty(Ns) && return nothing 
+
+	N = Ns[1] 
+
+	all(isequal(N), Ns) && return N 
+
+	error()
+
+end 
 
 
 
