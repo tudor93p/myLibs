@@ -489,9 +489,7 @@ function get1(M, k::Symbol)
 
 	M isa Module || return M 
 
-	k in names(M, all=true) && return getproperty(M, k)
-
-	return nothing 
+	return Utils.getprop(M, k, nothing)
 
 end 
 
@@ -873,9 +871,7 @@ get_usedkeys(usedkeys::Function)::Function = usedkeys
 
 function get_usedkeys(M::Module, args...)
 
-	in(:usedkeys, names(M,all=true)) && return get_usedkeys(M.usedkeys, args...)
-
-	return nothing 
+	get_usedkeys(Utils.getprop(M, :usedkeys), args...)
 
 end 
 
@@ -968,13 +964,7 @@ end
 function common_NrParamsSets(Ms::AbstractVector{<:Module}
 														)::Union{<:Nothing,<:Int}
 
-	Ns = Utils.mapif(>(0), Ms) do m
-
-		!in(:NrParamSets, names(m, all=true)) && return -1 
-		
-		return m.NrParamSets 
-
-	end 
+	Ns = filter(>(0), Utils.getprop.(Ms, :NrParamSets, -1))
 
 	isempty(Ns) && return nothing 
 
@@ -1163,11 +1153,13 @@ struct ParamFlow
 	end 
 
 
+
 	function ParamFlow(allparams::Function, FNG::FilenameGenerator)::ParamFlow
 
 		ParamFlow(nothing, allparams, FNG)
 
 	end 
+
 
 
 	function ParamFlow(allparams::Function, arg1, arg2, args...)::ParamFlow
