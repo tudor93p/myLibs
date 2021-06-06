@@ -134,6 +134,10 @@ end
 
 
 
+kPoints = Matrix{Float64}(undef, 0, 1)
+NR_KPOINTS = 30
+
+@show Utils.PathConnect(kPoints, NR_KPOINTS, dim=2)
 
 
 

@@ -1595,8 +1595,7 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 
 	nr_intervals = size(points, dim) - 1
 
-
-	nr_intervals >= 0 || return points, [] 
+	nr_intervals > 0 || return points, [] 
 
 	nr_intervals==length(dist) || error("There should be $nr_intervals distance(s), you provided ",length(dist))
 
