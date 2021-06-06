@@ -870,7 +870,7 @@ get_usedkeys(usedkeys::Function)::Function = usedkeys
 
 function get_usedkeys(M::Module, args...)
 
-	get_usedkeys(Utils.getprop(M, :usedkeys), args...)
+	get_usedkeys(Utils.getprop(M, :usedkeys, Symbol[]), args...)
 
 end 
 
@@ -920,14 +920,15 @@ end
 
 function union_usedkeys(uks_...)
 
-	union_usedkeys_(map(get_usedkeys, uks_)...)
+	union_usedkeys_(Utils.mapif(get_usedkeys, !isnothing, uks_)...)
 
 end 
 
 
 function union_usedkeys_(uks...)
 
-	any(isnothing, uks) && return nothing 
+	isempty(uks) && return Symbol[]
+#	any(isnothing, uks) && return nothing 
 
 	Utils.isList(uks, AbstractVector{<:Symbol}) && return union(uks...)
 
