@@ -718,8 +718,7 @@ tostr(x::Symbol)::String = string(x)
 
 tostr(x::Utils.List)::String = join(Utils.mapif(tostr, !isempty, x),"/")
 
-tostr(M::Module)::String = tostr(Base.fullname(M)[2:end]) # exclude :Main
-
+tostr(M::Module)::String = tostr(filter(!isequal(:Main), Base.fullname(M)))
 
 
 
