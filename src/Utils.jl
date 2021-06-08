@@ -1282,19 +1282,23 @@ end
 #---------------------------------------------------------------------------#
 
 
-function AllValCombs(params::T;
-										 constraint=nothing,sortby=nothing) where T<:AbstractDict
+function AllValCombs(params::AbstractDict;
+										 constraint=nothing, sortby=nothing)
 
-	vals(v) = (typeof(v) <: AbstractVector) ? v : [v]
+	vals(v::AbstractVector) = v 
+	vals(v) = [v]
+	
 
-	K = vcat(keys(params)...)
+	K = collect(keys(params))
 
-	dicts = [T(zip(K,vs)) 
-					 for vs in Base.product([vals(params[k]) for k in K]...)][:]
+	constr = params isa OrderedDict ? OrderedDict : Dict 
 
-  !isnothing(constraint) && filter!(constraint,dicts)
+	dicts = [constr(zip(K,vs)) 
+					 for vs in Base.product((vals(params[k]) for k in K)...)][:]
 
-  !isnothing(sortby) && sort!(dicts,by=sortby)
+  isnothing(constraint) || filter!(constraint,dicts)
+
+  isnothing(sortby) || sort!(dicts,by=sortby)
 
   return dicts
 end

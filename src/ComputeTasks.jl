@@ -30,30 +30,6 @@ get_taskname(t) = string(Base.fullname(t)[end])
 #
 #---------------------------------------------------------------------------#
 
-function rmv_add_summarize(; rmv_internal_key = nothing, 
-													 	 add_internal_param = nothing,
-														 constrained_params = nothing,
-														 kwargs...)
-
-	isnothing(constrained_params) && return (
-								Parameters.combine_functions_addrem(rmv_internal_key),
-								Parameters.combine_functions_addrem(add_internal_param)
-																					)
-
-
-	new_rmvs,new_adds = Utils.zipmap(constrained_params) do (level,dict)
-
-			Parameters.replace_parameter_fs(dict[:constrained_params]..., level)
-
-		end
-
-
-	return ( Parameters.combine_functions_addrem(new_rmvs, rmv_internal_key),
-					 Parameters.combine_functions_addrem(new_adds, add_internal_param)
-					 )
-	
-
-end 
 
 
 
@@ -82,10 +58,10 @@ function init_task(M;
 									)
 
 
-	rmv_internal_key, add_internal_param = rmv_add_summarize(; kwargs...)
+	rmv_internal_key, add_internal_param = Parameters.Operations.rmv_add_summarize(; kwargs...)
 
 
-	fill_internal(P) = Parameters.fillParams_internalP(M, P, add_internal_param)
+	fill_internal(P) = Parameters.Operations.fillParams_internalP(M, P, add_internal_param)
 
 
 
@@ -93,45 +69,20 @@ function init_task(M;
 	files_exist_1(p,target) = found_files(p...; target=target)
 	
 
+	pr(d::Parameters.UODict) = println(Utils.NT(d))
+	pr(d::Utils.List) = foreach(pr,d) 
 
 	function calc_or_read(p, force_comp, mute, target)
 	
-		function pr(d::T) where T
-	
-			T<:AbstractDict && return println(Utils.NT(d))
-			
-			return foreach(pr,d)
-	
-		end
+		F = (!force_comp && files_exist_1(p, target)) ? read_data : calc_data
 
-		if !force_comp && files_exist_1(p, target)
+		mute && return F(p...; target=target)
 
-			mute && return read_data(p...; target=target)
-
-#			println("Read\n")
-			
-#			return read_data(p...; target=target)
-
-			println("\nRead ",join(Base.fullname(M)[3:end],"/"),"\n")
-
-			pr(p)
-
-			out = @time read_data(p...; target=target)
-	
-			println("Finished.\n")
-	
-		  return out
-
-		end  # else: calculate
-	
-	
-		mute && return calc_data(p...; target=target)
-	
-		println("\nCalculate ",join(Base.fullname(M)[3:end],"/"),"\n")
-	
+		println("\n", Base.nameof(F), " ", Parameters.tostr(M) , "\n")
+		
 		pr(p)	
 	
-		out = @time calc_data(p...; target=target)
+		out = @time F(p...; target=target)
 	
 	  println("Finished.\n")
 	
@@ -141,11 +92,9 @@ function init_task(M;
 	
 
 
-
-
 	return (
 
-	Parameters.f_get_plotparams(M, rmv_internal_key),
+	Parameters.Operations.f_get_plotparams(M, rmv_internal_key),
 
 #	function get_plotparams(P=nothing)
 
@@ -156,7 +105,7 @@ function init_task(M;
 
 	function get_paramcombs(;cond=nothing, repl=nothing)
 
-		Parameters.get_paramcombs(M;
+		Parameters.Operations.get_paramcombs(M;
 															
 			repl = (rmv_internal_key, repl),
 
@@ -167,7 +116,7 @@ function init_task(M;
 
 
 
-	function files_exist(P; target=nothing)
+	function files_exist(P...; target=nothing)
 
 		files_exist_1(fill_internal(P), target)
 		
@@ -175,14 +124,13 @@ function init_task(M;
 
 
 
-	function get_data(P; target=nothing, force_comp=false,
+	function get_data(P...; target=nothing, force_comp=false,
 										mute=true, shuffle=false, fromPlot=false,
 										get_good_P=false, apply_rightaway=(d,p)->d)
 
 		good_P = fill_internal(
 								fromPlot ? Parameters.convertParams_fromPlot(M,P) : P
 								)
-
 
 		data = if target=="None" nothing else 
 
@@ -506,7 +454,7 @@ end
 
 function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
-	rmv_internal_key, add_internal_param = rmv_add_summarize(; kwargs...)
+	rmv_internal_key, add_internal_param = Parameters.Operations.rmv_add_summarize(; kwargs...)
 
 	internal_keys = OrderedDict(internal_keys_)
 

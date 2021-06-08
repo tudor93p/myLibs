@@ -21,7 +21,7 @@ const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
 module Operations
 #############################################################################
 
-import ..UODict, ...Utils
+import ..UODict, ...Utils, ..OrderedDict
 
 import Random 
 
@@ -38,8 +38,7 @@ function combine_functions_addrem(args...)::Function
 
 	good_fs = Utils.flat(args...; keep=x->isa(x,Function))
 
-
-	function combined_addrem(l::Int, p::T)::T where T<:UODict
+	function combined_addrem(l::Int, p::UODict)
 
 		p1 = copy(p)
 
@@ -79,17 +78,27 @@ function combine_functions_cond(args...)::Function
 
 	good_fs = Utils.flat(args...; keep=x->isa(x,Function))
 
-	return function combined_cond(P::T, l::Int)::Bool where T<:UODict
+	function combined_cond(P::UODict, l::Int)::Bool
 
 		for cond in good_fs
 			
-			!cond(P,l) && return false 
+			cond(P,l) || return false 
 
 		end 
 
 		return true 
 
 	end
+
+
+	function combined_cond(P::Utils.List, l::Int)::Bool 
+
+		all(combined_cond.(P,l))
+
+	end 
+
+
+	return combined_cond
 
 
 end 
@@ -188,21 +197,18 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function convertParams_toPlot(M::Module, P=nothing; kwargs...)
+function convertParams_toPlot(M::Module, P; kwargs...)
 
-	!isnothing(P) && return convertParams_toPlot(M;
-																	 get_new = (level,args)->P[level],
-																	 kwargs...)
+	convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
+
+end 
+
+
+function convertParams_toPlot(M::Module, P::Nothing=nothing; kwargs...)
 
 	convert_params(M;
 
 		convert_one = function (params)
-
-										#map(collect(params)) do (k,v)
-
-										#	convertKey_toPlot(params,k) => v
-
-										#end
 
 										[convertKey_toPlot(params,k)=>v for (k,v) in params]
 
@@ -320,16 +326,19 @@ end
 function get_paramcombs(M::Module, level=1, old=[];
 												cond=nothing, repl=nothing)
 
+
 	repl_ = combine_functions_addrem(repl)
 	cond_ = combine_functions_cond(cond)
 
-	raw = repl_(level,M.allparams(old...))
-	
-	news = Utils.mapif(pcomb -> vcat(old...,pcomb),
 
-										 isnothing(cond) || new->cond_(new, level),
+	raw = repl_(level, M.allparams(old...))
+
+	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
+
+										 new->cond_(new, level),
 
 										 Utils.AllValCombs(raw))
+
 
 	level == M.NrParamSets && return news
 
@@ -345,7 +354,7 @@ end
 
 function f_get_plotparams(M, rmv_internal_key=nothing)
 
-	getpp(P=nothing) = convertParams_toPlot(M, P; repl=rmv_internal_key)
+	getpp(P...) = convertParams_toPlot(M, P; repl=rmv_internal_key)
 
 end 
 
@@ -442,6 +451,46 @@ function replace_parameter_fs(getP, Keys, level=1)::Tuple{Function,Function}
 	#return Dict(:rmv_internal_key=>rmv, :add_internal_param=>add)
 
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function rmv_add_summarize(; rmv_internal_key = nothing, 
+													 	 add_internal_param = nothing,
+														 constrained_params = nothing,
+														 kwargs...)
+
+
+
+	isnothing(constrained_params) && return (
+								combine_functions_addrem(rmv_internal_key),
+								combine_functions_addrem(add_internal_param)
+																					)
+
+
+	new_rmvs,new_adds = Utils.zipmap(constrained_params) do (level,dict)
+
+			replace_parameter_fs(dict[:constrained_params]..., level)
+
+		end
+
+
+	return ( combine_functions_addrem(new_rmvs, rmv_internal_key),
+					 combine_functions_addrem(new_adds, add_internal_param)
+					 )
+	
+
+end 
+
+
+
+
 
 
 #############################################################################
