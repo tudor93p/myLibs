@@ -126,9 +126,16 @@ end
 
 #			M Must have M.NrParamSets M.allparams
 
+get_NrPSets(m::Module)::Int = m.NrParamSets
+get_NrPSets(m::Calculation) = m.PF.NrParamSets 
+
+get_allP(m::Module, args...) = m.allparams(args...)
+get_allP(m::Calculation, args...) = m.PF.allparams(args...)
+
+
 function convert_params(M::Union{<:Module, <:Calculation},
 												args=[];
-												get_new=(l,a)->M.allparams(a...),
+												get_new=(l,a)->get_allP(M, a...),
 												repl=nothing,
 												convert_one=identity,
 												convert_many=map,
@@ -149,7 +156,9 @@ function convert_params(M::Union{<:Module, <:Calculation},
 	end
 
 
-	for level in 1:M.NrParamSets
+	
+
+	for level in 1:get_NrPSets(M)
 
 		new = get_new(level,args)
 
@@ -338,7 +347,7 @@ function get_paramcombs(M::Union{<:Module, <:Calculation},
 	cond_ = combine_functions_cond(cond)
 
 
-	raw = repl_(level, M.allparams(old...))
+	raw = repl_(level, get_allP(M, old...))
 
 	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
 
@@ -347,7 +356,7 @@ function get_paramcombs(M::Union{<:Module, <:Calculation},
 										 Utils.AllValCombs(raw))
 
 
-	level == M.NrParamSets && return news
+	level == get_NrPSets(M) && return news
 
 	return Utils.flatmap(news) do new 
 				
