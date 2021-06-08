@@ -1409,7 +1409,7 @@ struct Calculation
 	end 
 
 	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
-											 Compute::Function, ::Any, ::Nothing; kwargs...)
+											 Compute::Function, ::Nothing, ::Nothing; kwargs...)
 
 		Calculation(PF, Compute; kwargs...)
 
