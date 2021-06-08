@@ -2,7 +2,7 @@ module Parameters
 #############################################################################
 
 import ...OrderedDict, ...Utils 
-
+import Random 
 
 const ODict = Union{<:OrderedDict, <:NamedTuple}
 const UDict = AbstractDict
@@ -10,22 +10,38 @@ const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
 
 
 
+#===========================================================================#
+#
+# typical allparams function
+#
+#---------------------------------------------------------------------------#
+
+#function typical_allparams(M::Module, args...)
+#
+#	typical_allparams(M.usedkeys, args...)
+#
+#end
+
+function typical_allparams(usedkeys::Function, args...)::Dict{Symbol,Any}
+
+	typical_allparams(usedkeys(), args...)
+
+end
+
+
+
+function typical_allparams(usedkeys::AbstractVector{<:Symbol},
+													 allp::UODict)::Dict{Symbol,Any}
+
+	Dict(Symbol(k)=>allp[k] for k in intersect(keys(allp),usedkeys))
+
+end
 
 
 
 
 
 
-
-#############################################################################
-module Operations
-#############################################################################
-
-import ..UODict, ...Utils, ..OrderedDict
-
-import Random 
-
-import ..Calculation 
 
 
 #===========================================================================#
@@ -108,73 +124,6 @@ end
 
 
 
-#===========================================================================#
-#
-#	Depending on the kwargs, converts the parameter set into a flat list, 
-#			 the other way around, or fills a missing parameter
-#	
-#		 kwargs must contain:
-#		 	- M = the module for which the calculation is done
-#		 	- get_new = gives the parameters at a certain level
-#		 	- convert_one = method to convert one dictionary
-#		 	- convert_many = specifies how to distribute 'convert_one' on the
-#		 										items in a dictionary list
-#		 	- repl = can replace some parameter with a given value (to fix it)
-#		 	- final_f = to obtain the result in a specific manner
-#
-#---------------------------------------------------------------------------#
-
-#			M Must have M.NrParamSets M.allparams
-
-get_NrPSets(m::Module)::Int = m.NrParamSets
-get_NrPSets(m::Calculation) = m.PF.NrParamSets 
-
-get_allP(m::Module, args...) = m.allparams(args...)
-get_allP(m::Calculation, args...) = m.PF.allparams(args...)
-
-
-function convert_params(M::Union{<:Module, <:Calculation},
-												args=[];
-												get_new=(l,a)->get_allP(M, a...),
-												repl=nothing,
-												convert_one=identity,
-												convert_many=map,
-												final_f=identity)
-
-	function act_on_plev(f1::T1) where T1<:Function
-	
-		return function (arg::T2) where T2
-	
-			T2 <: AbstractDict && return f1(arg)
-		
-			Utils.isList(T2,AbstractDict) && return convert_many(f1,arg)
-		
-			error("\n $arg \nParameter structure not understood: $T2")
-	
-		end
-	
-	end
-
-
-	
-
-	for level in 1:get_NrPSets(M)
-
-		new = get_new(level,args)
-
-		if isnothing(repl) push!(args,new) else 
-
-				push!(args, act_on_plev(a->repl(level,a))(new))
-
-		end
-
-	end
-
-
-	return final_f(map(act_on_plev(convert_one),args))
-
-end
-
 
 
 
@@ -196,211 +145,6 @@ function convertKey_toPlot(p::UODict, k; separator="__")::String
 
 end
 
-
-
-#===========================================================================#
-#
-# Particularizes convert_params in order to obtain a single dictionary
-# 		with unique, string keys, from a structured set P
-#
-# 		(the inverse operation of convertParams_fromPlot)
-#
-#---------------------------------------------------------------------------#
-
-function convertParams_toPlot(M::Union{<:Module, <:Calculation},
-															P; kwargs...)
-
-	convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
-
-end 
-
-
-function convertParams_toPlot(M::Union{<:Module, <:Calculation},
-															P::Nothing=nothing; kwargs...)
-
-	convert_params(M;
-
-		convert_one = function (params)
-
-										[convertKey_toPlot(params,k)=>v for (k,v) in params]
-
-
-									end,
-
-		convert_many = Utils.flatmap,
-
-		final_f = args -> OrderedDict(vcat(args...)),
-
-		kwargs...
-
-		) 
-
-end
-
-
-#===========================================================================#
-#
-#	Particularizes convert_params in order to obtain a structured
-#			parameter set from a single, flat, dictionary P
-#
-#			(the inverse operation of convertParams_toPlot)
-#
-#---------------------------------------------------------------------------#
-
-function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
-																P; kwargs...)
-
-	convert_params(M;
-
-		repl = function (level,params)
-
-										K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
-
-																		k -> haskey(P,k[2]),
-
-																		collect(keys(params)))
-
-										return OrderedDict(k1 => P[k2] for (k1,k2) in K)
-
-									end,
-
-		kwargs...
-
-		)
-
-end
-
-
-##################### REFORMULTE WITH Utils.Backtracking !! 
-
-#===========================================================================#
-#
-#	Fill internal parameters
-#
-#---------------------------------------------------------------------------#
-
-
-function fillParams_internalP(M::Union{<:Module, <:Calculation},
-															P, add_internal_param;
-															kwargs...)
-
-	isnothing(add_internal_param) && return P
-
-	return convert_params(M;
-	
-						get_new = (level,args) -> P[level],
-	
-						repl = add_internal_param,
-
-						kwargs...
-	
-					)
-end 
-
-
-
-function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
-															 P, add_internal_params;
-															kwargs...)
-
-	isnothing(add_internal_params) && return P
-
-	return map(add_internal_params) do add
-
-					fillParams_internalP(M, P, add; kwargs...)
-
-				end
-
-end
-
-
-#function f_fillParams_internal(M::Module, add_internal_param, add_internal_params)
-#
-#	function (P; shuffle=false)
-#
-#		P1 = fillParams_internalP(M, P, add_internal_param)
-#
-#		shuffle = !isnothing(add_internal_params) & shuffle
-#
-#		return fillParams_internalPs(M, P1, 
-#								(shuffle ? Random.shuffle : identity)(add_internal_params)
-#															)
-#	end 
-#end 
-
-
-#===========================================================================#
-#
-#	From module M, get parameter combinations: 
-#									- all (if kwargs not given)
-#									- with contraint/condition 'cond'
-#									- with some fixed parameter, implemented by 'repl' 
-#
-#---------------------------------------------------------------------------#
-
-function get_paramcombs(M::Union{<:Module, <:Calculation},
-												level=1, old=[];
-												cond=nothing, repl=nothing)
-
-
-	repl_ = combine_functions_addrem(repl)
-	cond_ = combine_functions_cond(cond)
-
-
-	raw = repl_(level, get_allP(M, old...))
-
-	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
-
-										 new->cond_(new, level),
-
-										 Utils.AllValCombs(raw))
-
-
-	level == get_NrPSets(M) && return news
-
-	return Utils.flatmap(news) do new 
-				
-						get_paramcombs(M, level+1, new; cond=cond, repl=repl_) 
-	end
-
-end
-
-
-
-
-function f_get_plotparams(M, rmv_internal_key=nothing)
-
-	getpp(P...) = convertParams_toPlot(M, P; repl=rmv_internal_key)
-
-end 
-
-
-#===========================================================================#
-#
-# typical allparams function
-#
-#---------------------------------------------------------------------------#
-
-#function typical_allparams(M::Module, args...)
-#
-#	typical_allparams(M.usedkeys, args...)
-#
-#end
-
-function typical_allparams(usedkeys::Function, args...)::Dict{Symbol,Any}
-
-	typical_allparams(usedkeys(), args...)
-
-end
-
-
-
-function typical_allparams(usedkeys::AbstractVector{<:Symbol},
-													 allp::UODict)::Dict{Symbol,Any}
-
-	Dict(Symbol(k)=>allp[k] for k in intersect(keys(allp),usedkeys))
-
-end
 
 
 
@@ -509,9 +253,6 @@ end
 
 
 
-#############################################################################
-end
-#############################################################################
 
 
 
@@ -1240,7 +981,7 @@ struct ParamFlow
 	
 			N < NrParamSets || error()  
 
-			return Operations.typical_allparams(FNG.usedkeys, input_dict)
+			return typical_allparams(FNG.usedkeys, input_dict)
 	
 		end 
 
@@ -1433,6 +1174,251 @@ struct Calculation
 
 end 
 
+
+
+
+#===========================================================================#
+#
+#	Depending on the kwargs, converts the parameter set into a flat list, 
+#			 the other way around, or fills a missing parameter
+#	
+#		 kwargs must contain:
+#		 	- M = the module for which the calculation is done
+#		 	- get_new = gives the parameters at a certain level
+#		 	- convert_one = method to convert one dictionary
+#		 	- convert_many = specifies how to distribute 'convert_one' on the
+#		 										items in a dictionary list
+#		 	- repl = can replace some parameter with a given value (to fix it)
+#		 	- final_f = to obtain the result in a specific manner
+#
+#---------------------------------------------------------------------------#
+
+#			M Must have M.NrParamSets M.allparams
+
+get_NrPSets(m::Module)::Int = m.NrParamSets
+get_NrPSets(m::Calculation)::Int = m.PF.NrParamSets 
+
+get_allP(m::Module, args...) = m.allparams(args...)
+get_allP(m::Calculation, args...) = m.PF.allparams(args...)
+
+
+function convert_params(M::Union{<:Module, <:Calculation},
+												args=[];
+												get_new=(l,a)->get_allP(M, a...),
+												repl=nothing,
+												convert_one=identity,
+												convert_many=map,
+												final_f=identity)
+
+	function act_on_plev(f1::T1) where T1<:Function
+	
+		return function (arg::T2) where T2
+	
+			T2 <: AbstractDict && return f1(arg)
+		
+			Utils.isList(T2,AbstractDict) && return convert_many(f1,arg)
+		
+			error("\n $arg \nParameter structure not understood: $T2")
+	
+		end
+	
+	end
+
+
+	
+
+	for level in 1:get_NrPSets(M)
+
+		new = get_new(level,args)
+
+		if isnothing(repl) push!(args,new) else 
+
+				push!(args, act_on_plev(a->repl(level,a))(new))
+
+		end
+
+	end
+
+
+	return final_f(map(act_on_plev(convert_one),args))
+
+end
+
+#===========================================================================#
+#
+# Particularizes convert_params in order to obtain a single dictionary
+# 		with unique, string keys, from a structured set P
+#
+# 		(the inverse operation of convertParams_fromPlot)
+#
+#---------------------------------------------------------------------------#
+
+function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+															P; kwargs...)
+
+	convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
+
+end 
+
+
+function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+															P::Nothing=nothing; kwargs...)
+
+	convert_params(M;
+
+		convert_one = function (params)
+
+										[convertKey_toPlot(params,k)=>v for (k,v) in params]
+
+
+									end,
+
+		convert_many = Utils.flatmap,
+
+		final_f = args -> OrderedDict(vcat(args...)),
+
+		kwargs...
+
+		) 
+
+end
+
+
+#===========================================================================#
+#
+#	Particularizes convert_params in order to obtain a structured
+#			parameter set from a single, flat, dictionary P
+#
+#			(the inverse operation of convertParams_toPlot)
+#
+#---------------------------------------------------------------------------#
+
+function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
+																P; kwargs...)
+
+	convert_params(M;
+
+		repl = function (level,params)
+
+										K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
+
+																		k -> haskey(P,k[2]),
+
+																		collect(keys(params)))
+
+										return OrderedDict(k1 => P[k2] for (k1,k2) in K)
+
+									end,
+
+		kwargs...
+
+		)
+
+end
+
+
+##################### REFORMULTE WITH Utils.Backtracking !! 
+
+#===========================================================================#
+#
+#	Fill internal parameters
+#
+#---------------------------------------------------------------------------#
+
+
+function fillParams_internalP(M::Union{<:Module, <:Calculation},
+															P, add_internal_param;
+															kwargs...)
+
+	isnothing(add_internal_param) && return P
+
+	return convert_params(M;
+	
+						get_new = (level,args) -> P[level],
+	
+						repl = add_internal_param,
+
+						kwargs...
+	
+					)
+end 
+
+
+
+function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+															 P, add_internal_params;
+															kwargs...)
+
+	isnothing(add_internal_params) && return P
+
+	return map(add_internal_params) do add
+
+					fillParams_internalP(M, P, add; kwargs...)
+
+				end
+
+end
+
+
+#function f_fillParams_internal(M::Module, add_internal_param, add_internal_params)
+#
+#	function (P; shuffle=false)
+#
+#		P1 = fillParams_internalP(M, P, add_internal_param)
+#
+#		shuffle = !isnothing(add_internal_params) & shuffle
+#
+#		return fillParams_internalPs(M, P1, 
+#								(shuffle ? Random.shuffle : identity)(add_internal_params)
+#															)
+#	end 
+#end 
+
+
+#===========================================================================#
+#
+#	From module M, get parameter combinations: 
+#									- all (if kwargs not given)
+#									- with contraint/condition 'cond'
+#									- with some fixed parameter, implemented by 'repl' 
+#
+#---------------------------------------------------------------------------#
+
+function get_paramcombs(M::Union{<:Module, <:Calculation},
+												level=1, old=[];
+												cond=nothing, repl=nothing)
+
+
+	repl_ = combine_functions_addrem(repl)
+	cond_ = combine_functions_cond(cond)
+
+
+	raw = repl_(level, get_allP(M, old...))
+
+	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
+
+										 new->cond_(new, level),
+
+										 Utils.AllValCombs(raw))
+
+
+	level == get_NrPSets(M) && return news
+
+	return Utils.flatmap(news) do new 
+				
+						get_paramcombs(M, level+1, new; cond=cond, repl=repl_) 
+	end
+
+end
+
+
+
+
+function f_get_plotparams(M, rmv_internal_key=nothing)
+
+	getpp(P...) = convertParams_toPlot(M, P; repl=rmv_internal_key)
+
+end 
 
 
 

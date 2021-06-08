@@ -58,10 +58,10 @@ function init_task(M;
 									)
 
 
-	rmv_internal_key, add_internal_param = Parameters.Operations.rmv_add_summarize(; kwargs...)
+	rmv_internal_key, add_internal_param = Parameters.rmv_add_summarize(; kwargs...)
 
 
-	fill_internal(P) = Parameters.Operations.fillParams_internalP(M, P, add_internal_param)
+	fill_internal(P) = Parameters.fillParams_internalP(M, P, add_internal_param)
 
 
 
@@ -94,7 +94,7 @@ function init_task(M;
 
 	return (
 
-	Parameters.Operations.f_get_plotparams(M, rmv_internal_key),
+	Parameters.f_get_plotparams(M, rmv_internal_key),
 
 #	function get_plotparams(P=nothing)
 
@@ -105,7 +105,7 @@ function init_task(M;
 
 	function get_paramcombs(;cond=nothing, repl=nothing)
 
-		Parameters.Operations.get_paramcombs(M;
+		Parameters.get_paramcombs(M;
 															
 			repl = (rmv_internal_key, repl),
 
@@ -454,7 +454,7 @@ end
 
 function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
-	rmv_internal_key, add_internal_param = Parameters.Operations.rmv_add_summarize(; kwargs...)
+	rmv_internal_key, add_internal_param = Parameters.rmv_add_summarize(; kwargs...)
 
 	internal_keys = OrderedDict(internal_keys_)
 

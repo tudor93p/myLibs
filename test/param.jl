@@ -47,7 +47,7 @@ NrParamSets = 1
 
 
 
-Parameters.Operations.typical_allparams(usedkeys, input_dict[:allparams]) |> println
+Parameters.typical_allparams(usedkeys, input_dict[:allparams]) |> println
 
 const ROOT = "Data"
 
