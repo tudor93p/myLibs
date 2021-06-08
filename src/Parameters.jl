@@ -25,6 +25,7 @@ import ..UODict, ...Utils, ..OrderedDict
 
 import Random 
 
+import ..Calculation 
 
 
 #===========================================================================#
@@ -123,10 +124,10 @@ end
 #
 #---------------------------------------------------------------------------#
 
-
 #			M Must have M.NrParamSets M.allparams
 
-function convert_params(M::Module, args=[];
+function convert_params(M::Union{<:Module, <:Calculation},
+												args=[];
 												get_new=(l,a)->M.allparams(a...),
 												repl=nothing,
 												convert_one=identity,
@@ -197,14 +198,16 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function convertParams_toPlot(M::Module, P; kwargs...)
+function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+															P; kwargs...)
 
 	convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
 
 end 
 
 
-function convertParams_toPlot(M::Module, P::Nothing=nothing; kwargs...)
+function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+															P::Nothing=nothing; kwargs...)
 
 	convert_params(M;
 
@@ -235,7 +238,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function convertParams_fromPlot(M::Module,P;kwargs...)
+function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
+																P; kwargs...)
 
 	convert_params(M;
 
@@ -267,7 +271,8 @@ end
 #---------------------------------------------------------------------------#
 
 
-function fillParams_internalP(M::Module, P, add_internal_param;
+function fillParams_internalP(M::Union{<:Module, <:Calculation},
+															P, add_internal_param;
 															kwargs...)
 
 	isnothing(add_internal_param) && return P
@@ -285,7 +290,8 @@ end
 
 
 
-function fillParams_internalPs(M::Module, P, add_internal_params;
+function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+															 P, add_internal_params;
 															kwargs...)
 
 	isnothing(add_internal_params) && return P
@@ -323,7 +329,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_paramcombs(M::Module, level=1, old=[];
+function get_paramcombs(M::Union{<:Module, <:Calculation},
+												level=1, old=[];
 												cond=nothing, repl=nothing)
 
 
@@ -534,22 +541,11 @@ struct FilenameGenerator
 end 
 
 
-function get1(M, k::Symbol)
+get1(M::Module, k::Symbol) = Utils.getprop(M, k, nothing)
 
-	M isa Module || return M 
+get1(M, k::Symbol) = M 
 
-	return Utils.getprop(M, k, nothing)
-
-end 
-
-
-
-function get1(M, ks...) 
-
-	[get1(M, k) for k in ks]
-
-end 
-
+get1(M, ks...) = [get1(M, k) for k in ks]
 
 
 # --- All 4 args are given --- # 
