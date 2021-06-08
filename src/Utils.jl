@@ -1962,6 +1962,16 @@ function getprop(M::Module, prop::Symbol, std_value=nothing)
 end 
 
 
+function getprop(M::Module, prop::List, std_value=nothing)
+
+	std = isList(std_value) ? i->std_value[i] : i->std_value
+
+	return [getprop(M, p, std(i)) for (i,p) in enumerate(prop)]
+						
+end 
+
+	
+
 #===========================================================================#
 #
 # Assigns value if variable is nothing

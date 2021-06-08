@@ -1308,5 +1308,130 @@ function get_params_digits(S::Union{<:FilenameGenerator, <:ParamFlow},
 
 end 
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function good_methods(PF::ParamFlow, F::Function, args...)::Bool
+	
+	for i in 1:Utils.Assign_Value(PF.NrParamSets, 1)
+
+		hasmethod(F, NTuple{i,<:AbstractDict}, args...) || return false 
+
+	end 
+
+	return true 
+
+end 
+
+
+
+function add_kwargs(PF::ParamFlow, F::Function; kwargs...)::Function
+
+	new_kwargs = [:get_fname, ]
+
+	@assert good_methods(PF, F) 
+
+
+	isempty(new_kwargs) && isempty(kwargs) && return F 
+
+
+	ks1 = filter(propertynames(PF)) do k 
+
+		in(k, new_kwargs) && good_methods(PF, F, tuple(k)) 
+
+	end 
+
+
+	ks2 = filter(collect(keys(kwargs))) do k
+
+		good_methods(PF, F, tuple(k))
+
+	end 
+
+	isempty(ks1) && isempty(ks2) && return F  # it accepts no kwargs
+
+
+	kwa1 = NamedTuple{ks1}(getproperty.([PF], ks1)) 
+
+	kwa2 = NamedTuple{Tuple(ks2)}(kwargs[k] for k in ks2)
+
+
+	return function f(args::Vararg{<:UODict}; kwa...)
+	
+		F(args...; kwa1..., kwa2..., kwa...)
+
+	end 
+
+end 
+
+
+
+
+struct Calculation
+
+	PF::Union{<:ParamFlow,<:FilenameGenerator}
+	
+	Compute::Function 
+
+	Read::Function 
+
+	FoundFiles::Function 
+
+
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 CRF::Vararg{<:Function,3}; kwargs...)
+
+		new(PF, (add_kwargs(PF, f; kwargs...) for f in CRF)...)
+
+	end 
+
+
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 Compute::Function; kwargs...)
+
+		C = add_kwargs(PF, Compute; kwargs...) 
+
+		return new(PF, C, C, (args...)->true)
+
+	end 
+
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 Compute::Function, ::Nothing, ::Any; kwargs...)
+
+		Calculation(PF, Compute; kwargs...) 
+
+	end 
+
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 Compute::Function, ::Any, ::Nothing; kwargs...)
+
+		Calculation(PF, Compute; kwargs...)
+
+	end 
+
+
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 M::Module; kwargs...)
+
+
+		Calculation(PF, Utils.getprop(M,[:Compute,:Read,:FoundFiles])...;
+								kwargs...)
+
+	end 
+
+
+end 
+
+
+
+
+
+
 #############################################################################
 end

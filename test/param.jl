@@ -25,6 +25,11 @@ digits = (X=(3,3),)
 path = "abc" 
 
 params_digits = Parameters.typical_params_digits(usedkeys, input_dict[:digits])
+
+
+
+
+
 end 
 
 function usedkeys()
@@ -233,12 +238,34 @@ println()
 
 
 
+module M3
+
+
+Read(P;some_kwarg=2,kw...) = ("read",some_kwarg)
+
+Compute(P;some_kwarg=1,kw...) = ("compute", some_kwarg)
+
+FoundFiles(P;kwa...) = rand(Bool)
+
+NrParamSets = 1
+	
+apnt =(
+										length = [10,20],
+									 	width = [7],
+										Barrier_height = [0,0.5],
+										SCpx_magnitude = [0.6],
+										)  
+
+allparams() = Dict(k=>apnt[k] for k in keys(apnt))
+
+end
+
 
  
 
-
-
-
+@show Parameters.Calculation(PF, M3).Compute(P)
+@show Parameters.Calculation(PF, M3; some_kwarg=3).Compute(P)
+@show Parameters.Calculation(PF, M3).Compute(P, some_kwarg=4)
 
 
 
