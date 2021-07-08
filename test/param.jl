@@ -41,13 +41,54 @@ usedkeys(P::AbstractDict) = usedkeys()
 
 NrParamSets = 1
 
+usedkeys_symb = [:Y,:T]
 
+usedkeys22() = [:X]
 
-
+usedkeys22(P::AbstractDict, P2::AbstractDict) = usedkeys22()
 
 
 
 Parameters.typical_allparams(usedkeys, input_dict[:allparams]) |> println
+Parameters.typical_allparams(usedkeys_symb, input_dict[:allparams]) |> println
+
+Parameters.typical_allparams(usedkeys22, input_dict[:allparams]) |> println
+
+
+
+@show Parameters.get_usedkeys(usedkeys)
+@show Parameters.get_usedkeys(usedkeys22)
+@show Parameters.get_usedkeys(usedkeys_symb)
+
+P = Dict(:X=>44,:Z=>0.5,:Y=>-3,:T=>-2.5) 
+
+
+@show Parameters.get_usedkeys(usedkeys,P)
+@show Parameters.get_usedkeys(usedkeys22, P, P)
+@show Parameters.get_usedkeys(usedkeys_symb,P)
+
+
+
+@show Parameters.params_digits_(P, usedkeys, input_dict[:digits])
+#@show Parameters.params_digits_((P,P), usedkeys22, input_dict[:digits])
+@show Parameters.params_digits_(Dict(), usedkeys_symb, input_dict[:digits])
+
+
+println();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 const ROOT = "Data"
 
@@ -58,7 +99,6 @@ const ROOT = "Data"
 
 #@show FN
 
-P = Dict(:X=>44,:Z=>0.5,:Y=>-3,:T=>-2.5)
 
 pd = Parameters.typical_params_digits(usedkeys, input_dict[:digits])
 

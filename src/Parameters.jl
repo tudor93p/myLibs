@@ -7,7 +7,7 @@ import Random
 const ODict = Union{<:OrderedDict, <:NamedTuple}
 const UDict = AbstractDict
 const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
-
+const UODicts = Vararg{<:UODict}
 
 
 #===========================================================================#
@@ -227,7 +227,6 @@ function rmv_add_summarize(; rmv_internal_key = nothing,
 														 kwargs...)
 
 
-
 	isnothing(constrained_params) && return (
 								combine_functions_addrem(rmv_internal_key),
 								combine_functions_addrem(add_internal_param)
@@ -308,7 +307,7 @@ function FilenameGenerator(usedkeys::Union{<:Nothing,
 													 params_digits::Function,
 													 )::FilenameGenerator
 
-	function get_fname(args::Vararg{<:UODict})::Function
+	function get_fname(args::UODicts)::Function
 		
 		fname(prefix([path, tostr(params_digits, args...)]))
 
@@ -532,7 +531,7 @@ function tostr(func::Function, arg::UODict)::String
 end 
 
 
-function tostr(func::Function, args::Vararg{<:UODict}; kwargs...)::String
+function tostr(func::Function, args::UODicts; kwargs...)::String
 
 	args  .|> func .|> params_to_string |> tostr
 
@@ -658,16 +657,19 @@ function get_usedkeys(usedkeys::AbstractVector{<:Symbol},
 
 end 
 
-get_usedkeys(usedkeys::Function, P::UODict)::Vector{Symbol} = usedkeys(P)
 
 get_usedkeys(usedkeys::Function)::Function = usedkeys
 
+get_usedkeys(usedkeys::Function, P::UODicts)::Vector{Symbol} = usedkeys(P...)
 
 function get_usedkeys(M::Module, args...)
 
 	get_usedkeys(Utils.getprop(M, :usedkeys, Symbol[]), args...)
 
 end 
+
+
+
 
 
 function params_digits_(P::Tp, 
@@ -678,6 +680,20 @@ function params_digits_(P::Tp,
 	(P, get_usedkeys(uk, P), digits)
 
 end 
+
+
+#function #params_digits_(P::Tp,
+#					#							uk::Union{<:AbstractVector{<:Symbol}, <:Function}, 
+#					#							digits::Td
+#					#						 )::Tuple{Tp, Vector{Symbol}, Td} where {
+#					#											Tp<:Tuple{UODicts},
+#					#											Td<:ODict}
+#
+#	(P, get_#usedkeys(uk, P...), digits)
+#
+#end 
+
+
 
 
 function params_digits_many(P::Utils.List, args...)::Tuple{<:UODict,
@@ -704,6 +720,9 @@ end
 
 
 
+
+
+
 function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
 																							 <:Function}=Symbol[],
 															 digits::ODict=OrderedDict())::Function
@@ -711,6 +730,14 @@ function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
 	(P::UODict) -> params_digits_(P, usedkeys, digits)
 
 end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 function union_usedkeys(uks_...)
@@ -728,10 +755,12 @@ function union_usedkeys_(uks...)
 	Utils.isList(uks, AbstractVector{<:Symbol}) && return union(uks...)
 
 	if Utils.isList(uks, Union{<:Function, AbstractVector{<:Symbol}})
-		
-		return function usedkeys(P::UODict)::Vector{Symbol}
+	
+		# correct number of args? Produces Error
 
-			union_usedkeys_((get_usedkeys(uk, P) for uk in uks)...)
+		return function usedkeys(P::UODicts)::Vector{Symbol}
+
+			union_usedkeys_((get_usedkeys(uk, P...) for uk in uks)...)
 
 		end
 
@@ -754,6 +783,8 @@ function common_NrParamsSets(Ms::Vararg{<:Module})::Union{<:Nothing,<:Int}
 	common_NrParamsSets([m for m in Ms])
 
 end 
+
+
 
 function common_NrParamsSets(Ms::AbstractVector{<:Module}
 														)::Union{<:Nothing,<:Int}
