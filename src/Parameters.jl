@@ -758,11 +758,33 @@ function union_usedkeys_(uks...)
 	
 		# correct number of args? Produces Error
 
-		return function usedkeys(P::UODicts)::Vector{Symbol}
+		function usedkeys(P::UODicts)::Vector{Symbol}
 
 			union_usedkeys_((get_usedkeys(uk, P...) for uk in uks)...)
 
 		end
+
+
+		allusedkeys = union_usedkeys_(map(uks) do uk 
+
+						u = get_usedkeys(uk)
+
+						u isa AbstractVector{<:Symbol} && return u 
+
+						u isa Function && return u()
+
+						error("Wrong input")
+
+
+		end...)
+
+
+		usedkeys()::Vector{Symbol} = allusedkeys 
+
+
+
+		return usedkeys
+
 
 	end 
 

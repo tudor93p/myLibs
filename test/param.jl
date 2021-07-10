@@ -33,11 +33,11 @@ params_digits = Parameters.typical_params_digits(usedkeys, input_dict[:digits])
 end 
 
 function usedkeys()
-	[:X,:Z]
+	[:X,:Z,:zze]
 
 end 
 
-usedkeys(P::AbstractDict) = usedkeys()
+usedkeys(P::AbstractDict) = setdiff(usedkeys(),[:zze])
 
 NrParamSets = 1
 
@@ -260,7 +260,13 @@ PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2,
 
 @show Parameters.union_usedkeys(usedkeys2, usedkeys)(P)  
 @show Parameters.union_usedkeys(usedkeys2, usedkeys2)
+
+println() 
+
 @show Parameters.union_usedkeys(usedkeys, PF)(P)
+@show Parameters.union_usedkeys(usedkeys, PF)()
+
+
 
 
 println()
