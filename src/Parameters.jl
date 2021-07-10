@@ -972,7 +972,7 @@ struct ParamFlow
 
 	function ParamFlow(N::Union{<:Nothing,<:Int}, allparams::Function, 
 										 FNG::FilenameGenerator)::ParamFlow
-	
+
 		new(N, allparams, (getproperty(FNG, p) for p in propertynames(FNG))...)
 	
 	end 
@@ -1227,10 +1227,14 @@ end
 #			M Must have M.NrParamSets M.allparams
 
 get_NrPSets(m::Module)::Int = m.NrParamSets
-get_NrPSets(m::Calculation)::Int = m.PF.NrParamSets 
+get_NrPSets(pf::ParamFlow)::Int = pf.NrParamSets 
+get_NrPSets(c::Calculation)::Int = get_NrPSets(c.PF)
 
-get_allP(m::Module, args...) = m.allparams(args...)
-get_allP(m::Calculation, args...) = m.PF.allparams(args...)
+
+get_allP(m::Module, args...) = m.allparams(args...) 
+get_allP(pf::ParamFlow, args...) = pf.allparams(args...) 
+get_allP(m::Calculation, args...) = get_allP(m.PF, args...)
+
 
 
 function convert_params(M::Union{<:Module, <:Calculation},
@@ -1415,7 +1419,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_paramcombs(M::Union{<:Module, <:Calculation},
+function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
 												level=1, old=[];
 												cond=nothing, repl=nothing)
 
@@ -1423,7 +1427,8 @@ function get_paramcombs(M::Union{<:Module, <:Calculation},
 	repl_ = combine_functions_addrem(repl)
 	cond_ = combine_functions_cond(cond)
 
-
+	#M must have M.allparams::Function, M.NrParamSets::Int,
+	
 	raw = repl_(level, get_allP(M, old...))
 
 	news = Utils.mapif(pcomb -> vcat(old..., pcomb),

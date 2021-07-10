@@ -246,6 +246,10 @@ PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2,
 													input_dict[:digits], "Data")
 
 
+@show PF.NrParamSets
+
+
+
 @show PF.allparams()
 
 
@@ -309,8 +313,32 @@ end
 
 
 
+println()
 
 
+C = Parameters.Calculation(PF, M3) 
+
+
+@show Parameters.get_NrPSets(C)
+@show Parameters.get_NrPSets(PF)
+
+@show Parameters.get_allP(C)
+@show Parameters.get_allP(PF)
+
+
+
+println() 
+
+foreach(println, Parameters.get_paramcombs(C))
+
+
+println() 
+
+foreach(println, Parameters.get_paramcombs(PF))
+
+
+
+println()
 
 
 
