@@ -2,7 +2,7 @@ using Revise
 
 using Test 
 
-include("algebra.jl")
+#include("algebra.jl")
 #include("lattices.jl")
 #
 #include("tbmodel.jl")
@@ -17,7 +17,30 @@ include("algebra.jl")
 
 #include("layeredsystem.jl")
 
-include("param.jl") 
+#include("param.jl") 
 
 
-#include("tasks.jl")
+include("tasks.jl")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+nothing

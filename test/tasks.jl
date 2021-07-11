@@ -56,11 +56,11 @@ for (m,ps) in ([M,(P,)],[M2,(P,P,)])
 																add_internal_param = add,
 																)
 
-	local	get_plotparams, get_paramcombs, files_exist, get_data = task
+#	local	get_plotparams, get_paramcombs, files_exist, get_data = task
 
 
 
-for (k,v) in get_plotparams(ps...)
+for (k,v) in task.get_plotparams(ps...)
 
 	println(k, " ", v)
 
@@ -70,7 +70,7 @@ println()
 
 
 
-foreach(println, get_paramcombs())
+foreach(println, task.get_paramcombs())
 
 println()  
 
@@ -78,11 +78,11 @@ println()
 cond(p::AbstractDict,l) = get(p,:length,0)==10
 
 
-foreach(println, get_paramcombs(;cond=cond))
+foreach(println, task.get_paramcombs(;cond=cond))
 println() 
 
-@show 	files_exist(get_paramcombs()[1]...)
-@show get_data(get_paramcombs()[1]...)
+@show task.files_exist(task.get_paramcombs()[1]...)
+@show task.get_data(task.get_paramcombs()[1]...)
 
 
 end 

@@ -30,6 +30,17 @@ get_taskname(t) = string(Base.fullname(t)[end])
 #
 #---------------------------------------------------------------------------#
 
+struct CompTask
+
+	get_plotparams::Function 
+	
+	get_paramcombs::Function 
+	
+	files_exist::Function 
+	
+	get_data::Function 
+	
+end 
 
 
 
@@ -92,58 +103,58 @@ function init_task(M;
 	
 
 
-	return (
+	return CompTask(
 
-	Parameters.f_get_plotparams(M, rmv_internal_key),
-
-#	function get_plotparams(P=nothing)
-
-#		Parameters.convertParams_toPlot(M, P; repl=rmv_internal_key)
-
-#	end,
-
-
-	function get_paramcombs(;cond=nothing, repl=nothing)
-
-		Parameters.get_paramcombs(M;
-															
-			repl = (rmv_internal_key, repl),
-
-			cond = (valid_pcomb, cond),
+		Parameters.f_get_plotparams(M, rmv_internal_key),
+	
+	#	function get_plotparams(P=nothing)
+	
+	#		Parameters.convertParams_toPlot(M, P; repl=rmv_internal_key)
+	
+	#	end,
+	
+	
+		function get_paramcombs(;cond=nothing, repl=nothing)
+	
+			Parameters.get_paramcombs(M;
+																
+				repl = (rmv_internal_key, repl),
+	
+				cond = (valid_pcomb, cond),
+				
+				)
+		end,
+	
+	
+	
+		function files_exist(P...; target=nothing)
+	
+			files_exist_1(fill_internal(P), target)
 			
-			)
-	end,
-
-
-
-	function files_exist(P...; target=nothing)
-
-		files_exist_1(fill_internal(P), target)
-		
-	end,
-
-
-
-	function get_data(P...; target=nothing, force_comp=false,
-										mute=true, shuffle=false, fromPlot=false,
-										get_good_P=false, apply_rightaway=(d,p)->d)
-
-		good_P = fill_internal(
-								fromPlot ? Parameters.convertParams_fromPlot(M,P) : P
-								)
-
-		data = if target=="None" nothing else 
-
-				apply_rightaway(calc_or_read(good_P, force_comp, mute, target),
-												good_P)
-
-		end
-
-
-		return get_good_P ? (data, good_P) : data 
-
-	end,
-
+		end,
+	
+	
+	
+		function get_data(P...; target=nothing, force_comp=false,
+											mute=true, shuffle=false, fromPlot=false,
+											get_good_P=false, apply_rightaway=(d,p)->d)
+	
+			good_P = fill_internal(
+									fromPlot ? Parameters.convertParams_fromPlot(M,P) : P
+									)
+	
+			data = if target=="None" nothing else 
+	
+					apply_rightaway(calc_or_read(good_P, force_comp, mute, target),
+													good_P)
+	
+			end
+	
+	
+			return get_good_P ? (data, good_P) : data 
+	
+		end,
+	
 
  )
 
@@ -429,6 +440,46 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function combine_files_exist(tasks::AbstractVector{CompTask})
+
+	function files_exist(args...; kwargs...)
+
+		for t in tasks 
+		
+			t.files_exist(args...; kwargs...) || return false 
+
+		end 
+
+		return true 
+
+	end
+
+end 
+
+
+function combine_get_data(tasks::AbstractVector{CompTask})
+
+	function get_data(P::AbstractDict; samplevectors=12345, kwargs...)
+
+		if !(isa(samplevectors,Int) && samplevectors==12345)
+
+					error("kwarg disabled")
+		end 
+#			return Any[SampleVectors(reshape(obs,:,1), P), I...]
+
+		return [t.get_data(P; kwargs...) for t in tasks]
+
+	end  
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 function restrict_number_subplots(d::Int, v::AbstractVector; max_nr_plotx=nothing, max_nr_ploty=nothing, kwargs...)
 
 	max_nr = [max_nr_plotx, max_nr_ploty][d.==[3,4]]
@@ -450,6 +501,14 @@ function restrict_number_subplots(d::Int, v::AbstractVector; max_nr_plotx=nothin
 	return v
 
 end
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
@@ -529,63 +588,25 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 	ik_levels = [minimum(vcat(v...)) for v in values(internal_keys)]
 
-	function add_ipar(intpar)
+	tasks = map(internal_params) do intpar  
 
-		ip_all = collect(zip(keys(internal_keys), intpar))
+						ip_all = collect(zip(keys(internal_keys), intpar))
 
-		newp(l,p) = merge(p, Dict(ip_all[ik_levels.==l]))
+						newp(l,p) = merge(p, Dict(ip_all[ik_levels.==l]))
 
-		return Parameters.combine_functions_addrem(newp, add_internal_param)
+						add=Parameters.combine_functions_addrem(newp, add_internal_param)
 
-	end 
-
-	
-	get_plotparams, get_paramcombs,  = init_task(M; rmv_internal_key=rmv_ikey)
-
-	tasks = map(internal_params) do ip 
-	
-							init_task(M;
-									rmv_internal_key = rmv_ikey,
-									add_internal_param = add_ipar(ip)
-									)[3:4]
+						return init_task(M;
+														 rmv_internal_key = rmv_ikey,
+														 add_internal_param = add,
+														 )
 					 end	
 					 
-#	get_plotparams, get_paramcombs, files_exist, get_data = task 
+
+	task0 = init_task(M; rmv_internal_key=rmv_ikey)
 
 
-	function files_exist(args...; kwargs...)
-
-		for t in tasks 
-
-			t[1](args...; kwargs...) || return false 
-
-		end 
-
-		return true 
-
-	end
-
-
-	function get_data(P; samplevectors=12345, kwargs...)
-
-
-
-		if !(isa(samplevectors,Int) && samplevectors==12345)
-
-					error("kwarg disabled")
-		end 
-#			return Any[SampleVectors(reshape(obs,:,1), P), I...]
-
-
-		map(tasks) do t 
-			
-			t[2](P; kwargs...)
-
-		end 
-
-	end 
-
-
+				# ----------------- #
 
 
 	function setobs!(Z, inds, obs)
@@ -687,14 +708,17 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 		return (allparams, external_param)[pj][argmax(dims[pj].==i)]
 
-	end 
+	end  
 
-	return ((get_plotparams, get_paramcombs, files_exist, get_data),
+
+	return (CompTask(task0.get_plotparams, 
+									 task0.get_paramcombs, 
+									 combine_files_exist(tasks),
+									 combine_get_data(tasks)),
 					out_dict, 
 					construct_Z,
 					nrowcol,
 					)
-
 
 end
 
