@@ -176,7 +176,8 @@ end
 
 
 function get_data_all(task; shuffle=false, seed=nothing, rev=false,
-														check_data=true, mute=true, )
+														check_data=true, mute=true, ) 
+
 
 	AC = task.get_paramcombs()
 

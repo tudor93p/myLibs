@@ -233,9 +233,9 @@ function rmv_add_summarize(; rmv_internal_key = nothing,
 																					)
 
 
-	new_rmvs,new_adds = Utils.zipmap(constrained_params) do (level,dict)
+	new_rmvs,new_adds = Utils.zipmap(constrained_params) do (level,cp)
 
-			replace_parameter_fs(dict[:constrained_params]..., level)
+			replace_parameter_fs(cp..., level)
 
 		end
 
