@@ -939,7 +939,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function getCombinedDistrib(args; normalize=false) 
+function getCombinedDistrib(args; normalize=false, kwargs...) 
 
 	length(args)==1 && return getDistrib(args[1]...; normalize=normalize)
 
