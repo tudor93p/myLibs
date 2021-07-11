@@ -5,7 +5,7 @@ module Algebra
 
 import ..LA
 
-import ..Utils
+import ..Utils, ..ArrayOps
 
 import Dierckx,FFTW
 
@@ -32,7 +32,7 @@ function fft(x::AbstractMatrix, w::Number=0; dim::Int=1, addup=true)
 	
 	E = exp.(-1im*w*(axes(x,dim).-1))
 
-	Y = Utils.multiply_elementwise(E, x, dim)
+	Y = ArrayOps.multiply_elementwise(E, x, dim)
 
 	!addup && return Y
 	
@@ -951,7 +951,7 @@ function getCombinedDistrib(args; normalize=false, kwargs...)
 	if typeof(D1)<:Union{Real,AbstractArray}
 
 		return normalizeDistrib(
-							mapreduce(D, Utils.multiply_elementwise, args[2:end], init=D1),
+							mapreduce(D, ArrayOps.multiply_elementwise, args[2:end], init=D1),
 							normalize)
 
 
@@ -959,7 +959,7 @@ function getCombinedDistrib(args; normalize=false, kwargs...)
 
 		Ds = [D1; D.(args[2:end])]
 
-		totalD(Args...) = mapreduce(d->d(Args...), Utils.multiply_elementwise, Ds)
+		totalD(Args...) = mapreduce(d->d(Args...), ArrayOps.multiply_elementwise, Ds)
 
 		return normalizeDistrib(totalD, normalize) 
 
