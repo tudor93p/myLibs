@@ -17,8 +17,9 @@ import DelimitedFiles; const DlmF = DelimitedFiles
 
 include("Utils.jl")
 
+include("ArrayOps.jl") 
+
 include("Algebra.jl")
-include("ArrayOps.jl")
 
 include("Parameters.jl")
 include("ComputeTasks.jl")
