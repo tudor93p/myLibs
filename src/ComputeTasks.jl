@@ -8,6 +8,7 @@ import ..Random, PyCall, ..OrderedDict
 import ..Utils 
 import ..Parameters
 
+UODicts = Parameters.UODicts
 
 
 
@@ -77,7 +78,6 @@ function init_task(M;
 
 
 
-	files_exist_1(p,target) = found_files(p...; target=target)
 	
 
 	pr(d::Parameters.UODict) = println(Utils.NT(d))
@@ -85,7 +85,16 @@ function init_task(M;
 
 	function calc_or_read(p, force_comp, mute, target)
 	
-		F = (!force_comp && files_exist_1(p, target)) ? read_data : calc_data
+		F = if !force_comp && found_files(p...; target=target)
+			
+					read_data 
+
+				else 
+
+					calc_data
+
+				end  
+
 
 		mute && return F(p...; target=target)
 
@@ -107,12 +116,6 @@ function init_task(M;
 
 		Parameters.f_get_plotparams(M, rmv_internal_key),
 	
-	#	function get_plotparams(P=nothing)
-	
-	#		Parameters.convertParams_toPlot(M, P; repl=rmv_internal_key)
-	
-	#	end,
-	
 	
 		function get_paramcombs(;cond=nothing, repl=nothing)
 	
@@ -126,16 +129,15 @@ function init_task(M;
 		end,
 	
 	
-	
-		function files_exist(P...; target=nothing)
-	
-			files_exist_1(fill_internal(P), target)
+		function files_exist(Ps::UODicts; target=nothing)
+
+				found_files(fill_internal(Ps)...; target=target) 
 			
 		end,
 	
 	
 	
-		function get_data(P...; target=nothing, force_comp=false,
+		function get_data(P::UODicts; target=nothing, force_comp=false,
 											mute=true, shuffle=false, fromPlot=false,
 											get_good_P=false, apply_rightaway=(d,p)->d)
 	
@@ -175,7 +177,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function get_data_all(task; shuffle=false, seed=nothing, rev=false,
+function get_data_all(task::CompTask; shuffle=false, seed=nothing, rev=false,
 														check_data=true, mute=true, ) 
 
 
@@ -211,7 +213,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function missing_data(task; show_missing=false)
+function missing_data(task::CompTask; show_missing=false)
 
 	allcombs = task.get_paramcombs()
 
@@ -225,7 +227,8 @@ function missing_data(task; show_missing=false)
 													
 		(nprocs()>1 ? pmap : map)(enumerate(allcombs)) do (i,c)
 
-			out = !task.files_exist(c)
+
+			out = !task.files_exist(c...)
 
 
 			id(myid()) && println(i,"/",length(allcombs)," Files ", out ? "don't " : "", "exist")
@@ -256,7 +259,7 @@ end
 
 
 
-function existing_data(task; show_existing=false)
+function existing_data(task::CompTask; show_existing=false)
 
 	allcombs = task.get_paramcombs()
 
@@ -296,7 +299,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_data_one(task, pick=Utils.DictFirstVals; kwargs...)
+function get_data_one(task::CompTask, pick=Utils.DictFirstVals; kwargs...)
 
 	task.get_data(task.get_paramcombs(;repl=(l,p)->pick(p))[1];
 								force_comp=true, mute=true, kwargs...)
@@ -305,7 +308,7 @@ end
 
 
 
-function get_plot_one(task, pick=Utils.DictFirstVals)
+function get_plot_one(task::CompTask, pick=Utils.DictFirstVals)
 
 	p = task.get_paramcombs(;repl=(l,P)->pick(P))
 
@@ -323,7 +326,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function get_data_random(task; seed=nothing, check_data=true, mute=true)
+function get_data_random(task::CompTask; seed=nothing, check_data=true, mute=true)
 
 	seed isa Int && Random.seed!(seed)
 

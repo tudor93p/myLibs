@@ -1384,7 +1384,7 @@ end
 
 
 function fillParams_internalP(M::Union{<:Module, <:Calculation},
-															P, add_internal_param;
+															P::Utils.List, add_internal_param;
 															kwargs...)
 
 	isnothing(add_internal_param) && return P
