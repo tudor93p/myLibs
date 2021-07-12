@@ -146,6 +146,19 @@ function convertKey_toPlot(p::UODict, k; separator="__")::String
 end
 
 
+function convertPair_toPlot(p::UODict, k; kwargs...)::Pair{String,<:Any}
+
+	convertKey_toPlot(p, k; kwargs...) => p[k]
+
+end 
+
+
+function convertPairs_toPlot(p::UODict; kwargs...)::Vector{Pair{String,<:Any}}
+	
+	[convertPair_toPlot(p, k) for k in keys(p)] 
+
+end 
+
 
 
 ##function merge_allparams(Ms::Vararg{Module,N}; args=[], kwargs...) where N
@@ -189,29 +202,54 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function replace_parameter_fs(getP, Keys, level=1)::Tuple{Function,Function}
+function replace_parameter_fs(getP, Keys, level::Int=1)::Tuple{Function,Function}
 
-	isa(level,Int) || Utils.isList(level, Int) || error()
-
-	islev = in(Utils.flat(level))
-
-	K = Utils.flat(Keys)
-
-	rmv(l,p) = islev(l) ? filter(kv->!in(kv.first, K), p) : p
-
-	if getP isa Function 
-		
-		add(l,p) = islev(l) ? merge(p, Dict(zip(K, getP(l,p)))) : p
-
-		return rmv,add
-
-	end
-
-	return rmv,(l,p)->p
-	#return Dict(:rmv_internal_key=>rmv, :add_internal_param=>add)
+	replace_parameter_fs(getP, Keys, [level])
 
 end 
 
+function replace_parameter_fs(getP::Function, Keys, 
+															levels::AbstractVector{Int}
+														 )::Tuple{Function,Function}
+
+	K = Utils.flat(Keys) 
+
+	rmv,aux = replace_parameter_fs(nothing, Keys, levels)
+
+
+	function add(l::Int,p::T)::T where T<:UODict 
+
+		in(l, levels) || return p
+		
+		return merge(p, Dict(zip(K, getP(l,p))))
+
+	end 
+
+
+	return rmv,add
+
+end 
+
+
+
+function replace_parameter_fs(getP, Keys, 
+															levels::AbstractVector{Int}
+														 )::Tuple{Function,Function}
+
+	K = Utils.flat(Keys)
+
+	function rmv(l::Int, p::T)::T where T<:UODict 
+
+		in(l,levels) || return p 
+		
+		return filter(kv->!in(kv.first, K), p)
+
+	end 
+
+
+	return rmv,(l,p)->p
+
+end 
 
 
 #===========================================================================#
@@ -642,11 +680,6 @@ end
 #
 #---------------------------------------------------------------------------#
 
-#function typical_params_digits(M::Module, args...)::Function
-#
-#	typical_params_digits(M.usedkeys, args...)
-#
-#end
 
 get_usedkeys(usedkeys::Nothing, args...)::Nothing = nothing 
 
@@ -668,6 +701,14 @@ function get_usedkeys(M::Module, args...)
 
 end 
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -750,14 +791,11 @@ end
 function union_usedkeys_(uks...)
 
 	isempty(uks) && return Symbol[]
-#	any(isnothing, uks) && return nothing 
 
 	Utils.isList(uks, AbstractVector{<:Symbol}) && return union(uks...)
 
 	if Utils.isList(uks, Union{<:Function, AbstractVector{<:Symbol}})
 	
-		# correct number of args? Produces Error
-
 		function usedkeys(P::UODicts)::Vector{Symbol}
 
 			union_usedkeys_((get_usedkeys(uk, P...) for uk in uks)...)
@@ -1311,7 +1349,7 @@ end
 #---------------------------------------------------------------------------#
 
 function convertParams_toPlot(M::Union{<:Module, <:Calculation},
-															P; kwargs...)
+															P::Utils.List; kwargs...)
 
 	convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
 
@@ -1323,12 +1361,7 @@ function convertParams_toPlot(M::Union{<:Module, <:Calculation},
 
 	convert_params(M;
 
-		convert_one = function (params)
-
-										[convertKey_toPlot(params,k)=>v for (k,v) in params]
-
-
-									end,
+		convert_one = convertPairs_toPlot,
 
 		convert_many = Utils.flatmap,
 
@@ -1351,11 +1384,11 @@ end
 #---------------------------------------------------------------------------#
 
 function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
-																P; kwargs...)
+																P::UODict; kwargs...)
 
 	convert_params(M;
 
-		repl = function (level,params)
+		repl = function (level::Int, params::UODict)
 
 										K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
 
@@ -1384,35 +1417,48 @@ end
 
 
 function fillParams_internalP(M::Union{<:Module, <:Calculation},
-															P::Utils.List, add_internal_param;
+															P::Utils.List, ::Nothing;
+															kwargs...)
+	P 
+
+end 
+
+
+function fillParams_internalP(M::Union{<:Module, <:Calculation},
+															P::Utils.List, add_internal_param::Function;
 															kwargs...)
 
-	isnothing(add_internal_param) && return P
+	convert_params(M;
+								 
+								 get_new = (level,args) -> P[level],
 
-	return convert_params(M;
-	
-						get_new = (level,args) -> P[level],
-	
-						repl = add_internal_param,
+								 repl = add_internal_param,
 
-						kwargs...
+								 kwargs...
 	
-					)
+								)
 end 
 
 
 
 function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
-															 P, add_internal_params;
+															 P::Utils.List, ::Nothing;
 															kwargs...)
+	P
 
-	isnothing(add_internal_params) && return P
+end 
 
-	return map(add_internal_params) do add
+
+function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+															 P::Utils.List, 
+															 add_internal_params::Utils.List;
+															 kwargs...)
+
+	map(add_internal_params) do add
 
 					fillParams_internalP(M, P, add; kwargs...)
 
-				end
+	end
 
 end
 
@@ -1441,30 +1487,35 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
+												cond=nothing, repl=nothing) # First call
+
+	get_paramcombs(M, 1, [];
+								 cond = combine_functions_cond(cond),
+								 repl = combine_functions_addrem(repl),
+								)
+end 
+
+
+
 function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
-												level=1, old=[];
-												cond=nothing, repl=nothing)
-
-
-	repl_ = combine_functions_addrem(repl)
-	cond_ = combine_functions_cond(cond)
+												level::Int, old::AbstractVector; 
+												cond::Function, repl::Function) # Further calls 
 
 	#M must have M.allparams::Function, M.NrParamSets::Int,
-	
-	raw = repl_(level, get_allP(M, old...))
 
 	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
 
-										 new->cond_(new, level),
+										 new->cond(new, level),
 
-										 Utils.AllValCombs(raw))
+										 Utils.AllValCombs(repl(level, get_allP(M, old...))))
 
 
 	level == get_NrPSets(M) && return news
 
 	return Utils.flatmap(news) do new 
 				
-						get_paramcombs(M, level+1, new; cond=cond, repl=repl_) 
+						get_paramcombs(M, level+1, new; cond=cond, repl=repl) 
 	end
 
 end
@@ -1472,14 +1523,29 @@ end
 
 
 
-function f_get_plotparams(M, rmv_internal_key=nothing)
+function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
+													rmv_internal_key::Nothing=nothing)
 
-	getpp(P...) = convertParams_toPlot(M, P; repl=rmv_internal_key)
+	getpp(P::UODicts) = convertParams_toPlot(M, P)
+													
+end 
+
+
+function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
+													rmv_internal_key::Function)
+
+	getpp(P::UODicts) = convertParams_toPlot(M, P; 
+																					 repl=rmv_internal_key) 
 
 end 
 
 
 
+function f_fill_internal(M::Union{<:Module, <:Calculation}, args...)
+	
+	fill_int(P::Utils.List) = Parameters.fillParams_internalP(M, P, args...)
+	
+end 
 
 
 #############################################################################

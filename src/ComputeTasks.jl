@@ -9,6 +9,7 @@ import ..Utils
 import ..Parameters
 
 UODicts = Parameters.UODicts
+UODict = Parameters.UODict
 
 
 
@@ -55,6 +56,7 @@ end
 
 
 
+
 function init_task(M;
 
 									found_files = M.FoundFiles,
@@ -67,25 +69,26 @@ function init_task(M;
 					
 									kwargs...
 
-									)
+									)::CompTask
 
+	#found_files, read_data, calc_data take as arguments one or more 'UODict'. 
+	# To be used as f(P::UODicts) or f(P...)
 
 	rmv_internal_key, add_internal_param = Parameters.rmv_add_summarize(; kwargs...)
 
 
-	fill_internal(P) = Parameters.fillParams_internalP(M, P, add_internal_param)
+	get_plotparams = Parameters.f_get_plotparams(M, rmv_internal_key)
+
+	fill_internal = Parameters.f_fill_internal(M, add_internal_param)
 
 
 
 
-	
 
-	pr(d::Parameters.UODict) = println(Utils.NT(d))
-	pr(d::Utils.List) = foreach(pr,d) 
+	function calc_or_read(p::Utils.List, force_comp::Bool, mute::Bool; 
+												kwargs...)
 
-	function calc_or_read(p, force_comp, mute, target)
-	
-		F = if !force_comp && found_files(p...; target=target)
+		F = if !force_comp && found_files(p...; kwargs...)
 			
 					read_data 
 
@@ -96,13 +99,13 @@ function init_task(M;
 				end  
 
 
-		mute && return F(p...; target=target)
+		mute && return F(p...; kwargs...)
 
 		println("\n", Base.nameof(F), " ", Parameters.tostr(M) , "\n")
 		
-		pr(p)	
+		foreach(d->println(Utils.NT(d)), p)
 	
-		out = @time F(p...; target=target)
+		out = @time F(p...; kwargs...)
 	
 	  println("Finished.\n")
 	
@@ -112,9 +115,10 @@ function init_task(M;
 	
 
 
+
 	return CompTask(
 
-		Parameters.f_get_plotparams(M, rmv_internal_key),
+		get_plotparams, 
 	
 	
 		function get_paramcombs(;cond=nothing, repl=nothing)
@@ -129,17 +133,23 @@ function init_task(M;
 		end,
 	
 	
-		function files_exist(Ps::UODicts; target=nothing)
+		function files_exist(Ps; target=nothing)
 
-				found_files(fill_internal(Ps)...; target=target) 
+				@show Ps 
+
+				return found_files(fill_internal(Ps)...; target=target) 
 			
 		end,
 	
 	
 	
-		function get_data(P::UODicts; target=nothing, force_comp=false,
-											mute=true, shuffle=false, fromPlot=false,
-											get_good_P=false, apply_rightaway=(d,p)->d)
+		function get_data(P::UODicts; target=nothing, 
+											force_comp::Bool=false,
+											mute::Bool=true, 
+											shuffle::Bool=false, 
+											fromPlot::Bool=false,
+											get_good_P::Bool=false, 
+											apply_rightaway::Function=(d,p)->d)
 	
 			good_P = fill_internal(
 									fromPlot ? Parameters.convertParams_fromPlot(M,P) : P
@@ -147,7 +157,8 @@ function init_task(M;
 	
 			data = if target=="None" nothing else 
 	
-					apply_rightaway(calc_or_read(good_P, force_comp, mute, target),
+					apply_rightaway(calc_or_read(good_P, force_comp, mute;
+																			 target=target),
 													good_P)
 	
 			end

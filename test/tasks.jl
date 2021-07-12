@@ -81,8 +81,16 @@ cond(p::AbstractDict,l) = get(p,:length,0)==10
 foreach(println, task.get_paramcombs(;cond=cond))
 println() 
 
-@show task.files_exist(task.get_paramcombs()[1]...)
-@show task.get_data(task.get_paramcombs()[1]...)
+qq = task.get_paramcombs()[1]
+
+@show qq 
+
+
+@show methods(task.files_exist)
+
+
+@show task.files_exist(qq...)
+#@show task.get_data(task.get_paramcombs()[1]...)
 
 
 end 

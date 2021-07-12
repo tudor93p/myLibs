@@ -1193,8 +1193,6 @@ function OuterBinary(U::Tu, V::Tv, op::Function; flat=false, dim=1) where Tu<:T 
 	i0 = fill(Colon(), 2-flat)
 
 
-#	for (i,(u,v)) in enumerate(zip(eachslice(U,dims=dim2), eachslice(V,dims=dim2)))
-
 
 	for i in 1:sizes[dim2]
 
