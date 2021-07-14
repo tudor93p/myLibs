@@ -853,7 +853,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Distribute_Work(allparamcombs,do_work;arg_pos=1,kwargs0...)
+function Distribute_Work(allparamcombs::AbstractVector,
+												 do_work::Function; 
+												 vararg::Bool=false, arg_pos::Int=1, kwargs0...)
 
   nr_scripts = min(length(allparamcombs), get_arg(1, arg_pos, Int64))
 
@@ -863,7 +865,7 @@ function Distribute_Work(allparamcombs,do_work;arg_pos=1,kwargs0...)
 
 	if start > nr_scripts
 
-    println(string("\nI am ",idproc," and I am not doing any jobs (nr.jobs < nr.processes).\n"))
+    println(string("\nI am $idproc and I am not doing any jobs (nr.jobs < nr.processes).\n"))
     return
 
   end
@@ -878,10 +880,6 @@ function Distribute_Work(allparamcombs,do_work;arg_pos=1,kwargs0...)
 	doparams = allparamcombs[which_] 
 	
 
-
-  
-  doparams, which_, njobs = distribute_list(allparamcombs, nr_scripts, 
-																						start, stop)
   
   println("\nI am $idproc and I am doing jobs $which_ out of $njobs.\n")
 
@@ -907,11 +905,10 @@ function Distribute_Work(allparamcombs,do_work;arg_pos=1,kwargs0...)
   for (ip,p) in enumerate(doparams)
   
     time1 = Dates.now()
-  
-    do_work(p;kwargs0...)
+ 
+		vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...)
 
     print_progress(ip,time1)
-  
   
   end
 
@@ -1259,16 +1256,16 @@ end
 
 
 
-function DictFirstVals(params::T) where T<:AbstractDict
+function DictFirstVals(params::AbstractDict)
 
-	T(k=>(typeof(v) <: AbstractVector) ? v[1] : v 
+	Dict(k=>(typeof(v) <: AbstractVector) ? v[1] : v 
 							for (k,v) in pairs(params))
 
 end
 
-function DictFirstVals(params::T) where T
+function DictFirstVals(params::List)
 	
-	isList(T,AbstractDict) && return DictFirstVals.(params)
+	isList(params, AbstractDict) && return DictFirstVals.(params)
 
 	error("Type not understood: $T")
 

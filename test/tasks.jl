@@ -45,13 +45,14 @@ P = Dict(:length=>10,:width=>7, :Barrier_height=>1.0,:SCpx_magnitude=>0.4,:SCDW_
 
 for (m,ps) in ([M,(P,)],[M2,(P,P,)])
 
-	@show m ps 
+	println("----------")
+#	@show m ps 
 
 	rmv(l,p::AbstractDict) = Dict(k=>p[k] for k in filter(!isequal(:width),collect(keys(p))))
 	add(l,p::AbstractDict) = merge(p,Dict(:Q=>0.3))
 
 
-	local task = ComputeTasks.init_task(M; 
+	local task = ComputeTasks.init_task(m; 
 																rmv_internal_key = rmv,
 																add_internal_param = add,
 																)
@@ -83,15 +84,36 @@ println()
 
 qq = task.get_paramcombs()[1]
 
-@show qq 
+#@show qq 
 
 
-@show methods(task.files_exist)
+#@show methods(task.files_exist)
+
+#@show typeof(qq) 
 
 
-@show task.files_exist(qq...)
-#@show task.get_data(task.get_paramcombs()[1]...)
+@show task.files_exist(qq...),task.files_exist(ps...) 
 
+println() 
+
+@show task.get_data(task.get_paramcombs()[1]...)
+
+
+ComputeTasks.missing_data(task; show_missing=true)
+
+ComputeTasks.existing_data(task, show_existing=true)
+
+
+ComputeTasks.get_data_one(task, mute=false)
+
+
+
+#ComputeTasks.get_plot_one(task)
+
+
+ComputeTasks.get_data_all(task, check_data=true, mute=false)
+
+nothing 
 
 end 
 

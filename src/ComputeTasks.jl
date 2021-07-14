@@ -21,7 +21,6 @@ UODict = Parameters.UODict
 #---------------------------------------------------------------------------#
 
 
-get_taskname(t) = string(Base.fullname(t)[end])
 
 
 
@@ -33,6 +32,8 @@ get_taskname(t) = string(Base.fullname(t)[end])
 #---------------------------------------------------------------------------#
 
 struct CompTask
+
+	name::String
 
 	get_plotparams::Function 
 	
@@ -46,6 +47,8 @@ end
 
 
 
+get_taskname(M::Module) = string(Base.fullname(M)[end]) 
+get_taskname(t) = t.name
 
 #===========================================================================#
 #
@@ -118,6 +121,10 @@ function init_task(M;
 
 	return CompTask(
 
+
+		get_taskname(M), 
+
+
 		get_plotparams, 
 	
 	
@@ -132,18 +139,17 @@ function init_task(M;
 				)
 		end,
 	
+
 	
-		function files_exist(Ps; target=nothing)
+		function files_exist(Ps::Vararg{<:UODict}; target=nothing)
 
-				@show Ps 
-
-				return found_files(fill_internal(Ps)...; target=target) 
+				found_files(fill_internal(Ps)...; target=target) 
 			
 		end,
 	
 	
 	
-		function get_data(P::UODicts; target=nothing, 
+		function get_data(P::Vararg{<:UODict}; target=nothing, 
 											force_comp::Bool=false,
 											mute::Bool=true, 
 											shuffle::Bool=false, 
@@ -166,7 +172,9 @@ function init_task(M;
 	
 			return get_good_P ? (data, good_P) : data 
 	
-		end,
+		end, 
+
+
 	
 
  )
@@ -188,14 +196,17 @@ end
 #---------------------------------------------------------------------------#
 
 
-function get_data_all(task::CompTask; shuffle=false, seed=nothing, rev=false,
-														check_data=true, mute=true, ) 
+function get_data_all(task; shuffle=false, seed=nothing, rev=false,
+														check_data=true, mute=true) 
 
 
 	AC = task.get_paramcombs()
 
-	check_data && filter!(!task.files_exist, AC)
+	@show length(AC)
 
+	check_data && filter!(c->!task.files_exist(c...), AC)
+
+	@show length(AC)
 
 	rev && reverse!(AC)
 
@@ -209,7 +220,9 @@ function get_data_all(task::CompTask; shuffle=false, seed=nothing, rev=false,
 	end
 
   Utils.Distribute_Work(AC, task.get_data;
-												force_comp=!check_data, mute=mute)#, shuffle=shuffle)
+												vararg = true,
+												force_comp =! check_data, 
+												mute=mute)
 
 	return
 
@@ -224,13 +237,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function missing_data(task::CompTask; show_missing=false)
+function missing_data(task; show_missing=false)
 
 	allcombs = task.get_paramcombs()
-
-#	notdonecombs = filter(!task.files_exist, allcombs)
-
-#	nprocs()>1 && Random.shuffle!(allcombs)
 
 	id = show_missing ? isequal(first(workers())) : x->false
 
@@ -242,7 +251,7 @@ function missing_data(task::CompTask; show_missing=false)
 			out = !task.files_exist(c...)
 
 
-			id(myid()) && println(i,"/",length(allcombs)," Files ", out ? "don't " : "", "exist")
+#			id(myid()) && println(i,"/",length(allcombs)," Files ", out ? "don't " : "", "exist")
 
 			return out
 
@@ -270,11 +279,11 @@ end
 
 
 
-function existing_data(task::CompTask; show_existing=false)
+function existing_data(task; show_existing=false)
 
 	allcombs = task.get_paramcombs()
 
-	donecombs = filter(task.files_exist, allcombs)
+	donecombs = filter(c -> task.files_exist(c...), allcombs)
 
 	println(string("\nTask: ",get_taskname(task),
 								 "\nTotal number of jobs done: ",
@@ -310,21 +319,24 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_data_one(task::CompTask, pick=Utils.DictFirstVals; kwargs...)
+function get_data_one(task, pick::Function=Utils.DictFirstVals; 
+											kwargs...)
 
-	task.get_data(task.get_paramcombs(;repl=(l,p)->pick(p))[1];
-								force_comp=true, mute=true, kwargs...)
+	P = task.get_paramcombs(;repl=(l,p)->pick(p))[1]
+
+	return task.get_data(P...; force_comp=true, mute=true, kwargs...)
 
 end
 
 
 
-function get_plot_one(task::CompTask, pick=Utils.DictFirstVals)
+function get_plot_one(task, pick=Utils.DictFirstVals)
 
-	p = task.get_paramcombs(;repl=(l,P)->pick(P))
+	good_P = task.get_paramcombs(;repl=(l,p)->pick(p))[1]
 
-	return p |> first |> task.get_plotparams |> task.plot 
+	plot_P = task.get_plotparams(good_P...)
 
+	return task.plot(plot_P)
 
 end
 
@@ -337,7 +349,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function get_data_random(task::CompTask; seed=nothing, check_data=true, mute=true)
+function get_data_random(task; seed=nothing, check_data=true, mute=true)
 
 	seed isa Int && Random.seed!(seed)
 
@@ -474,7 +486,7 @@ end
 
 function combine_get_data(tasks::AbstractVector{CompTask})
 
-	function get_data(P::AbstractDict; samplevectors=12345, kwargs...)
+	function get_data(P::UODicts; samplevectors=12345, kwargs...)
 
 		if !(isa(samplevectors,Int) && samplevectors==12345)
 
@@ -482,7 +494,7 @@ function combine_get_data(tasks::AbstractVector{CompTask})
 		end 
 #			return Any[SampleVectors(reshape(obs,:,1), P), I...]
 
-		return [t.get_data(P; kwargs...) for t in tasks]
+		return [t.get_data(P...; kwargs...) for t in tasks]
 
 	end  
 
@@ -642,9 +654,10 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 	end
 					#-----------------#
 
-	function construct_Z(obs::AbstractString, P::AbstractDict; kwargs...)
+	function construct_Z(obs::AbstractString, P::UODicts; 
+											 kwargs...)::Dict{String,Any}
 		
-		Data = get_data(P; fromPlot=true, kwargs..., target=obs)
+		Data = get_data(P...; fromPlot=true, kwargs..., target=obs)
 
 		d1 = Data[1][obs]
 
@@ -664,28 +677,22 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 
 	
-	function construct_Z(get_obs::Function, P::AbstractDict, label::T=nothing; 
-											 kwargs...) where T<:Union{Nothing,AbstractString}
+	function construct_Z(get_obs::Function, P::UODicts; 
+											 label=nothing,
+											 kwargs...)::Dict{String,Any}
 		
-		construct_Z(get_obs, get_data(P; fromPlot=true, kwargs...), label)
+		construct_Z(get_obs, get_data(P...; fromPlot=true, kwargs...), label)
 
 	end 
 
 
 	
-	function construct_Z(get_obs::Function, Data::AbstractVector, 
-											 label::T=nothing) where T<:Union{Nothing,AbstractString}
-
-		out = Dict{AbstractString,Any}(
+	function construct_Z(get_obs::Function, Data::AbstractVector,
+											 label::Nothing=nothing)::Dict{String,Any}
+											 
+		out = Dict{String,Any}(
 							zname => zeros(fillvals(length.(allparams),
 																			length.(external_param))...))
-
-		if isa(label,AbstractString) && !isempty(label)
-
-			out[zname*"label"] = label
-
-		end 
-
 
 		for (inds,D) in zip(internal_params_inds, Data)
 			
@@ -697,7 +704,20 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 	end
 		
+	function construct_Z(get_obs::Function, Data::AbstractVector,
+											 label::AbstractString)::Dict{String,Any}
 
+		out = construct_Z(get_obs, Data)
+	
+		if !isempty(label)
+
+			out[zname*"label"] = label
+
+		end 
+
+		return out 
+
+	end 
 
 
 
@@ -726,10 +746,12 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 	end  
 
 
-	return (CompTask(task0.get_plotparams, 
+	return (CompTask(task0.name,
+									 task0.get_plotparams, 
 									 task0.get_paramcombs, 
 									 combine_files_exist(tasks),
-									 combine_get_data(tasks)),
+									 combine_get_data(tasks)
+									 ),
 					out_dict, 
 					construct_Z,
 					nrowcol,

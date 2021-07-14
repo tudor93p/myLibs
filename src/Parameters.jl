@@ -1357,7 +1357,8 @@ end
 
 
 function convertParams_toPlot(M::Union{<:Module, <:Calculation},
-															P::Nothing=nothing; kwargs...)
+															P::Nothing=nothing; 
+															kwargs...)::OrderedDict
 
 	convert_params(M;
 
