@@ -46,6 +46,12 @@ struct CompTask
 end 
 
 
+function CompTask(args::Vararg{<:Function,4})
+
+	CompTask("", args...)
+
+end 
+
 
 get_taskname(M::Module) = string(Base.fullname(M)[end]) 
 get_taskname(t) = t.name
@@ -91,20 +97,20 @@ function init_task(M;
 	function calc_or_read(p::Utils.List, force_comp::Bool, mute::Bool; 
 												kwargs...)
 
-		F = if !force_comp && found_files(p...; kwargs...)
+		F,text = if !force_comp && found_files(p...; kwargs...)
 			
-					read_data 
+					(read_data,"Reading files")
 
 				else 
 
-					calc_data
+					(calc_data,"Calculating")
 
 				end  
 
 
 		mute && return F(p...; kwargs...)
 
-		println("\n", Base.nameof(F), " ", Parameters.tostr(M) , "\n")
+		println("\n$text ", Parameters.tostr(M) , "\n")
 		
 		foreach(d->println(Utils.NT(d)), p)
 	
@@ -202,11 +208,7 @@ function get_data_all(task; shuffle=false, seed=nothing, rev=false,
 
 	AC = task.get_paramcombs()
 
-	@show length(AC)
-
 	check_data && filter!(c->!task.files_exist(c...), AC)
-
-	@show length(AC)
 
 	rev && reverse!(AC)
 
