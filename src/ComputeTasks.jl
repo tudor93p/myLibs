@@ -158,7 +158,7 @@ function init_task(M;
 											apply_rightaway::Function=(d,p)->d)
 	
 			good_P = fill_internal(
-									fromPlot ? Parameters.convertParams_fromPlot(M,P) : P
+									fromPlot ? Parameters.convertParams_fromPlot(M,P...) : P
 									)
 	
 			data = if target=="None" nothing else 
