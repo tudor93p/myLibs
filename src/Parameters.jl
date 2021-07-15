@@ -1263,10 +1263,19 @@ struct Calculation
 	end 
 
 
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 Compute::Function, args...; kwargs...)
+
+		Calculation("", PF, Compute, args...; kwargs...)
+
+	end 
+
+
+
+
 	function Calculation(name::Union{<:AbstractString,<:Symbol},
 											 PF::Union{<:ParamFlow, <:FilenameGenerator},
 											 M::Module; kwargs...)
-
 
 		Calculation(name, PF, Utils.getprop(M,[:Compute,:Read,:FoundFiles])...;
 								kwargs...)
@@ -1275,11 +1284,13 @@ struct Calculation
 
 
 	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
-											 args...; kwargs...)
+											 M::Module; kwargs...)
 
-		Calculation("", PF, args...; kwargs...)
+		Calculation(tostr(M), PF, M; kwargs...)
 
 	end 
+
+
 
 
 
@@ -1293,6 +1304,7 @@ end
 
 
 
+tostr(C::Calculation)::String = C.name 
 
 #===========================================================================#
 #

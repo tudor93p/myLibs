@@ -324,6 +324,8 @@ println()
 
 C = Parameters.Calculation("calc2", PF, M3) 
 
+@show C.name
+@show Parameters.Calculation(PF, M3).name
 
 @show Parameters.get_NrPSets(C)
 @show Parameters.get_NrPSets(PF)
