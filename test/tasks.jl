@@ -67,6 +67,11 @@ for (k,v) in task.get_plotparams(ps...)
 
 end 
 
+@show task.get_plotparams()
+
+
+
+
 println() 
 
 

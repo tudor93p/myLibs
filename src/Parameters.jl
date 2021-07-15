@@ -1389,7 +1389,9 @@ end
 function convertParams_toPlot(M::Union{<:Module, <:Calculation},
 															P::Utils.List; kwargs...)
 
-	convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
+	isempty(P) && return convertParams_toPlot(M; kwargs...)
+
+	return convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
 
 end 
 
@@ -1565,8 +1567,12 @@ end
 function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
 													rmv_internal_key::Nothing=nothing)
 
+#	getpp() = convertParams_toPlot(M) 
+
 	getpp(P::UODicts) = convertParams_toPlot(M, P)
-													
+												
+#	return getpp 
+
 end 
 
 
