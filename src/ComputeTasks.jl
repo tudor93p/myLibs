@@ -110,7 +110,7 @@ function init_task(M;
 
 		mute && return F(p...; kwargs...)
 
-		println("\n$text ", Parameters.tostr(M) , "\n")
+		println("\n$text: ", Parameters.tostr(M) , "\n")
 		
 		foreach(d->println(Utils.NT(d)), p)
 	
