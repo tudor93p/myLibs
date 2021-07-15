@@ -313,7 +313,7 @@ end
 
  
 
-@show Parameters.Calculation(PF, M3).Compute(P)
+@show Parameters.Calculation("calc1", PF, M3).Compute(P)
 @show Parameters.Calculation(PF, M3; some_kwarg=3).Compute(P)
 @show Parameters.Calculation(PF, M3).Compute(P, some_kwarg=4)
 
@@ -322,7 +322,7 @@ end
 println()
 
 
-C = Parameters.Calculation(PF, M3) 
+C = Parameters.Calculation("calc2", PF, M3) 
 
 
 @show Parameters.get_NrPSets(C)

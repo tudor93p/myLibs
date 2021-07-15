@@ -1212,6 +1212,8 @@ end
 
 struct Calculation
 
+	name::String
+
 	PF::Union{<:ParamFlow,<:FilenameGenerator}
 	
 	Compute::Function 
@@ -1221,46 +1223,70 @@ struct Calculation
 	FoundFiles::Function 
 
 
-	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+	function Calculation(name::Union{<:AbstractString,<:Symbol},
+											 PF::Union{<:ParamFlow, <:FilenameGenerator},
 											 CRF::Vararg{<:Function,3}; kwargs...)
 
-		new(PF, (add_kwargs(PF, f; kwargs...) for f in CRF)...)
+		new(string(name), 
+				PF, (add_kwargs(PF, f; kwargs...) for f in CRF)...)
 
 	end 
 
 
-	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+	function Calculation(name::Union{<:AbstractString,<:Symbol},
+											 PF::Union{<:ParamFlow, <:FilenameGenerator},
 											 Compute::Function; kwargs...)
 
 		C = add_kwargs(PF, Compute; kwargs...) 
 
-		return new(PF, C, C, (args...)->true)
+		return new(string(name), PF, C, C, (args...)->true)
 
 	end 
 
-	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol},
+											 PF::Union{<:ParamFlow, <:FilenameGenerator},
 											 Compute::Function, ::Nothing, ::Any; kwargs...)
 
-		Calculation(PF, Compute; kwargs...) 
+		Calculation(name, PF, Compute; kwargs...) 
 
 	end 
 
-	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol},
+											 PF::Union{<:ParamFlow, <:FilenameGenerator},
 											 Compute::Function, ::Nothing, ::Nothing; kwargs...)
 
-		Calculation(PF, Compute; kwargs...)
+		Calculation(name, PF, Compute; kwargs...)
 
 	end 
 
 
-	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+	function Calculation(name::Union{<:AbstractString,<:Symbol},
+											 PF::Union{<:ParamFlow, <:FilenameGenerator},
 											 M::Module; kwargs...)
 
 
-		Calculation(PF, Utils.getprop(M,[:Compute,:Read,:FoundFiles])...;
+		Calculation(name, PF, Utils.getprop(M,[:Compute,:Read,:FoundFiles])...;
 								kwargs...)
 
 	end 
+
+
+	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
+											 args...; kwargs...)
+
+		Calculation("", PF, args...; kwargs...)
+
+	end 
+
+
+
+#	function Calculation(name::AbstractString, args...)
+
+
+#	end 
 
 
 end 
