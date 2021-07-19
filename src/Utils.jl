@@ -359,7 +359,7 @@ end
 
 
 
-function flatmap(f,itr)
+function flatmap(f::Function, itr)#; kwargs...)
 
 #	mapreduce(f, vcat, itr, init=[])
 
@@ -367,7 +367,7 @@ function flatmap(f,itr)
 
 end
 
-function flatmapif(f, pred, itr)
+function flatmapif(f::Function, pred, itr)
 
 	vcat(mapif(f, pred, itr)...)
 
@@ -442,9 +442,9 @@ end
 
 
 
-invmap(arg, fs...) = invmap(arg, fs)
+invmap(arg, fs::Vararg{<:Function}) = invmap(arg, fs)
 
-function invmap(args, fs)
+function invmap(args, fs::List)
 
 	map(f->f(args...), fs)
 
@@ -1233,14 +1233,14 @@ end
 
 
 
-function DictRandVals(params::T) where T<:AbstractDict
+function DictRandVals(params::AbstractDict)::Dict 
 
-	T(k=>(typeof(v) <: AbstractVector) ? rand(v) : v 
+	Dict(k=>(typeof(v) <: AbstractVector) ? rand(v) : v 
 												for (k,v) in pairs(params))
 
 end
 
-function DictRandVals(params::T) where T
+function DictRandVals(params::List)
 	
 	isList(T,AbstractDict) && return DictRandVals.(params)
 
@@ -1447,8 +1447,11 @@ end
 
 
 function nr2string(nr::List, args...)::Vector{String}
-	
-	map(n->nr2string(n, args...), nr)
+
+	@show nr 
+	@show args 
+
+	return map(n->nr2string(n, args...), nr)
 
 end 
 

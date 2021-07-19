@@ -4,6 +4,8 @@ module Parameters
 import ...OrderedDict, ...Utils 
 import Random 
 
+export UODict, UODicts 
+
 const ODict = Union{<:OrderedDict, <:NamedTuple}
 const UDict = AbstractDict
 const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}

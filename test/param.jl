@@ -352,8 +352,11 @@ println()
 
 
 
+PF = Parameters.ParamFlow(input_dict[:allparams], usedkeys2, input_dict[:digits], "Data") 
 
- 
+p = (Label = "A", Direction = -1, Contact = (-1, 1), ChemPot = 0.0, Lead_Width = 5)
+
+
 
 
 
