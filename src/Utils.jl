@@ -1448,10 +1448,7 @@ end
 
 function nr2string(nr::List, args...)::Vector{String}
 
-	@show nr 
-	@show args 
-
-	return map(n->nr2string(n, args...), nr)
+	[nr2string(n, args...) for n in nr]
 
 end 
 

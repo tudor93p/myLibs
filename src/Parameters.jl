@@ -659,7 +659,7 @@ function params_to_string(args::Vararg;
 
 	isempty(K) && return ""
 
-  return join([Utils.nr2string(params[k], digits[k]) for k in K], separator)
+	return join([join(Utils.nr2string(params[k], digits[k])) for k in K], separator)
 
 end
 
