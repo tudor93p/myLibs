@@ -659,9 +659,14 @@ function params_to_string(args::Vararg;
 
 	isempty(K) && return ""
 
-	return join([join(Utils.nr2string(params[k], digits[k])) for k in K], separator)
+#	return join(vcat((Utils.nr2string(params[k], digits[k]) for k in K)...), separator)
 
-end
+	return join(Utils.flatmap(k->Utils.nr2string(params[k], digits[k]), K), 
+							separator)
+
+end 
+
+
 
 function params_to_string(args::Tuple; kwargs...)::String 
 
