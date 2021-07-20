@@ -200,7 +200,9 @@ function Write_NamesVals(filename, storemethod="jld";
 			elseif storemethod=="jld"
 
 #				JLD.save(FileIO.File(FileIO.format"JLD",fn), name, data)
-				FileIO.save(FileIO.File(FileIO.format"JLD",fn), name, data)
+#				FileIO.save(FileIO.File(FileIO.format"JLD",fn), name, data) 
+
+				FileIO.save(FileIO.File{FileIO.format"JLD"}(fn), name, data) 
 
 			end 
 
@@ -293,7 +295,8 @@ function Read_NamesVals(filename, Names, storemethod)
 
 		return merge(map(FNs) do fn 
 
-				FileIO.load(FileIO.File(FileIO.format"JLD",fn))
+#				FileIO.load(FileIO.File(FileIO.format"JLD",fn))
+				FileIO.load(FileIO.File{FileIO.format"JLD"}(fn))
 
 		end...) 
 
