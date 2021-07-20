@@ -17,10 +17,11 @@ using Test
 
 #include("layeredsystem.jl")
 
-#include("param.jl") 
+include("param.jl") 
 
+include("param2.jl") 
 
-include("tasks.jl")
+#include("tasks.jl")
 
 
 
