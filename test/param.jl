@@ -54,10 +54,10 @@ usedkeys22(P::AbstractDict) = usedkeys22()
 
 
 
-Parameters.typical_allparams(usedkeys, input_dict[:allparams]) |> println
-Parameters.typical_allparams(usedkeys_symb, input_dict[:allparams]) |> println
+Parameters.typical_allparams(usedkeys, input_dict[:allparams])() |> println
+Parameters.typical_allparams(usedkeys_symb, input_dict[:allparams])() |> println
 
-Parameters.typical_allparams(usedkeys22, input_dict[:allparams]) |> println
+Parameters.typical_allparams(usedkeys22, input_dict[:allparams])() |> println
 
 
 
@@ -179,21 +179,14 @@ for args in [Any[usedkeys, input_dict[:digits]],
 #		@show FN.get_fname(P)("f")
 
 		
-	@show Parameters.construct_get_fname(path, args_...)(P)("f")
+	FN = Parameters.construct_get_fname(path, args_...)(P)("f")
 
+	@show FN
 
+	local PF = Parameters.ParamFlow(path, args_..., (x...)->nothing)
 
-#		local PF = Parameters.ParamFlow(identity, args_...)
-#
-#		PF.get_fname(P)("f")==FN.get_fname(P)("f") || error()
-#
-#
-#		local PF = Parameters.ParamFlow(input_dict, args_...)
-#
-#		@show PF.allparams() 
-#
-#		println(Parameters.ParamFlow((M,input_dict[:allparams]), 
-#																 args_...).allparams())
+		@show PF.get_fname(P)("f")==FN || error()
+
 		println()
 
 
@@ -205,18 +198,12 @@ end
 
 for a1 in [usedkeys,M]
 
-	@show Parameters.typical_allparams(a1, input_dict[:allparams])
+	@show Parameters.typical_allparams(a1, input_dict[:allparams])()
 end 
 
 
-#usedkeys, allp 
 
 
-
-#FN = Parameters.FilenameGenerator(ROOT, pd)
-
-
-#@show FN.get_fname(P)("f") 
 
 println() 
 
@@ -262,20 +249,21 @@ usedkeys2 = [:length, :width, :SCpx_magnitude]
 #@show PF.allparams(0)
 #
 #
-#PF = Parameters.ParamFlow(1, input_dict[:allparams], usedkeys2, 
-#													input_dict[:digits], "Data")
-#
-#
-#@show PF.NrParamSets
-#
-#
-#
-#@show PF.allparams()
-#
-#
-# 
-#
-#
+PF = Parameters.ParamFlow("Data",  usedkeys2, input_dict[:allparams],
+													input_dict[:digits])
+
+
+
+@show PF.NrParamSets
+
+
+
+@show PF.allparams()
+
+
+ 
+
+
 
 
 @show Parameters.union_usedkeys(usedkeys2, usedkeys)(P)  
@@ -308,64 +296,65 @@ println()
 
 
 #
-#module M3
-#
-#
-#Read(P;some_kwarg=2,kw...) = ("read",some_kwarg)
-#
-#Compute(P;some_kwarg=1,kw...) = ("compute", some_kwarg)
-#
-#FoundFiles(P;kwa...) = rand(Bool)
-#
-#NrParamSets = 1
-#	
-#apnt =(
-#										length = [10,20],
-#									 	width = [7],
-#										Barrier_height = [0,0.5],
-#										SCpx_magnitude = [0.6],
-#										)  
-#
-#allparams() = Dict(k=>apnt[k] for k in keys(apnt))
-#
-#end
-#
+module M3
+
+
+Read(P; some_kwarg=2,kw...) = ("read",some_kwarg)
+
+Compute(P; some_kwarg=1,kw...) = ("compute", some_kwarg)
+
+FoundFiles(P; kwa...) = rand(Bool)
+
+NrParamSets = 1
+	
+apnt =(
+										length = [10,20],
+									 	width = [7],
+										Barrier_height = [0,0.5],
+										SCpx_magnitude = [0.6],
+										)  
+
+allparams() = Dict(k=>apnt[k] for k in keys(apnt))
+
+end
+
 #
 # 
 #
-#@show Parameters.Calculation("calc1", PF, M3).Compute(P)
-#@show Parameters.Calculation(PF, M3; some_kwarg=3).Compute(P)
-#@show Parameters.Calculation(PF, M3).Compute(P, some_kwarg=4)
-#
-#
-#
-#println()
-#
-#
-#C = Parameters.Calculation("calc2", PF, M3) 
-#
-#@show C.name
-#@show Parameters.Calculation(PF, M3).name
-#
-#@show Parameters.get_NrPSets(C)
-#@show Parameters.get_NrPSets(PF)
-#
-#@show Parameters.get_allP(C)
-#@show Parameters.get_allP(PF)
-#
-#
-#
-#println() 
-#
-#foreach(println, Parameters.get_paramcombs(C))
-#
-#
-#println() 
-#
-#foreach(println, Parameters.get_paramcombs(PF))
-#
-#
-#
+@show Parameters.Calculation("calc1", PF, M3).Compute(P) 
+
+@show Parameters.Calculation(PF, M3; some_kwarg=3).Compute(P)
+@show Parameters.Calculation(PF, M3).Compute(P, some_kwarg=4)
+
+
+
+println()
+
+
+C = Parameters.Calculation("calc2", PF, M3) 
+
+@show C.name
+@show Parameters.Calculation(PF, M3).name
+
+@show Parameters.get_NrPSets(C)
+@show Parameters.get_NrPSets(PF)
+
+@show Parameters.get_allP(C)
+@show Parameters.get_allP(PF)
+
+
+
+println() 
+
+foreach(println, Parameters.get_paramcombs(C))
+
+
+println() 
+
+foreach(println, Parameters.get_paramcombs(PF))
+
+
+
 println()
 
 

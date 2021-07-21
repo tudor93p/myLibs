@@ -101,19 +101,21 @@ args2 = merge(M2.lev2_input,
 pds = Parameters.typical_params_digits(((args[:usedkeys], args[:digits]) for args in (args1, args2))...)
 
 
-#allP = [Parameters.typical_allparams(args[:usedkeys], args[:allparams]) for args in [args1,args2]]
 
 
 allP = Parameters.typical_allparams(((args[:usedkeys], args[:allparams]) for args in [args1,args2])...)
 
 
+P = Any[1,2]
 
-P = Utils.DictRandVals.(allP)
+P[1] = Utils.DictRandVals(allP())
+
+P[2] = Utils.DictRandVals(allP(Dict()))
 
 
 
-for (params_digits,p,allp,args) in zip(pds, P,allP,[args1,args2])
-	@show allp
+
+for (params_digits,p,args) in zip(pds, P,[args1,args2])
 	
 	@show p
 
@@ -140,7 +142,11 @@ println()
 
 #ROOT = [ROOT,M1]
 
-get_fname = Parameters.construct_get_fname(ROOT, ((args[:usedkeys], args[:digits]) for args in (args1, args2))...)
+get_fname = Parameters.
+
+
+
+construct_get_fname(ROOT, ((args[:usedkeys], args[:digits]) for args in (args1, args2))...)
 
 
 fname = get_fname(P...)
@@ -173,12 +179,76 @@ println()
 
 
 
+a = Parameters.typical_allparams(args1[:usedkeys],args1[:allparams])
+b = Parameters.construct_get_fname(ROOT, args1[:usedkeys],args1[:digits])
 
 
-allP = Parameters.typical_allparams(((args[:usedkeys], args[:allparams]) for args in (args1, args2))...)
+
+PF = Parameters.ParamFlow(ROOT, args1[:usedkeys], args1[:digits], args1[:allparams])
 
 
-@show allP
+@show a() P[1] b(P[1])()
+@show PF.get_fname(P[1])()
+@show PF.allparams()
+
+println()
+a = Parameters.typical_allparams(1, args1[:usedkeys],args1[:allparams])
+
+@show a() 
+
+
+
+println()
+a = Parameters.typical_allparams(2, args2[:usedkeys], args2[:allparams])
+b = Parameters.construct_get_fname(ROOT, args2[:usedkeys], args2[:digits])
+
+
+@show a(Dict()) 
+@show P[2]
+@show b(P[2])()
+
+
+println()
+
+a = Parameters.typical_allparams(((level, args[:usedkeys], args[:allparams]) for (level,args) in enumerate((args1, args2)))...)
+
+@show a() a(Dict()) 
+
+println()
+
+
+a = Parameters.typical_allparams(((args[:usedkeys], args[:allparams]) for (level,args) in enumerate((args1, args2)))...)
+b = Parameters.construct_get_fname(ROOT, ((args[:usedkeys], args[:digits]) for (level,args) in enumerate((args1, args2)))...)
+
+PF = Parameters.ParamFlow(ROOT, ((args[:usedkeys], args[:digits],args[:allparams]) for (level,args) in enumerate((args1, args2)))...)
+
+@show a() a(Dict()) P b(P...)()
+@show PF.get_fname(P...)()
+@show PF.allparams(P[1:end-1]...)
+
+println()
+
+a = Parameters.typical_allparams(2, ((level, args[:usedkeys], args[:allparams]) for (level,args) in enumerate((args1, args2)))...)
+
+
+
+@show a() a(Dict()) 
+
+println()
+a = Parameters.typical_allparams(((level, args[:usedkeys], args[:allparams]) for (level,args) in enumerate((args1, args2)))...)
+
+
+@show a() a(Dict()) 
+
+println()
+
+@show Parameters.good_methods(1, identity)
+@show Parameters.good_methods(nothing, identity)
+@show Parameters.good_methods(PF, merge)
+@show Parameters.good_methods(PF, identity) 
+
+
+
 
 
 
@@ -187,6 +257,34 @@ allP = Parameters.typical_allparams(((args[:usedkeys], args[:allparams]) for arg
 #construct_get_fname(path, (uk1, d1), (uk2, d2), ...)
 
 #typical_allparams((uk1, ap1), (uk2, ap2), ...)
+
+
+#ParamFlow(NrParamSets, path, (uk1, d1, ap1), (uk2, d2, ap2), ...)
+
+
+
+
+#uk1,d1,ap1 
+#uk1,d1,a1 
+#pd1,uk1,ap1 
+#pd1,a1 
+#
+#
+#(uk1,d1) or pd1 
+#(uk2,d2) or pd2
+#(uk1,ap1) or a1 
+#(uk2,ap2) or a2 
+
+
+
+
+
+
+
+
+
+
+
 
 
 

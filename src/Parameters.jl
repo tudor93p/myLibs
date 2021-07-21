@@ -368,14 +368,11 @@ end
 
 
 function construct_get_fname(path,#::AbstractString,
-														 ingred_params_digits...
+														 ingreds_pds...
 														 )::Function 
 
-	pd = typical_params_digits(ingred_params_digits...) 
-
-	pd isa Function && return construct_get_fname(path, pd)
-
-	return construct_get_fname(path, pd...)
+	construct_get_fname(path,
+											vcat(typical_params_digits(ingreds_pds...))...)
 
 end 
 
@@ -775,6 +772,8 @@ function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
 end
 
 
+
+
 function typical_params_digits(M::Module, digits::ODict)::Function
 
 	typical_params_digits(M.usedkeys, digits)
@@ -834,40 +833,257 @@ end
 #---------------------------------------------------------------------------#
 
 
+#
+#function construct_get_allparams(fs::Vararg{<:Function, NrArgs}
+#																)::Function where NrArgs 
+#
+#
+#end 
+#
+#
+#function construct_get_allparams(NrParamSets::Int, 
+#																 fs::Vararg{<:Function,NrArgs}
+#																 )::Function where NrArgs
+#	
+#	
+#	@assert NrParamSets==NrArgs
+#
+#	return construct_get_allparams(fs...)
+#
+#end 
+#
+#
+#
+#function construct_get_allparams(args...)::Function
+#
+#	construct_get_allparams(vcat(typical_allparams(args...))...)
+#
+#end 
+#
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-
-function typical_allparams(usedkeys::AbstractVector{<:Symbol},
-													 allp::UODict)::Dict{Symbol,Any}
-
-	Dict{Symbol,Any}(Symbol(k)=>allp[k] for k in intersect(keys(allp), usedkeys))
-
-end
-
-
-function typical_allparams(usedkeys::Function, allp::UODict)::Dict{Symbol,Any}
-
-	typical_allparams(usedkeys(), allp)
-
-end
-
-
-function typical_allparams(M::Module, allp::UODict)::Dict{Symbol,Any} 
-
-	typical_allparams(M.usedkeys, allp)
+function typical_allparams(allparams::Function)::Function
+	
+	allparams
 
 end 
 
-typical_allparams(t::Tuple)::Dict{Symbol,Any} = typical_allparams(t...)
+function typical_allparams(M::Module)::Function
+	
+	M.allparams
 
-function typical_allparams(tuples::Vararg{<:Tuple})::Vector{Dict{Symbol,Any}}
+end 
 
-	[typical_allparams(t...) for t in tuples]
+
+
+
+
+
+
+function typical_allparams(NrParamSets::Int, allparams::Function)::Function
+
+	@assert hasmethod(allparams, NTuple{NrParamSets-1, <:UODict})
+
+	return typical_allparams(allparams)
+
+end 
+
+
+
+
+
+
+function typical_allparams(NrParamSets::Int,
+													 usedkeys::AbstractVector{<:Symbol},
+													 allp::UODict)::Function 
+
+	d = Dict{Symbol,Any}(Symbol(k)=>allp[k] for k in intersect(keys(allp), usedkeys))
+
+	return function allparams(P::Vararg{<:UODict,N})::Dict{Symbol,Any} where N 
+		
+		N==NrParamSets-1 && return d 
+		
+		error("The function can only be called with ",NrParamSets-1," arguments. You provided $N.")
+		
+	end 
 
 end
 
 
 
+
+function typical_allparams(NrParamSets::Int, 
+													 usedkeys::Function, allp::UODict)::Function
+
+	typical_allparams(NrParamSets, usedkeys(), allp)
+
+end 
+
+function typical_allparams(NrParamSets::Int, 
+													 M::Module, allp::UODict)::Function
+
+	typical_allparams(NrParamSets, M.usedkeys, allp)
+
+end 
+
+
+function typical_allparams(usedkeys::Union{<:AbstractVector{<:Symbol},
+																					 <:Module,
+																					 <:Function},
+													 allp::UODict)::Function 
+
+	typical_allparams(1, usedkeys, allp)
+
+end 
+
+
+
+
+
+
+
+#typical_allparams(t::Tuple)::Function = typical_allparams(t...)
+
+function typical_allparams(tuples::Vararg{<:Tuple, NF})::Function where NF
+
+	fs = Dict{Int,Function}( 
+
+						map(enumerate(tuples)) do (i,t)
+
+							t[1] isa Int && return t[1] => typical_allparams(t...)
+
+							return i => typical_allparams(i, t...)
+
+						end)
+
+
+	return function allparams(P::Vararg{<:UODict,N})::Dict{Symbol,Any} where N
+
+		N<NF && return fs[N+1](P...)
+
+		error("The function can be called with at most ",NF-1," arguments. You provided $N")
+
+	end 
+
+end
+
+
+
+function typical_allparams(NrParamSets::Int,
+													 tuples::Vararg{<:Tuple,NF})::Function where NF
+
+	@assert NrParamSets==NF "The number of tuples provided ($NF) should match the claimed 'NrParamSets' ($NrParamSets)"
+
+	return typical_allparams(tuples...)
+
+end
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function sep_pdap(usedkeys::Union{<:AbstractVector{Symbol}, <:Function},
+									digits::ODict,
+									allp::UODict)::Tuple{Tuple,Tuple}
+
+	(usedkeys, digits), (usedkeys, allp)
+
+end 
+
+
+function sep_pdap(usedkeys::Union{<:AbstractVector{Symbol}, <:Function},
+									digits::ODict,
+									arg::Union{<:Function, <:Module})::Tuple{Tuple,Tuple}
+
+	(usedkeys, digits), (arg,)
+
+end 
+
+function sep_pdap(pd::Union{<:Function, <:Module},
+									usedkeys::Union{<:AbstractVector{Symbol}, <:Function},
+									allp::UODict)::Tuple{Tuple,Tuple}
+
+	(pd,),(usedkeys,allp)
+
+end  
+
+
+function sep_pdap(usedkeys::Module,
+									digits::ODict,
+									allp::Function)::Tuple{Tuple,Tuple}
+
+	(usedkeys, digits), (allp,)
+
+end 
+
+function sep_pdap(M::Module, digits::ODict, allp::UODict)::Tuple{Tuple,Tuple}
+
+	(M, digits), (M, allp)
+
+end 
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function sep_pdap(M::Module)::Tuple{Tuple,Tuple}
+
+	(M,),(M,)
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function sep_pdap(pd::Union{<:Function,<:Module},
+									allp::Union{<:Function,<:Module})::Tuple{Tuple,Tuple}
+
+	
+	(pd,),(allp,)
+	
+end 
+
+
+
+function sep_pdap(M::Module, digits::ODict)::Tuple{Tuple,Tuple}
+
+	(M, digits), (M,)
+
+end 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -1050,7 +1266,7 @@ struct ParamFlow
 
 	# --- own properties --- # 
 
-	NrParamSets::Union{<:Nothing, <:Int}
+	NrParamSets::Int
 
 
 #	# --- storage, for future function generation --- # 
@@ -1064,13 +1280,98 @@ struct ParamFlow
 
 	# --- actually used functions --- #  
 	
-	allparams::Function
 
 	get_fname::Function 
+	allparams::Function
 
 	# --- #
 
 
+	function ParamFlow(path, NrParamSets::Int, 
+										 tuples::Vararg{<:Tuple,N}) where N
+
+		@assert NrParamSets==N "The number of tuples provided ($N) should match the claimed 'NrParamSets' ($NrParamSets)"
+
+		args_pd, args_ap = zip((sep_pdap(t...) for t in tuples)...) 
+
+		return new(NrParamSets,
+							 construct_get_fname(path, args_pd...),
+							 typical_allparams(NrParamSets, args_ap...),
+							 )
+
+	end 
+
+
+	function ParamFlow(path, tuples::Vararg{<:Tuple,N}) where N
+
+		ParamFlow(path, N, tuples...)
+
+	end 
+
+
+	function ParamFlow(path, NrParamSets::Int, args...)
+
+		@assert NrParamSets==1 "The arguments provided contradict the claimed 'NrParamSets' ($NrParamSets)"
+
+		args_pd,args_ap = sep_pdap(args...)
+
+		return new(NrParamSets,
+							 construct_get_fname(path, args_pd...),
+							 typical_allparams(NrParamSets, args_ap...),
+							 )
+
+	end 
+
+	function ParamFlow(path, args...)
+
+		ParamFlow(path, 1, args...)
+
+	end 
+
+#beginning: path (and NrParamSets)
+#
+
+#next: tuples or args 
+#
+
+	
+#	function ParamFlow(NrParamSets::Int, 
+#										 path, 
+#										 uk::Union{<:Function, <:AbstractVector{<:Symbol}}, 
+#										 digits::ODict, 
+#										 allparams::UODict)
+#
+#		@assert NrParamSets==1 
+#
+#		return new(NrParamSets,
+#							 typical_allparams(uk, allparams),
+#							 construct_get_fname(path, uk, digits)
+#							 )
+#
+#	end 
+#
+#	function ParamFlow(path, 
+#										 uk::Union{<:Function, <:AbstractVector{<:Symbol}}, 
+#										 digits::ODict, 
+#										 allparams::UODict)
+#
+#		ParamFlow(1, path, uk, digits, allparams)
+#
+#	end 
+
+#	function ParamFlow(path, tuples::Vararg{<:Tuple})
+#
+#
+#	end  
+#
+#
+#
+#
+#	function ParamFlow(path, tuples::Vararg{<:Tuple})
+#
+#
+#	end
+#
 #	function ParamFlow(N::Union{<:Nothing,<:Int}, allparams::Function, 
 #										 FNG::FilenameGenerator)::ParamFlow
 #
@@ -1184,444 +1485,450 @@ end
 #
 #---------------------------------------------------------------------------#
 
-#function good_methods(PF::ParamFlow, F::Function, args...)::Bool
+
+function good_methods(NrParamSets::Int, F::Function, args...)::Bool
+	
+	for i in 1:NrParamSets
+
+		hasmethod(F, NTuple{i,<:AbstractDict}, args...) || return false 
+
+	end 
+
+	return true 
+
+end 
+
+good_methods(::Nothing, args...)::Bool = good_methods(1, args...)
+
+good_methods(PF::ParamFlow, a...)::Bool = good_methods(PF.NrParamSets, a...) 
+
+
+
+
+#===========================================================================#
+#
+# adds kwargs, if F accepts them: those in 'new_kwargs' and 'kwargs'
+#
+#---------------------------------------------------------------------------#
+
+
+function add_kwargs(PF::ParamFlow, F::Function; kwargs...)::Function
+
+	new_kwargs = [:get_fname, ]
+
+	@assert good_methods(PF, F) 
+
+
+	isempty(new_kwargs) && isempty(kwargs) && return F 
+
+
+	ks1 = filter(propertynames(PF)) do k 
+
+		in(k, new_kwargs) && good_methods(PF, F, tuple(k)) 
+
+	end 
+
+
+	ks2 = filter(collect(keys(kwargs))) do k
+
+		good_methods(PF, F, tuple(k))
+
+	end 
+
+	isempty(ks1) && isempty(ks2) && return F  # it accepts no kwargs
+
+
+	kwa1 = NamedTuple{ks1}(getproperty.([PF], ks1)) 
+
+	kwa2 = NamedTuple{Tuple(ks2)}(kwargs[k] for k in ks2)
+
+
+	return function f(args::Vararg{<:UODict}; kwa...)
+	
+		F(args...; kwa1..., kwa2..., kwa...)
+
+	end 
+
+end 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+struct Calculation
+
+	name::String
+
+	PF::ParamFlow
+	
+	Compute::Function 
+
+	Read::Function 
+
+	FoundFiles::Function 
+
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol}, PF::ParamFlow,
+											 CRF::Vararg{<:Function,3}; kwargs...)
+
+		new(string(name), 
+				PF, (add_kwargs(PF, f; kwargs...) for f in CRF)...)
+
+	end 
+
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol}, PF::ParamFlow,
+											 Compute::Function; kwargs...)
+
+		C = add_kwargs(PF, Compute; kwargs...) 
+
+		return new(string(name), PF, C, C, (args...)->true)
+
+	end 
+
+
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol}, PF::ParamFlow, 
+											 Compute::Function, ::Nothing, ::Any; kwargs...)
+
+		Calculation(name, PF, Compute; kwargs...) 
+
+	end 
+
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol}, PF::ParamFlow, 
+											 Compute::Function, ::Nothing, ::Nothing; kwargs...)
+
+		Calculation(name, PF, Compute; kwargs...)
+
+	end 
+
+
+	function Calculation(PF::ParamFlow, Compute::Function, args...; kwargs...)
+
+		Calculation("", PF, Compute, args...; kwargs...)
+
+	end 
+
+
+
+
+	function Calculation(name::Union{<:AbstractString,<:Symbol}, 
+											 PF::ParamFlow, M::Module; kwargs...)
+
+		Calculation(name, PF, Utils.getprop(M, [:Compute,:Read,:FoundFiles])...;
+								kwargs...)
+
+	end 
+
+
+	function Calculation(PF::ParamFlow, M::Module; kwargs...)
+
+		Calculation(tostr(M), PF, M; kwargs...)
+
+	end 
+
+
+
+end 
+
+
+
+tostr(C::Calculation)::String = C.name 
+get_NrPSets(m::Module)::Int = m.NrParamSets
+get_NrPSets(pf::ParamFlow)::Int = pf.NrParamSets 
+get_NrPSets(c::Calculation)::Int = get_NrPSets(c.PF)
+
+
+get_allP(m::Module, args...) = m.allparams(args...) 
+get_allP(pf::ParamFlow, args...) = pf.allparams(args...) 
+get_allP(m::Calculation, args...) = get_allP(m.PF, args...)
+
+
+
+#===========================================================================#
+#
+#	Depending on the kwargs, converts the parameter set into a flat list, 
+#			 the other way around, or fills a missing parameter
 #	
-#	for i in 1:Utils.Assign_Value(PF.NrParamSets, 1)
+#		 kwargs must contain:
+#		 	- M = the module for which the calculation is done
+#		 	- get_new = gives the parameters at a certain level
+#		 	- convert_one = method to convert one dictionary
+#		 	- convert_many = specifies how to distribute 'convert_one' on the
+#		 										items in a dictionary list
+#		 	- repl = can replace some parameter with a given value (to fix it)
+#		 	- final_f = to obtain the result in a specific manner
 #
-#		hasmethod(F, NTuple{i,<:AbstractDict}, args...) || return false 
+#---------------------------------------------------------------------------#
+
+#			M Must have M.NrParamSets M.allparams
+
+
+function convert_params(M::Union{<:Module, <:Calculation},
+												args=[];
+												get_new=(l,a)->get_allP(M, a...),
+												repl=nothing,
+												convert_one=identity,
+												convert_many=map,
+												final_f=identity)
+
+	function act_on_plev(f1::T1) where T1<:Function
+	
+		return function (arg::T2) where T2
+	
+			T2 <: AbstractDict && return f1(arg)
+		
+			Utils.isList(T2,AbstractDict) && return convert_many(f1,arg)
+		
+			error("\n $arg \nParameter structure not understood: $T2")
+	
+		end
+	
+	end
+
+
+	
+
+	for level in 1:get_NrPSets(M)
+
+		new = get_new(level,args)
+
+		if isnothing(repl) push!(args,new) else 
+
+				push!(args, act_on_plev(a->repl(level,a))(new))
+
+		end
+
+	end
+
+
+	return final_f(map(act_on_plev(convert_one),args))
+
+end
+
+#===========================================================================#
 #
+# Particularizes convert_params in order to obtain a single dictionary
+# 		with unique, string keys, from a structured set P
+#
+# 		(the inverse operation of convertParams_fromPlot)
+#
+#---------------------------------------------------------------------------#
+
+function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+															P::Utils.List; kwargs...)
+
+	isempty(P) && return convertParams_toPlot(M; kwargs...)
+
+	return convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
+
+end 
+
+
+function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+															P::Nothing=nothing; 
+															kwargs...)::OrderedDict
+
+	convert_params(M;
+
+		convert_one = convertPairs_toPlot,
+
+		convert_many = Utils.flatmap,
+
+		final_f = args -> OrderedDict(vcat(args...)),
+
+		kwargs...
+
+		) 
+
+end
+
+
+#===========================================================================#
+#
+#	Particularizes convert_params in order to obtain a structured
+#			parameter set from a single, flat, dictionary P
+#
+#			(the inverse operation of convertParams_toPlot)
+#
+#---------------------------------------------------------------------------#
+
+function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
+																P::UODict; kwargs...)
+
+	convert_params(M;
+
+		repl = function (level::Int, params::UODict)
+
+										K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
+
+																		k -> haskey(P,k[2]),
+
+																		collect(keys(params)))
+
+										return OrderedDict(k1 => P[k2] for (k1,k2) in K)
+
+									end,
+
+		kwargs...
+
+		)
+
+end
+
+
+##################### REFORMULTE WITH Utils.Backtracking !! 
+
+#===========================================================================#
+#
+#	Fill internal parameters
+#
+#---------------------------------------------------------------------------#
+
+
+function fillParams_internalP(M::Union{<:Module, <:Calculation},
+															P::Utils.List, ::Nothing;
+															kwargs...)
+	P 
+
+end 
+
+
+function fillParams_internalP(M::Union{<:Module, <:Calculation},
+															P::Utils.List, add_internal_param::Function;
+															kwargs...)
+
+	convert_params(M;
+								 
+								 get_new = (level,args) -> P[level],
+
+								 repl = add_internal_param,
+
+								 kwargs...
+	
+								)
+end 
+
+
+
+function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+															 P::Utils.List, ::Nothing;
+															kwargs...)
+	P
+
+end 
+
+
+function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+															 P::Utils.List, 
+															 add_internal_params::Utils.List;
+															 kwargs...)
+
+	map(add_internal_params) do add
+
+					fillParams_internalP(M, P, add; kwargs...)
+
+	end
+
+end
+
+
+#function f_fillParams_internal(M::Module, add_internal_param, add_internal_params)
+#
+#	function (P; shuffle=false)
+#
+#		P1 = fillParams_internalP(M, P, add_internal_param)
+#
+#		shuffle = !isnothing(add_internal_params) & shuffle
+#
+#		return fillParams_internalPs(M, P1, 
+#								(shuffle ? Random.shuffle : identity)(add_internal_params)
+#															)
 #	end 
-#
-#	return true 
-#
 #end 
-#
-#
-#
-#function add_kwargs(PF::ParamFlow, F::Function; kwargs...)::Function
-#
-#	new_kwargs = [:get_fname, ]
-#
-#	@assert good_methods(PF, F) 
-#
-#
-#	isempty(new_kwargs) && isempty(kwargs) && return F 
-#
-#
-#	ks1 = filter(propertynames(PF)) do k 
-#
-#		in(k, new_kwargs) && good_methods(PF, F, tuple(k)) 
-#
-#	end 
-#
-#
-#	ks2 = filter(collect(keys(kwargs))) do k
-#
-#		good_methods(PF, F, tuple(k))
-#
-#	end 
-#
-#	isempty(ks1) && isempty(ks2) && return F  # it accepts no kwargs
-#
-#
-#	kwa1 = NamedTuple{ks1}(getproperty.([PF], ks1)) 
-#
-#	kwa2 = NamedTuple{Tuple(ks2)}(kwargs[k] for k in ks2)
-#
-#
-#	return function f(args::Vararg{<:UODict}; kwa...)
-#	
-#		F(args...; kwa1..., kwa2..., kwa...)
-#
-#	end 
-#
-#end 
-#
-#
-#
-#
-#struct Calculation
-#
-#	name::String
-#
-#	PF::Union{<:ParamFlow,<:FilenameGenerator}
-#	
-#	Compute::Function 
-#
-#	Read::Function 
-#
-#	FoundFiles::Function 
-#
-#
-#	function Calculation(name::Union{<:AbstractString,<:Symbol},
-#											 PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 CRF::Vararg{<:Function,3}; kwargs...)
-#
-#		new(string(name), 
-#				PF, (add_kwargs(PF, f; kwargs...) for f in CRF)...)
-#
-#	end 
-#
-#
-#	function Calculation(name::Union{<:AbstractString,<:Symbol},
-#											 PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 Compute::Function; kwargs...)
-#
-#		C = add_kwargs(PF, Compute; kwargs...) 
-#
-#		return new(string(name), PF, C, C, (args...)->true)
-#
-#	end 
-#
-#
-#
-#	function Calculation(name::Union{<:AbstractString,<:Symbol},
-#											 PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 Compute::Function, ::Nothing, ::Any; kwargs...)
-#
-#		Calculation(name, PF, Compute; kwargs...) 
-#
-#	end 
-#
-#
-#	function Calculation(name::Union{<:AbstractString,<:Symbol},
-#											 PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 Compute::Function, ::Nothing, ::Nothing; kwargs...)
-#
-#		Calculation(name, PF, Compute; kwargs...)
-#
-#	end 
-#
-#
-#	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 Compute::Function, args...; kwargs...)
-#
-#		Calculation("", PF, Compute, args...; kwargs...)
-#
-#	end 
-#
-#
-#
-#
-#	function Calculation(name::Union{<:AbstractString,<:Symbol},
-#											 PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 M::Module; kwargs...)
-#
-#		Calculation(name, PF, Utils.getprop(M,[:Compute,:Read,:FoundFiles])...;
-#								kwargs...)
-#
-#	end 
-#
-#
-#	function Calculation(PF::Union{<:ParamFlow, <:FilenameGenerator},
-#											 M::Module; kwargs...)
-#
-#		Calculation(tostr(M), PF, M; kwargs...)
-#
-#	end 
-#
-#
-#
-#
-#
-##	function Calculation(name::AbstractString, args...)
-#
-#
-##	end 
-#
-#
-#end 
-#
-#
-#
-#tostr(C::Calculation)::String = C.name 
-#
-##===========================================================================#
-##
-##	Depending on the kwargs, converts the parameter set into a flat list, 
-##			 the other way around, or fills a missing parameter
-##	
-##		 kwargs must contain:
-##		 	- M = the module for which the calculation is done
-##		 	- get_new = gives the parameters at a certain level
-##		 	- convert_one = method to convert one dictionary
-##		 	- convert_many = specifies how to distribute 'convert_one' on the
-##		 										items in a dictionary list
-##		 	- repl = can replace some parameter with a given value (to fix it)
-##		 	- final_f = to obtain the result in a specific manner
-##
-##---------------------------------------------------------------------------#
-#
-##			M Must have M.NrParamSets M.allparams
-#
-#get_NrPSets(m::Module)::Int = m.NrParamSets
-#get_NrPSets(pf::ParamFlow)::Int = pf.NrParamSets 
-#get_NrPSets(c::Calculation)::Int = get_NrPSets(c.PF)
-#
-#
-#get_allP(m::Module, args...) = m.allparams(args...) 
-#get_allP(pf::ParamFlow, args...) = pf.allparams(args...) 
-#get_allP(m::Calculation, args...) = get_allP(m.PF, args...)
-#
-#
-#
-#function convert_params(M::Union{<:Module, <:Calculation},
-#												args=[];
-#												get_new=(l,a)->get_allP(M, a...),
-#												repl=nothing,
-#												convert_one=identity,
-#												convert_many=map,
-#												final_f=identity)
-#
-#	function act_on_plev(f1::T1) where T1<:Function
-#	
-#		return function (arg::T2) where T2
-#	
-#			T2 <: AbstractDict && return f1(arg)
-#		
-#			Utils.isList(T2,AbstractDict) && return convert_many(f1,arg)
-#		
-#			error("\n $arg \nParameter structure not understood: $T2")
-#	
-#		end
-#	
-#	end
-#
-#
-#	
-#
-#	for level in 1:get_NrPSets(M)
-#
-#		new = get_new(level,args)
-#
-#		if isnothing(repl) push!(args,new) else 
-#
-#				push!(args, act_on_plev(a->repl(level,a))(new))
-#
-#		end
-#
-#	end
-#
-#
-#	return final_f(map(act_on_plev(convert_one),args))
-#
-#end
-#
-##===========================================================================#
-##
-## Particularizes convert_params in order to obtain a single dictionary
-## 		with unique, string keys, from a structured set P
-##
-## 		(the inverse operation of convertParams_fromPlot)
-##
-##---------------------------------------------------------------------------#
-#
-#function convertParams_toPlot(M::Union{<:Module, <:Calculation},
-#															P::Utils.List; kwargs...)
-#
-#	isempty(P) && return convertParams_toPlot(M; kwargs...)
-#
-#	return convertParams_toPlot(M; get_new = (level,args)->P[level], kwargs...)
-#
-#end 
-#
-#
-#function convertParams_toPlot(M::Union{<:Module, <:Calculation},
-#															P::Nothing=nothing; 
-#															kwargs...)::OrderedDict
-#
-#	convert_params(M;
-#
-#		convert_one = convertPairs_toPlot,
-#
-#		convert_many = Utils.flatmap,
-#
-#		final_f = args -> OrderedDict(vcat(args...)),
-#
-#		kwargs...
-#
-#		) 
-#
-#end
-#
-#
-##===========================================================================#
-##
-##	Particularizes convert_params in order to obtain a structured
-##			parameter set from a single, flat, dictionary P
-##
-##			(the inverse operation of convertParams_toPlot)
-##
-##---------------------------------------------------------------------------#
-#
-#function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
-#																P::UODict; kwargs...)
-#
-#	convert_params(M;
-#
-#		repl = function (level::Int, params::UODict)
-#
-#										K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
-#
-#																		k -> haskey(P,k[2]),
-#
-#																		collect(keys(params)))
-#
-#										return OrderedDict(k1 => P[k2] for (k1,k2) in K)
-#
-#									end,
-#
-#		kwargs...
-#
-#		)
-#
-#end
-#
-#
-###################### REFORMULTE WITH Utils.Backtracking !! 
-#
-##===========================================================================#
-##
-##	Fill internal parameters
-##
-##---------------------------------------------------------------------------#
-#
-#
-#function fillParams_internalP(M::Union{<:Module, <:Calculation},
-#															P::Utils.List, ::Nothing;
-#															kwargs...)
-#	P 
-#
-#end 
-#
-#
-#function fillParams_internalP(M::Union{<:Module, <:Calculation},
-#															P::Utils.List, add_internal_param::Function;
-#															kwargs...)
-#
-#	convert_params(M;
-#								 
-#								 get_new = (level,args) -> P[level],
-#
-#								 repl = add_internal_param,
-#
-#								 kwargs...
-#	
-#								)
-#end 
-#
-#
-#
-#function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
-#															 P::Utils.List, ::Nothing;
-#															kwargs...)
-#	P
-#
-#end 
-#
-#
-#function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
-#															 P::Utils.List, 
-#															 add_internal_params::Utils.List;
-#															 kwargs...)
-#
-#	map(add_internal_params) do add
-#
-#					fillParams_internalP(M, P, add; kwargs...)
-#
-#	end
-#
-#end
-#
-#
-##function f_fillParams_internal(M::Module, add_internal_param, add_internal_params)
-##
-##	function (P; shuffle=false)
-##
-##		P1 = fillParams_internalP(M, P, add_internal_param)
-##
-##		shuffle = !isnothing(add_internal_params) & shuffle
-##
-##		return fillParams_internalPs(M, P1, 
-##								(shuffle ? Random.shuffle : identity)(add_internal_params)
-##															)
-##	end 
-##end 
-#
-#
-##===========================================================================#
-##
-##	From module M, get parameter combinations: 
-##									- all (if kwargs not given)
-##									- with contraint/condition 'cond'
-##									- with some fixed parameter, implemented by 'repl' 
-##
-##---------------------------------------------------------------------------#
-#
-#function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
-#												cond=nothing, repl=nothing) # First call
-#
-#	get_paramcombs(M, 1, [];
-#								 cond = combine_functions_cond(cond),
-#								 repl = combine_functions_addrem(repl),
-#								)
-#end 
-#
-#
-#
-#function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
-#												level::Int, old::AbstractVector; 
-#												cond::Function, repl::Function) # Further calls 
-#
-#	#M must have M.allparams::Function, M.NrParamSets::Int,
-#
-#	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
-#
-#										 new->cond(new, level),
-#
-#										 Utils.AllValCombs(repl(level, get_allP(M, old...))))
-#
-#
-#	level == get_NrPSets(M) && return news
-#
-#	return Utils.flatmap(news) do new 
-#				
-#						get_paramcombs(M, level+1, new; cond=cond, repl=repl) 
-#	end
-#
-#end
-#
-#
-#
-#
-#function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
-#													rmv_internal_key::Nothing=nothing)
-#
-##	getpp() = convertParams_toPlot(M) 
-#
-#	getpp(P::UODicts) = convertParams_toPlot(M, P)
-#												
-##	return getpp 
-#
-#end 
-#
-#
-#function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
-#													rmv_internal_key::Function)
-#
-#	getpp(P::UODicts) = convertParams_toPlot(M, P; 
-#																					 repl=rmv_internal_key) 
-#
-#end 
-#
-#
-#
-#function f_fill_internal(M::Union{<:Module, <:Calculation}, args...)
-#	
-#	fill_int(P::Utils.List) = Parameters.fillParams_internalP(M, P, args...)
-#	
-#end 
-#
+
+
+#===========================================================================#
+#
+#	From module M, get parameter combinations: 
+#									- all (if kwargs not given)
+#									- with contraint/condition 'cond'
+#									- with some fixed parameter, implemented by 'repl' 
+#
+#---------------------------------------------------------------------------#
+
+function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
+												cond=nothing, repl=nothing) # First call
+
+	get_paramcombs(M, 1, [];
+								 cond = combine_functions_cond(cond),
+								 repl = combine_functions_addrem(repl),
+								)
+end 
+
+
+
+function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
+												level::Int, old::AbstractVector; 
+												cond::Function, repl::Function) # Further calls 
+
+	#M must have M.allparams::Function, M.NrParamSets::Int,
+
+	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
+
+										 new->cond(new, level),
+
+										 Utils.AllValCombs(repl(level, get_allP(M, old...))))
+
+
+	level == get_NrPSets(M) && return news
+
+	return Utils.flatmap(news) do new 
+				
+						get_paramcombs(M, level+1, new; cond=cond, repl=repl) 
+	end
+
+end
+
+
+
+
+function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
+													rmv_internal_key::Nothing=nothing)
+
+#	getpp() = convertParams_toPlot(M) 
+
+	getpp(P::UODicts) = convertParams_toPlot(M, P)
+												
+#	return getpp 
+
+end 
+
+
+function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
+													rmv_internal_key::Function)
+
+	getpp(P::UODicts) = convertParams_toPlot(M, P; 
+																					 repl=rmv_internal_key) 
+
+end 
+
+
+
+function f_fill_internal(M::Union{<:Module, <:Calculation}, args...)
+	
+	fill_int(P::Utils.List) = Parameters.fillParams_internalP(M, P, args...)
+	
+end 
+
 
 #############################################################################
 end
