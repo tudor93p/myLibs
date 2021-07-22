@@ -673,19 +673,24 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function flat(list_of_lists...; keep=nothing)::Vector 
+function flat(list_of_lists...; keep=nothing, flatten=[List])::Vector 
 
 	i = findfirst(list_of_lists) do x 
 
-				isList(x) || isa(x,AbstractDict)
+				any(flatten) do T
+
+					x isa T
+
+				end 
 
 			end 
 
 	if isnothing(i) 
-		
-		isnothing(keep) && return vcat(list_of_lists...)
-		
-		return filter(keep, vcat(list_of_lists...))
+	
+		keep isa Function && return filter(keep, vcat(list_of_lists...))
+
+#		isnothing(keep) &&  
+		return vcat(list_of_lists...)
 
 	end
 
@@ -1258,10 +1263,11 @@ end
 
 
 function DictRandVals(params::List)
-	
-	isList(params, Union{<:AbstractDict,<:NamedTuple}) && return DictRandVals.(params)
 
-	error("Type not understood: ",typeof(params))
+	#isList(params, Union{<:AbstractDict,<:NamedTuple}) && 
+	return DictRandVals.(params)
+
+	#error("Type not understood: ",typeof(params))
 
 end
 
@@ -1284,7 +1290,7 @@ function DictFirstVals(params::List)
 	
 	isList(params, AbstractDict) && return DictFirstVals.(params)
 
-	error("Type not understood: $T")
+	error("Type not understood: ",typeof(params))
 
 end
 

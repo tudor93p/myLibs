@@ -251,29 +251,126 @@ println()
 
 
 
-
-
-
-#construct_get_fname(path, (uk1, d1), (uk2, d2), ...)
-
-#typical_allparams((uk1, ap1), (uk2, ap2), ...)
-
-
-#ParamFlow(NrParamSets, path, (uk1, d1, ap1), (uk2, d2, ap2), ...)
-
-
-
-
-#uk1,d1,ap1 
-#uk1,d1,a1 
-#pd1,uk1,ap1 
-#pd1,a1 
+#===========================================================================#
 #
 #
-#(uk1,d1) or pd1 
-#(uk2,d2) or pd2
-#(uk1,ap1) or a1 
-#(uk2,ap2) or a2 
+#
+#---------------------------------------------------------------------------#
+
+println()
+println()
+
+
+a = Parameters.typical_allparams(args1[:usedkeys], [args1[:allparams] for i=1:2])
+
+b = Parameters.construct_get_fname(ROOT, args1[:usedkeys], [args1[:digits] for i=1:2])
+
+
+@show a()																 
+
+p = Utils.DictRandVals(a())
+
+@show p
+
+
+@show b(p)()
+
+
+
+println()
+
+
+a = Parameters.typical_allparams(((args[:usedkeys], [args[:allparams] for i=1:2]) for args in (args1,args2))...)
+b = Parameters.construct_get_fname(ROOT, ((args[:usedkeys], [args[:digits] for i=1:2]) for args in (args1,args2))...)
+																 
+																 
+@show a() a(Dict())
+
+
+
+P = Utils.DictRandVals([a(), a(Dict())])
+
+@show P  length.(P)
+
+
+@show b(P...)()
+println()
+
+
+
+
+
+a = Parameters.typical_allparams((args1[:usedkeys], args1[:allparams]), (args2[:usedkeys], [args2[:allparams] for i=1:3]))
+b = Parameters.construct_get_fname(ROOT, (args1[:usedkeys], args1[:digits]), (args2[:usedkeys], [args2[:digits] for i=1:3]))
+
+c = Parameters.ParamFlow(ROOT, (args1[:usedkeys], args1[:digits],args1[:allparams]), (args2[:usedkeys], [args2[:digits] for i=1:3], [args2[:allparams] for i=1:3]))
+
+
+
+																 
+@show a() a(Dict())
+@show c.allparams() c.allparams(Dict())
+
+P = Utils.DictRandVals([a(), a(Dict())])
+
+@show P 
+
+
+@show length.(Utils.flat.(P))
+
+
+@show b(P...)()
+@show c.get_fname(P...)()
+
+
+println() 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -346,15 +346,17 @@ end
 
 
 
-function construct_get_fname(path_,#::AbstractString,
-														 all_params_digits::Vararg{<:Function,N}
-														 )::Function where N
+function construct_get_fname(path_, 
+														 all_params_digits::Vararg{<:Function}
+														 )::Function 
 
 	path = prefix(path_) 
 
-	return function get_fname(args::Vararg{<:UODict,N})::Function
-	
-		pref = prefix(path, zip(all_params_digits, args)...)
+	return function get_fname(args...)::Function
+
+		pref = prefix(path, zip(all_params_digits, Utils.flat(args))...)
+
+#		pref = prefix(path, zip(all_params_digits, args)...)
 
 		return function strfname(x::AbstractString="")::String 
 			
@@ -372,7 +374,9 @@ function construct_get_fname(path,#::AbstractString,
 														 )::Function 
 
 	construct_get_fname(path,
-											vcat(typical_params_digits(ingreds_pds...))...)
+#											vcat(typical_params_digits(ingreds_pds...))...)
+											Utils.flat(typical_params_digits(ingreds_pds...))...)
+
 
 end 
 
@@ -772,6 +776,15 @@ function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
 end
 
 
+function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
+																							 <:Function},
+															 digits::AbstractVector{<:ODict}
+															 )::Vector{Function}
+
+	[typical_params_digits(usedkeys, d) for d in digits]
+
+end
+
 
 
 function typical_params_digits(M::Module, digits::ODict)::Function
@@ -806,16 +819,16 @@ end
 
 
 
-function typical_params_digits(t::Tuple)::Function 
-
-	typical_params_digits(t...)
-
-end 
-
+#function typical_params_digits(t::Tuple)::Function 
+#
+#	typical_params_digits(t...)
+#
+#end 
+#
 
 function typical_params_digits(tuples::Vararg{<:Tuple})::Vector{Function}
 
-	[typical_params_digits(t...) for t in tuples]
+	Utils.flat([typical_params_digits(t...) for t in tuples])
 
 end 
 
@@ -896,15 +909,19 @@ end
 
 
 
+function prepare_dict_allparams(usedkeys::AbstractVector{<:Symbol},
+																allp::UODict)::Dict{Symbol,Any}
 
+	Dict{Symbol,Any}(Symbol(k)=>allp[k] for k in intersect(keys(allp), usedkeys))
+end 
 
 function typical_allparams(NrParamSets::Int,
 													 usedkeys::AbstractVector{<:Symbol},
 													 allp::UODict)::Function 
 
-	d = Dict{Symbol,Any}(Symbol(k)=>allp[k] for k in intersect(keys(allp), usedkeys))
+	d = prepare_dict_allparams(usedkeys, allp)
 
-	return function allparams(P::Vararg{<:UODict,N})::Dict{Symbol,Any} where N 
+	return function allparams(P::Vararg{T,N})::Dict{Symbol,Any} where {T,N}
 		
 		N==NrParamSets-1 && return d 
 		
@@ -915,17 +932,36 @@ function typical_allparams(NrParamSets::Int,
 end
 
 
+function typical_allparams(NrParamSets::Int,
+													 usedkeys::AbstractVector{<:Symbol},
+													 AllP::AbstractVector{<:UODict})::Function 
+
+	D = [prepare_dict_allparams(usedkeys, allp) for allp in AllP]
+
+	return function allparams(P::Vararg{T,N})::Vector{Dict{Symbol,Any}} where {T,N}
+		
+		N==NrParamSets-1 && return D 
+		
+		error("The function can only be called with ",NrParamSets-1," arguments. You provided $N.")
+		
+	end 
+
+end
 
 
 function typical_allparams(NrParamSets::Int, 
-													 usedkeys::Function, allp::UODict)::Function
+													 usedkeys::Function, 
+													 allp::Union{<:UODict, <:AbstractVector{<:UODict}}
+													 )::Function
 
 	typical_allparams(NrParamSets, usedkeys(), allp)
 
 end 
 
 function typical_allparams(NrParamSets::Int, 
-													 M::Module, allp::UODict)::Function
+													 M::Module, 
+													 allp::Union{<:UODict, <:AbstractVector{<:UODict}}
+													 )::Function
 
 	typical_allparams(NrParamSets, M.usedkeys, allp)
 
@@ -935,7 +971,8 @@ end
 function typical_allparams(usedkeys::Union{<:AbstractVector{<:Symbol},
 																					 <:Module,
 																					 <:Function},
-													 allp::UODict)::Function 
+													 allp::Union{<:UODict, <:AbstractVector{<:UODict}},
+													 )::Function 
 
 	typical_allparams(1, usedkeys, allp)
 
@@ -962,7 +999,7 @@ function typical_allparams(tuples::Vararg{<:Tuple, NF})::Function where NF
 						end)
 
 
-	return function allparams(P::Vararg{<:UODict,N})::Dict{Symbol,Any} where N
+	return function allparams(P::Vararg{T,N}) where {T,N}
 
 		N<NF && return fs[N+1](P...)
 
@@ -995,8 +1032,9 @@ end
 
 
 function sep_pdap(usedkeys::Union{<:AbstractVector{Symbol}, <:Function},
-									digits::ODict,
-									allp::UODict)::Tuple{Tuple,Tuple}
+									digits::Union{<:ODict,<:AbstractVector{<:ODict}},
+									allp::Union{<:UODict,<:AbstractVector{<:UODict}},
+									)::Tuple{Tuple,Tuple}
 
 	(usedkeys, digits), (usedkeys, allp)
 
@@ -1004,7 +1042,7 @@ end
 
 
 function sep_pdap(usedkeys::Union{<:AbstractVector{Symbol}, <:Function},
-									digits::ODict,
+									digits::Union{<:ODict,<:AbstractVector{<:ODict}},
 									arg::Union{<:Function, <:Module})::Tuple{Tuple,Tuple}
 
 	(usedkeys, digits), (arg,)
@@ -1013,7 +1051,8 @@ end
 
 function sep_pdap(pd::Union{<:Function, <:Module},
 									usedkeys::Union{<:AbstractVector{Symbol}, <:Function},
-									allp::UODict)::Tuple{Tuple,Tuple}
+									allp::Union{<:UODict,<:AbstractVector{<:UODict}},
+									)::Tuple{Tuple,Tuple}
 
 	(pd,),(usedkeys,allp)
 
@@ -1021,14 +1060,18 @@ end
 
 
 function sep_pdap(usedkeys::Module,
-									digits::ODict,
+									digits::Union{<:ODict,<:AbstractVector{<:ODict}},
 									allp::Function)::Tuple{Tuple,Tuple}
 
 	(usedkeys, digits), (allp,)
 
 end 
 
-function sep_pdap(M::Module, digits::ODict, allp::UODict)::Tuple{Tuple,Tuple}
+
+function sep_pdap(M::Module, 
+									digits::Union{<:ODict,<:AbstractVector{<:ODict}},
+									allp::Union{<:UODict,<:AbstractVector{<:UODict}},
+									)::Tuple{Tuple,Tuple}
 
 	(M, digits), (M, allp)
 
@@ -1063,14 +1106,15 @@ end
 function sep_pdap(pd::Union{<:Function,<:Module},
 									allp::Union{<:Function,<:Module})::Tuple{Tuple,Tuple}
 
-	
 	(pd,),(allp,)
 	
 end 
 
 
 
-function sep_pdap(M::Module, digits::ODict)::Tuple{Tuple,Tuple}
+function sep_pdap(M::Module, 
+									digits::Union{<:ODict,<:AbstractVector{<:ODict}},
+									)::Tuple{Tuple,Tuple}
 
 	(M, digits), (M,)
 
@@ -1490,7 +1534,9 @@ function good_methods(NrParamSets::Int, F::Function, args...)::Bool
 	
 	for i in 1:NrParamSets
 
-		hasmethod(F, NTuple{i,<:AbstractDict}, args...) || return false 
+		hasmethod(F, 
+							NTuple{i, <:Union{<:UODict, <:AbstractVector{<:UODict}}},
+							args...) || return false 
 
 	end 
 
@@ -1543,7 +1589,7 @@ function add_kwargs(PF::ParamFlow, F::Function; kwargs...)::Function
 	kwa2 = NamedTuple{Tuple(ks2)}(kwargs[k] for k in ks2)
 
 
-	return function f(args::Vararg{<:UODict}; kwa...)
+	return function f(args...; kwa...)
 	
 		F(args...; kwa1..., kwa2..., kwa...)
 
