@@ -1233,16 +1233,33 @@ end
 
 
 
+function pickrand(params::AbstractVector{Pair})::Vector{Pair}
+
+	pick(v::AbstractVector) = rand(v)
+	pick(v) = v 
+
+	return [k=>pick(v) for (k,v) in params]
+
+end 
+
+
 function DictRandVals(params::AbstractDict)::Dict 
 
-	Dict(k=>(typeof(v) <: AbstractVector) ? rand(v) : v 
-												for (k,v) in pairs(params))
+	Dict(pickrand(pairs(params)))
 
 end
 
+
+function DictRandVals(params::NamedTuple)::NamedTuple 
+
+	NamedTuple(pickrand(pairs(params)))
+
+end 
+
+
 function DictRandVals(params::List)
 	
-	isList(T,AbstractDict) && return DictRandVals.(params)
+	isList(T,Union{<:AbstractDict,<:NamedTuple}) && return DictRandVals.(params)
 
 	error("Type not understood: $T")
 
