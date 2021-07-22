@@ -1233,7 +1233,7 @@ end
 
 
 
-function pickrand(params::List)::Base.Generator
+function pickrand(params)
 
 	pick(v::AbstractVector) = rand(v)
 	pick(v) = v 
