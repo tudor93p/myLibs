@@ -1233,12 +1233,12 @@ end
 
 
 
-function pickrand(params::AbstractVector{Pair})::Vector{Pair}
+function pickrand(params::List)::Base.Generator
 
 	pick(v::AbstractVector) = rand(v)
 	pick(v) = v 
 
-	return [k=>pick(v) for (k,v) in params]
+	return (k=>pick(v) for (k,v) in params)
 
 end 
 
