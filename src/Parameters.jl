@@ -693,8 +693,8 @@ get_usedkeys(usedkeys::Function, P::UODict)::Vector{Symbol} = usedkeys(P)
 
 function get_usedkeys(M::Module, args...)
 #
-##	get_usedkeys(Utils.getprop(M, :usedkeys, Symbol[]), args...)
-	get_usedkeys(M.usedkeys, args...)
+	get_usedkeys(Utils.getprop(M, :usedkeys, Symbol[]), args...)
+#	get_usedkeys(M.usedkeys, args...)
 
 
 end 
