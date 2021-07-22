@@ -1259,9 +1259,9 @@ end
 
 function DictRandVals(params::List)
 	
-	isList(T,Union{<:AbstractDict,<:NamedTuple}) && return DictRandVals.(params)
+	isList(params, Union{<:AbstractDict,<:NamedTuple}) && return DictRandVals.(params)
 
-	error("Type not understood: $T")
+	error("Type not understood: ",typeof(params))
 
 end
 
