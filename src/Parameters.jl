@@ -999,7 +999,7 @@ function typical_allparams(tuples::Vararg{<:Tuple, NF})::Function where NF
 						end)
 
 
-	return function allparams(P::Vararg{T,N}) where {T,N}
+	return function allparams(P::Vararg{<:T,N}) where {T,N}
 
 		N<NF && return fs[N+1](P...)
 
