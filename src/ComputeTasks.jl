@@ -144,7 +144,7 @@ function init_task(M;
 	
 
 	
-		function files_exist(Ps::Vararg{<:UODict}; target=nothing)
+		function files_exist(Ps...; target=nothing)
 
 				found_files(fill_internal(Ps)...; target=target) 
 			
@@ -152,7 +152,7 @@ function init_task(M;
 	
 	
 	
-		function get_data(P::Vararg{<:UODict}; target=nothing, 
+		function get_data(P...; target=nothing, 
 											force_comp::Bool=false,
 											mute::Bool=true, 
 											shuffle::Bool=false, 

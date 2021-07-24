@@ -358,11 +358,15 @@ function adjust(level::Int, P...)
 
 end 
 
-c = Parameters.ParamFlow(ROOT, (args1[:usedkeys], args1[:digits],args1[:allparams]), (args2[:usedkeys], [args2[:digits] for i=1:3], [args2[:allparams] for i=1:2]); constraint=cond1, adjust=adjust)
+c = Parameters.ParamFlow(ROOT, 
+												 (args1[:usedkeys], args1[:digits],args1[:allparams]), 
+												 (args2[:usedkeys], [args2[:digits] for i=1:3], [args2[:allparams] for i=1:2]),
+												 constraint=cond1, adjust=adjust
+												 )
 
 																 
 @show a() a(Dict())
-@show c.allparams() c.allparams(Dict())
+@show c.allparams() #c.allparams(Dict())
 
 
 println("\nAll combinations")
@@ -393,16 +397,39 @@ P = rand(Parameters.get_paramcombs(c))
 @show c.get_fname(P...)()
 
 
+println() 
+
+
+@show c.NrParamSets
+
+@show Parameters.convertParams_toPlot(c)
+
+@show Parameters.convertParams_toPlot(c, P)
+
+
+P_  = Parameters.convertParams_fromPlot(c, Parameters.convertParams_toPlot(c, P))
+
+function test(p::AbstractDict, p_::AbstractDict) 
+	
+	Set(keys(p))==Set(keys(p_)) || return false 
+
+	for (k,v) in pairs(p)
+
+		p_[k]==v || return false 
+
+	end 
+
+	return true 
+
+end 
+
+
+test(p::Utils.List, p_::Utils.List) = all(test.(p,p_))
+#test((x,y)) = test(x,y)
 
 
 
-
-
-
-
-
-
-
+@show all([test(p...) for p in zip(P,P_)])
 
 
 

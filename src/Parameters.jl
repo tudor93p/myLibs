@@ -1751,7 +1751,9 @@ get_allP(m::Calculation, args...) = get_allP(m.PF, args...)
 #			M Must have M.NrParamSets M.allparams
 
 
-function convert_params(M::Union{<:Module, <:Calculation},
+#get_allP, get_NrPSets -- applied to M
+
+function convert_params(M::Union{<:Module, <:ParamFlow, <:Calculation},
 												args=[];
 												get_new=(l,a)->get_allP(M, a...),
 												repl=nothing,
@@ -1777,11 +1779,12 @@ function convert_params(M::Union{<:Module, <:Calculation},
 	end
 
 
-	
 
 	for level in 1:get_NrPSets(M)
 
 		new_ = get_new(level, args)
+
+		r(a) = apply_one_or_many(repl, level, args..., a) 
 
 		if isnothing(repl) 
 		
@@ -1789,7 +1792,7 @@ function convert_params(M::Union{<:Module, <:Calculation},
 			
 		else 
 
-				push!(args, act_on_plev(a->repl(level, args..., a))(new_))
+				push!(args, act_on_plev(r)(new_))
 
 		end
 
@@ -1809,7 +1812,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+function convertParams_toPlot(M::Union{<:Module, <:ParamFlow, <:Calculation},
 															P::Utils.List; kwargs...)
 
 	isempty(P) && return convertParams_toPlot(M; kwargs...)
@@ -1819,7 +1822,7 @@ function convertParams_toPlot(M::Union{<:Module, <:Calculation},
 end 
 
 
-function convertParams_toPlot(M::Union{<:Module, <:Calculation},
+function convertParams_toPlot(M::Union{<:Module, <:ParamFlow, <:Calculation},
 															P::Nothing=nothing; 
 															kwargs...)::OrderedDict
 
@@ -1847,7 +1850,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function convertParams_fromPlot(M::Union{<:Module,<:Calculation},
+function convertParams_fromPlot(M::Union{<:Module,<:ParamFlow,<:Calculation},
 																P::UODict; kwargs...)
 
 	convert_params(M;
@@ -1880,7 +1883,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function fillParams_internalP(M::Union{<:Module, <:Calculation},
+function fillParams_internalP(M::Union{<:Module, <:ParamFlow, <:Calculation},
 															P::Utils.List, ::Nothing;
 															kwargs...)
 	P 
@@ -1905,7 +1908,7 @@ end
 
 
 
-function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+function fillParams_internalPs(M::Union{<:Module,<:ParamFlow,<:Calculation}, 
 															 P::Utils.List, ::Nothing;
 															kwargs...)
 	P
@@ -1913,7 +1916,7 @@ function fillParams_internalPs(M::Union{<:Module, <:Calculation},
 end 
 
 
-function fillParams_internalPs(M::Union{<:Module, <:Calculation}, 
+function fillParams_internalPs(M::Union{<:Module,<:ParamFlow,<:Calculation}, 
 															 P::Utils.List, 
 															 add_internal_params::Utils.List;
 															 kwargs...)
