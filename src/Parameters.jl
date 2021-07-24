@@ -4,12 +4,12 @@ module Parameters
 import ...OrderedDict, ...Utils 
 import Random 
 
-export UODict, UODicts 
+export UODict, ODict
 
 const ODict = Union{<:OrderedDict, <:NamedTuple}
 const UDict = AbstractDict
 const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
-const UODicts = Vararg{<:UODict}
+#const UODicts = Vararg{<:UODict}
 
 
 #===========================================================================#
@@ -642,7 +642,7 @@ prefix(path...)::String = prefix(path)
 #---------------------------------------------------------------------------#
 
 
-function params_to_string(args::Vararg;
+function params_to_string(args...;
 													separator::Union{<:AbstractString,<:Char}='-'
 													)::String
 	
@@ -921,8 +921,10 @@ function typical_allparams(NrParamSets::Int,
 
 	d = prepare_dict_allparams(usedkeys, allp)
 
-	return function allparams(P::Vararg{T,N})::Dict{Symbol,Any} where {T,N}
-		
+	return function allparams(P...)::Dict{Symbol,Any}# where {T,N}
+	
+		N = length(P)
+
 		N==NrParamSets-1 && return d 
 		
 		error("The function can only be called with ",NrParamSets-1," arguments. You provided $N.")
@@ -938,8 +940,10 @@ function typical_allparams(NrParamSets::Int,
 
 	D = [prepare_dict_allparams(usedkeys, allp) for allp in AllP]
 
-	return function allparams(P::Vararg{T,N})::Vector{Dict{Symbol,Any}} where {T,N}
-		
+	return function allparams(P...)::Vector{Dict{Symbol,Any}}
+
+		N = length(P) 
+
 		N==NrParamSets-1 && return D 
 		
 		error("The function can only be called with ",NrParamSets-1," arguments. You provided $N.")
@@ -999,7 +1003,9 @@ function typical_allparams(tuples::Vararg{<:Tuple, NF})::Function where NF
 						end)
 
 
-	return function allparams(P::Vararg{<:T,N}) where {T,N}
+	return function allparams(P...) where
+	
+		N = length(P) 
 
 		N<NF && return fs[N+1](P...)
 
@@ -1952,7 +1958,7 @@ function f_get_plotparams(M::Union{<:Module, <:Calculation},
 
 #	getpp() = convertParams_toPlot(M) 
 
-	getpp(P::UODicts) = convertParams_toPlot(M, P)
+	getpp(P...) = convertParams_toPlot(M, P)
 												
 #	return getpp 
 
@@ -1962,7 +1968,7 @@ end
 function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
 													rmv_internal_key::Function)
 
-	getpp(P::UODicts) = convertParams_toPlot(M, P; 
+	getpp(P...) = convertParams_toPlot(M, P; 
 																					 repl=rmv_internal_key) 
 
 end 
