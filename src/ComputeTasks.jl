@@ -6,10 +6,8 @@ using Distributed
 import ..Random, PyCall, ..OrderedDict 
 
 import ..Utils 
-import ..Parameters
+using ..Parameters: UODict 
 
-UODicts = Parameters.UODicts
-UODict = Parameters.UODict
 
 
 
@@ -488,7 +486,7 @@ end
 
 function combine_get_data(tasks::AbstractVector{CompTask})
 
-	function get_data(P::UODicts; samplevectors=12345, kwargs...)
+	function get_data(P...; samplevectors=12345, kwargs...)
 
 		if !(isa(samplevectors,Int) && samplevectors==12345)
 
@@ -656,7 +654,7 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 	end
 					#-----------------#
 
-	function construct_Z(obs::AbstractString, P::UODicts; 
+	function construct_Z(obs::AbstractString, P...; 
 											 kwargs...)::Dict{String,Any}
 		
 		Data = get_data(P...; fromPlot=true, kwargs..., target=obs)
@@ -679,7 +677,7 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 
 	
-	function construct_Z(get_obs::Function, P::UODicts; 
+	function construct_Z(get_obs::Function, P...;
 											 label=nothing,
 											 kwargs...)::Dict{String,Any}
 		
