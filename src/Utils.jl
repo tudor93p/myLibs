@@ -1303,7 +1303,8 @@ end
 
 
 function AllValCombs(params::AbstractDict;
-										 constraint=nothing, sortby=nothing)
+										 constraint=nothing, sortby=nothing
+										 )::Vector{<:AbstractDict}
 
 	vals(v::AbstractVector) = v 
 	vals(v) = [v]
@@ -1320,13 +1321,14 @@ function AllValCombs(params::AbstractDict;
 
   isnothing(sortby) || sort!(dicts,by=sortby)
 
-  return dicts
+  return dicts 
+
 end
 
 
-function AllValCombs(params::AbstractVector{<:OrderedDict};kwargs...)
+function AllValCombs(params::List; kwargs...)
 
-	collect(Base.product(AllValCombs.(params;kwargs...)...))[:]
+	collect(Base.product(AllValCombs.(params; kwargs...)...))[:]
 
 end
 
@@ -1975,20 +1977,24 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function getprop(M::Module, prop::Symbol, std_value=nothing)
+function getprop(M, prop::Symbol, std_value=nothing)
 
-	in(prop, names(M, all=true)) ? getproperty(M, prop) : std_value 
+	allnames = isa(M,Module) ? names(M, all=true) : propertynames(M)
+
+	return in(prop, allnames) ? getproperty(M, prop) : std_value 
 
 end 
 
 
-function getprop(M::Module, prop::List, std_value=nothing)
+function getprop(M, prop::List, std_value=nothing)
 
 	std = isList(std_value) ? i->std_value[i] : i->std_value
 
 	return [getprop(M, p, std(i)) for (i,p) in enumerate(prop)]
 						
 end 
+
+
 
 	
 

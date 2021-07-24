@@ -14,14 +14,24 @@ using Test
 #
 #
 
+function pr_in(f::AbstractString) 
+
+	println("\n********* $f ********* \n")
+
+	include("$f.jl")
+
+end
 
 #include("layeredsystem.jl")
 
-include("param.jl") 
+#"param" |> pr_in 
 
-include("param2.jl") 
+#"param2" |>pr_in
 
-#include("tasks.jl")
+
+
+
+"tasks" |> pr_in
 
 
 

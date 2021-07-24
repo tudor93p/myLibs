@@ -48,8 +48,9 @@ for (m,ps) in ([M,(P,)],[M2,(P,P,)])
 	println("----------")
 #	@show m ps 
 
-	rmv(l,p::AbstractDict) = Dict(k=>p[k] for k in filter(!isequal(:width),collect(keys(p))))
-	add(l,p::AbstractDict) = merge(p,Dict(:Q=>0.3))
+	rmv(l::Int, p::AbstractDict) = Dict(k=>p[k] for k in filter(!isequal(:width),collect(keys(p)))) 
+
+	add(l::Int, p::AbstractDict) = merge(p,Dict(:Q=>0.3))
 
 
 	local task = ComputeTasks.init_task(m; 
@@ -75,13 +76,18 @@ end
 println() 
 
 
+for pc in task.get_paramcombs()
 
-foreach(println, task.get_paramcombs())
+	foreach(println, pc)
+
+	println()
+
+end
 
 println()  
 
 
-cond(p::AbstractDict,l) = get(p,:length,0)==10
+cond(l::Int, p::AbstractDict) = get(p,:length,0)==10
 
 
 foreach(println, task.get_paramcombs(;cond=cond))
@@ -89,7 +95,7 @@ println()
 
 qq = task.get_paramcombs()[1]
 
-#@show qq 
+@show qq 
 
 
 #@show methods(task.files_exist)
@@ -101,7 +107,8 @@ qq = task.get_paramcombs()[1]
 
 println() 
 
-@show task.get_data(task.get_paramcombs()[1]...)
+@show task.get_data(qq...)
+
 
 
 ComputeTasks.missing_data(task; show_missing=true)

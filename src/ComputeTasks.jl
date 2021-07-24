@@ -5,7 +5,8 @@ using Distributed
 
 import ..Random, PyCall, ..OrderedDict 
 
-import ..Utils 
+import ..Utils, ..Parameters
+
 using ..Parameters: UODict 
 
 
@@ -125,9 +126,7 @@ function init_task(M;
 
 	return CompTask(
 
-
 		get_taskname(M), 
-
 
 		get_plotparams, 
 	

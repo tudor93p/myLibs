@@ -35,32 +35,44 @@ const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
 #---------------------------------------------------------------------------#
 
 
+function apply_one_or_many(f::Function, l::Int, P...)
+
+	applicable(f, l, P...) && return f(l, P...)
+
+	applicable(f, l, P[l]) && return f(l, P[l])
+
+	@warn "Function $f not applicable. Returning P[l]"
+
+	return P[l]
+
+	error()
+
+end 
+
+
+function recrepl(l::Int, P...; fs::AbstractVector{Function}=Function[]) 
+
+	isempty(fs) && return P[l]
+
+	new_Pl = apply_one_or_many(fs[1], l, P...)
+
+	return recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
+								 fs=fs[2:end])
+end 
+
+
+
+function recrepl(fs::AbstractVector)::Function
+
+	recrepl_(l::Int, P...) = recrepl(l, P...; fs=Vector{Function}(fs))
+
+end 
+
+
+
 function combine_functions_addrem(args...)::Function
 
-	good_fs = Utils.flat(args...; keep=x->isa(x,Function))
-
-	function combined_addrem(l::Int, p::UODict)
-
-		p1 = copy(p)
-
-		for fi in good_fs
-
-			p1 = fi(l, p1)
-
-		end 
-
-		return p1
-
-	end
-
-	function combined_addrem(l::Int, p::Utils.List)::Vector
-		
-		combined_addrem.(l,p)
-
-	end 
-
-
-	return combined_addrem
+	recrepl(Utils.flat(args...; keep=x->isa(x,Function)))
 
 end 
 
@@ -79,11 +91,11 @@ function combine_functions_cond(args...)::Function
 
 	good_fs = Utils.flat(args...; keep=x->isa(x,Function))
 
-	function combined_cond(P::UODict, l::Int)::Bool
+	function combined_cond(l::Int, P...)::Bool
 
 		for cond in good_fs
 			
-			cond(P,l) || return false 
+			apply_one_or_many(cond, l, P...) || return false 
 
 		end 
 
@@ -92,11 +104,11 @@ function combine_functions_cond(args...)::Function
 	end
 
 
-	function combined_cond(P::Utils.List, l::Int)::Bool 
-
-		all(combined_cond.(P,l))
-
-	end 
+#	function combined_cond(P::Utils.List, l::Int)::Bool 
+#
+#		all(combined_cond.(P,l))
+#
+#	end 
 
 
 	return combined_cond
@@ -192,6 +204,9 @@ function replace_parameter_fs(getP, Keys, level::Int=1)::Tuple{Function,Function
 
 end 
 
+
+
+
 function replace_parameter_fs(getP::Function, Keys, 
 															levels::AbstractVector{Int}
 														 )::Tuple{Function,Function}
@@ -201,13 +216,12 @@ function replace_parameter_fs(getP::Function, Keys,
 	rmv,aux = replace_parameter_fs(nothing, Keys, levels)
 
 
-	function add(l::Int,p::T)::T where T<:UODict 
+	m(p::UODict, q) = merge(p, Dict(zip(K, q))) 
 
-		in(l, levels) || return p
-		
-		return merge(p, Dict(zip(K, getP(l,p))))
+	m(p::Utils.List, q) = m.(p,q)
 
-	end 
+
+	add(l::Int, P...) = !in(l, levels) ? P[l] : m(P[l], getP(l, P...))
 
 
 	return rmv,add
@@ -216,22 +230,22 @@ end
 
 
 
+
 function replace_parameter_fs(getP, Keys, 
 															levels::AbstractVector{Int}
 														 )::Tuple{Function,Function}
 
 	K = Utils.flat(Keys)
+	
+	f(p::UODict) = filter(kv->!in(kv.first, K), p)
 
-	function rmv(l::Int, p::T)::T where T<:UODict 
-
-		in(l,levels) || return p 
-		
-		return filter(kv->!in(kv.first, K), p)
-
-	end 
+	f(P::Utils.List) = f.(P)
 
 
-	return rmv,(l,p)->p
+	rmv(l::Int, P...) = !in(l,levels) ? P[l] : f(P[l])
+
+
+	return rmv, (l,P...)->P[l]
 
 end 
 
@@ -1331,14 +1345,24 @@ struct ParamFlow
 	# --- actually used functions --- #  
 	
 
-	get_fname::Function 
+	get_fname::Function  
+
 	allparams::Function
+
+
+	constraint::Union{<:Nothing, <:Function} 
+
+	adjust::Union{<:Nothing, <:Function} 
+
+#	adjust::Function
 
 	# --- #
 
 
 	function ParamFlow(path, NrParamSets::Int, 
-										 tuples::Vararg{<:Tuple,N}) where N
+										 tuples::Vararg{<:Tuple,N}; 
+										 constraint=nothing,
+										 adjust=nothing) where N
 
 		@assert NrParamSets==N "The number of tuples provided ($N) should match the claimed 'NrParamSets' ($NrParamSets)"
 
@@ -1346,20 +1370,22 @@ struct ParamFlow
 
 		return new(NrParamSets,
 							 construct_get_fname(path, args_pd...),
-							 typical_allparams(NrParamSets, args_ap...),
+							 typical_allparams(NrParamSets, args_ap...), 
+							 constraint, adjust
 							 )
 
 	end 
 
 
-	function ParamFlow(path, tuples::Vararg{<:Tuple,N}) where N
+	function ParamFlow(path, tuples::Vararg{<:Tuple,N}; kwargs...) where N
 
-		ParamFlow(path, N, tuples...)
+		ParamFlow(path, N, tuples...; kwargs...)
 
 	end 
 
 
-	function ParamFlow(path, NrParamSets::Int, args...)
+	function ParamFlow(path, NrParamSets::Int, args...; 
+										 constraint=nothing, adjust=nothing)
 
 		@assert NrParamSets==1 "The arguments provided contradict the claimed 'NrParamSets' ($NrParamSets)"
 
@@ -1368,13 +1394,14 @@ struct ParamFlow
 		return new(NrParamSets,
 							 construct_get_fname(path, args_pd...),
 							 typical_allparams(NrParamSets, args_ap...),
+							 constraint, adjust
 							 )
 
 	end 
 
-	function ParamFlow(path, args...)
+	function ParamFlow(path, args...; kwargs...)
 
-		ParamFlow(path, 1, args...)
+		ParamFlow(path, 1, args...; kwargs...)
 
 	end 
 
@@ -1732,17 +1759,20 @@ function convert_params(M::Union{<:Module, <:Calculation},
 												convert_many=map,
 												final_f=identity)
 
-	function act_on_plev(f1::T1) where T1<:Function
-	
-		return function (arg::T2) where T2
-	
-			T2 <: AbstractDict && return f1(arg)
+
+	function act_on_plev(f1::Function)
+
+		f2(arg::UODict) = f1(arg) 
+
+		function f2(arg::Utils.List) 
+
+			Utils.isList(arg, UODict) && return convert_many(f1,arg)
 		
-			Utils.isList(T2,AbstractDict) && return convert_many(f1,arg)
-		
-			error("\n $arg \nParameter structure not understood: $T2")
+			error("\n $arg \nParameter structure not understood.")
 	
 		end
+
+		return f2
 	
 	end
 
@@ -1751,18 +1781,22 @@ function convert_params(M::Union{<:Module, <:Calculation},
 
 	for level in 1:get_NrPSets(M)
 
-		new = get_new(level,args)
+		new_ = get_new(level, args)
 
-		if isnothing(repl) push!(args,new) else 
+		if isnothing(repl) 
+		
+				push!(args, new_) 
+			
+		else 
 
-				push!(args, act_on_plev(a->repl(level,a))(new))
+				push!(args, act_on_plev(a->repl(level, args..., a))(new_))
 
 		end
 
 	end
 
 
-	return final_f(map(act_on_plev(convert_one),args))
+	return final_f(map(act_on_plev(convert_one), args))
 
 end
 
@@ -1921,8 +1955,10 @@ function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
 												cond=nothing, repl=nothing) # First call
 
 	get_paramcombs(M, 1, [];
-								 cond = combine_functions_cond(cond),
-								 repl = combine_functions_addrem(repl),
+								 cond = combine_functions_cond(cond, 
+																Utils.getprop(M, :constraint, nothing)),
+								 repl = combine_functions_addrem(repl, 
+																Utils.getprop(M, :adjust, nothing)),
 								)
 end 
 
@@ -1936,9 +1972,9 @@ function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
 
 	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
 
-										 new->cond(new, level),
+										 new_ -> cond(level, new_...),
 
-										 Utils.AllValCombs(repl(level, get_allP(M, old...))))
+										 Utils.AllValCombs(repl(level, old..., get_allP(M, old...))))
 
 
 	level == get_NrPSets(M) && return news
@@ -1968,8 +2004,7 @@ end
 function f_get_plotparams(M::Union{<:Module, <:Calculation}, 
 													rmv_internal_key::Function)
 
-	getpp(P...) = convertParams_toPlot(M, P; 
-																					 repl=rmv_internal_key) 
+	getpp(P...) = convertParams_toPlot(M, P; repl=rmv_internal_key) 
 
 end 
 

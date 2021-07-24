@@ -1,5 +1,5 @@
 import myLibs: Parameters, Utils 
-
+using myLibs.Parameters
 
 
 ROOT = "Data"
@@ -19,9 +19,9 @@ export lev1_input
 lev1_input = Dict(
 
 
-			:allparams => Dict(:X1 => [1,2],
-												 :Y1 => [-0.5,0.9,1.3],
-												 :Z1 => [-10,20,35],
+									:allparams => Dict(:X1 => [1,5],
+																		 :Y1 => [-0.5,0.9],#,1.3],
+																		:Z1 => [-10,20],#,35],
 												 :T1 => ("k",8),
 												 ),
 
@@ -68,9 +68,9 @@ NrParamSets = 2
 lev2_input = Dict(
 
 
-			:allparams => Dict(:X2 => [-5,100],
-												 :Y2 => [-0.05,0.009,1.003],
-												 :Z2 => [-10,20,35],
+									:allparams => Dict(:X2 => [-5,100],
+																		 :Y2 => [-0.05],#,1.003],
+												 :Z2 => [20],#,35],
 												 ),
 
 			:digits => (Z2 = (3,0), Y2=(1,3))
@@ -303,15 +303,85 @@ println()
 a = Parameters.typical_allparams((args1[:usedkeys], args1[:allparams]), (args2[:usedkeys], [args2[:allparams] for i=1:3]))
 b = Parameters.construct_get_fname(ROOT, (args1[:usedkeys], args1[:digits]), (args2[:usedkeys], [args2[:digits] for i=1:3]))
 
-c = Parameters.ParamFlow(ROOT, (args1[:usedkeys], args1[:digits],args1[:allparams]), (args2[:usedkeys], [args2[:digits] for i=1:3], [args2[:allparams] for i=1:3]))
+function cond(level::Int, P...)::Bool
+
+	level==2 || return true 
+
+	v1 = P[1][:Z1]
+	
+	v2, v3 = getindex.(P[2], :X2)
+
+	any(v->v isa AbstractVector, (v1,v2,v3)) && return true 
+
+	return v1*v2*v3<0
+
+end  
+
+function cond1(level::Int, p) 
+	
+	level==1 && return p[:X1]>3
+
+	return true 
+
+end 
 
 
+function adjust(level::Int, P...)
+
+	p = copy(P[level])
+
+#	if level==1 
+#
+#		newv(x::Number) = x < 0 ? abs(x)+5 : x
+#
+#		newv(a::AbstractVector) = newv.(a) 
+#
+#		p[:Z1] = newv(p[:Z1])
+#
+#	end 
+
+	if level==2 
+
+		newv(x::Number) = x<0 ? abs(x) + abs(P[1][:X1]) : x
+
+		newv(x::AbstractVector) = newv.(x)
+
+		for p_ in p
+			
+			p_[:X2] = newv(p_[:X2])
+			
+		end 
+		
+	end 
+
+	return p 
+
+end 
+
+c = Parameters.ParamFlow(ROOT, (args1[:usedkeys], args1[:digits],args1[:allparams]), (args2[:usedkeys], [args2[:digits] for i=1:3], [args2[:allparams] for i=1:2]); constraint=cond1, adjust=adjust)
 
 																 
 @show a() a(Dict())
 @show c.allparams() c.allparams(Dict())
 
-P = Utils.DictRandVals([a(), a(Dict())])
+
+println("\nAll combinations")
+
+
+
+for comb in Parameters.get_paramcombs(c)
+
+	foreach(println, comb)
+
+	println() 
+
+end 
+
+
+println("\nChoose one comb")
+
+P = rand(Parameters.get_paramcombs(c))
+
 
 @show P 
 
@@ -321,14 +391,6 @@ P = Utils.DictRandVals([a(), a(Dict())])
 
 @show b(P...)()
 @show c.get_fname(P...)()
-
-
-println() 
-
-
-
-
-
 
 
 
