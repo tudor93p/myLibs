@@ -1247,19 +1247,17 @@ function pickrand(params)
 
 end 
 
+dict_constr(d::OrderedDict) = OrderedDict
+dict_constr(d::AbstractDict) = Dict 
+dict_constr(d::NamedTuple) = NamedTuple 
 
-function DictRandVals(params::AbstractDict)::Dict 
+function DictRandVals(params::T)::T where T<:Union{<:AbstractDict, <:NamedTuple}
 
-	Dict(pickrand(pairs(params)))
+	dict_constr(params)(pickrand(pairs(params)))
 
 end
 
 
-function DictRandVals(params::NamedTuple)::NamedTuple 
-
-	NamedTuple(pickrand(pairs(params)))
-
-end 
 
 
 function DictRandVals(params::List)
@@ -1279,16 +1277,16 @@ end
 
 
 
-function DictFirstVals(params::AbstractDict)
+function DictFirstVals(params::T)::T where T<:Union{<:AbstractDict, <:NamedTuple}
 
-	Dict(k=>(typeof(v) <: AbstractVector) ? v[1] : v 
+	dict_constr(params)(k=>isa(v,AbstractVector) ? v[1] : v 
 							for (k,v) in pairs(params))
 
 end
 
 function DictFirstVals(params::List)
 	
-	isList(params, AbstractDict) && return DictFirstVals.(params)
+	isList(params, Union{<:AbstractDict, <:NamedTuple}) && return DictFirstVals.(params)
 
 	error("Type not understood: ",typeof(params))
 
@@ -1302,24 +1300,23 @@ end
 #---------------------------------------------------------------------------#
 
 
-function AllValCombs(params::AbstractDict;
+function AllValCombs(params::T;
 										 constraint=nothing, sortby=nothing
-										 )::Vector{<:AbstractDict}
+										 )::Vector{T} where T<:Union{<:NamedTuple, <:AbstractDict}
 
 	vals(v::AbstractVector) = v 
 	vals(v) = [v]
 	
-
 	K = collect(keys(params))
 
-	constr = params isa OrderedDict ? OrderedDict : Dict 
+	constr = dict_constr(params)
 
 	dicts = [constr(zip(K,vs)) 
 					 for vs in Base.product((vals(params[k]) for k in K)...)][:]
 
-  isnothing(constraint) || filter!(constraint,dicts)
+  isnothing(constraint) || filter!(constraint, dicts)
 
-  isnothing(sortby) || sort!(dicts,by=sortby)
+  isnothing(sortby) || sort!(dicts, by=sortby)
 
   return dicts 
 
@@ -1371,8 +1368,7 @@ end
 
 function NT_toLists(NT)
 
-  return [string(k) for k in keys(NT)], [NT[k] for k in keys(NT)]
-
+	[string(k) for k in keys(NT)], [NT[k] for k in keys(NT)]
 
 end
 
