@@ -1247,11 +1247,13 @@ function pickrand(params)
 
 end 
 
-dict_constr(d::OrderedDict) = OrderedDict
-dict_constr(d::AbstractDict) = Dict 
-dict_constr(d::NamedTuple) = NamedTuple 
+dict_constr(::OrderedDict) = OrderedDict
+dict_constr(::AbstractDict) = Dict 
+dict_constr(::NamedTuple) = NamedTuple 
 
-function DictRandVals(params::T)::T where T<:Union{<:AbstractDict, <:NamedTuple}
+
+function DictRandVals(params::Union{<:AbstractDict, <:NamedTuple}
+										 )::Union{<:AbstractDict, <:NamedTuple}
 
 	dict_constr(params)(pickrand(pairs(params)))
 
@@ -1277,7 +1279,8 @@ end
 
 
 
-function DictFirstVals(params::T)::T where T<:Union{<:AbstractDict, <:NamedTuple}
+function DictFirstVals(params::Union{<:AbstractDict, <:NamedTuple}
+										 )::Union{<:AbstractDict, <:NamedTuple}
 
 	dict_constr(params)(k=>isa(v,AbstractVector) ? v[1] : v 
 							for (k,v) in pairs(params))
@@ -1300,9 +1303,9 @@ end
 #---------------------------------------------------------------------------#
 
 
-function AllValCombs(params::T;
+function AllValCombs(params::Union{<:NamedTuple, <:AbstractDict};
 										 constraint=nothing, sortby=nothing
-										 )::Vector{T} where T<:Union{<:NamedTuple, <:AbstractDict}
+										 )::Vector{<:Union{<:NamedTuple, <:AbstractDict}}
 
 	vals(v::AbstractVector) = v 
 	vals(v) = [v]
