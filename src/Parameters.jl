@@ -1003,7 +1003,7 @@ function typical_allparams(tuples::Vararg{<:Tuple, NF})::Function where NF
 						end)
 
 
-	return function allparams(P...) where
+	return function allparams(P...)
 	
 		N = length(P) 
 
