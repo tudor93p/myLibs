@@ -19,7 +19,7 @@ export lev1_input
 lev1_input = Dict(
 
 
-									:allparams => Dict(:X1 => [1,5],
+									:allparams => Dict{Symbol,Any}(:X1 => [1,5],
 																		 :Y1 => [-0.5,0.9],#,1.3],
 																		:Z1 => [-10,20],#,35],
 												 :T1 => ("k",8),
@@ -54,17 +54,17 @@ NrParamSets = 2
 lev2_input = Dict(
 
 
-									:allparams => Dict(:X2 => [-5,100],
+									:allparams => Dict{Symbol,Any}(:X2 => [-5,100],
 																		 :Y2 => [-0.05],#,1.003],
 												 :Z2 => [20],#,35],
 												 ),
 
-			:digits => (Z2 = (3,0), Y2=(1,3))
+									:digits => (Z2 = (3,0), Y2=(1,3), Label=())
 
 			)
 
 
-lev2_usedkeys = [:Z2,:Y2,:X2]
+lev2_usedkeys = [:Z2,:Y2,:X2,:Label]
 
 end 
 
@@ -314,7 +314,7 @@ end
 
 function adjust(level::Int, P...)
 
-	p = copy(P[level])
+#	p = copy(P[level])
 
 #	if level==1 
 #
@@ -328,31 +328,35 @@ function adjust(level::Int, P...)
 
 	if level==2 
 
+#		@show getindex.(P[level],:X2)
+
 		newv(x::Number) = x<0 ? abs(x) + abs(P[1][:X1]) : x
 
 		newv(x::AbstractVector) = newv.(x)
 
-		for p_ in p
-			
-			p_[:X2] = newv(p_[:X2])
+		for (i,p_) in enumerate(P[level])
+	
+			P[level][i][:X2] = newv(p_[:X2])
 			
 		end 
+
+#		@show getindex.(P[level],:X2)
 		
 	end 
 
-	return p 
+	return P[level]
 
 end 
 
 c = Parameters.ParamFlow(ROOT, 
 												 (args1[:usedkeys], args1[:digits],args1[:allparams]), 
-												 (args2[:usedkeys], [args2[:digits] for i=1:3], [args2[:allparams] for i=1:2]),
-												 constraint=cond1, adjust=adjust
+												 (args2[:usedkeys], [args2[:digits] for i=1:3], [merge(args2[:allparams],Dict(:Label=>string(l))) for l='A':'C']),
+												 constraint=cond1, adjust=(adjust,adjust)
 												 )
 
 																 
 @show a() a(Dict())
-@show c.allparams() #c.allparams(Dict())
+@show c.allparams() c.allparams(Dict())
 
 
 println("\nAll combinations")
@@ -388,12 +392,14 @@ println()
 
 @show c.NrParamSets
 
-@show Parameters.convertParams_toPlot(c)
+#@show Parameters.convertParams_toPlot(c)
 
 @show Parameters.convertParams_toPlot(c, P)
 
 
 P_  = Parameters.convertParams_fromPlot(c, Parameters.convertParams_toPlot(c, P))
+
+#@show P_  
 
 function test(p::AbstractDict, p_::AbstractDict) 
 	
@@ -415,7 +421,7 @@ test(p::Utils.List, p_::Utils.List) = all(test.(p,p_))
 
 
 
-@show all( [test(p...) for p in zip(P,P_)] )
+@show  [test(p...) for p in zip(P,P_)]  |> all
 
 
 

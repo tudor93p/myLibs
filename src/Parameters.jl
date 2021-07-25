@@ -1370,8 +1370,9 @@ struct ParamFlow
 
 		return new(NrParamSets,
 							 construct_get_fname(path, args_pd...),
-							 typical_allparams(NrParamSets, args_ap...), 
-							 constraint, adjust
+							 typical_allparams(NrParamSets, args_ap...),
+							 combine_functions_cond(constraint),
+							 combine_functions_addrem(adjust),
 							 )
 
 	end 
@@ -1394,7 +1395,8 @@ struct ParamFlow
 		return new(NrParamSets,
 							 construct_get_fname(path, args_pd...),
 							 typical_allparams(NrParamSets, args_ap...),
-							 constraint, adjust
+							 combine_functions_cond(constraint),
+							 combine_functions_addrem(adjust),
 							 )
 
 	end 
@@ -1957,9 +1959,6 @@ end
 function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
 												cond=nothing, repl=nothing) # First call
 
-	@show Utils.getprop(M, :adjust, nothing) 
-
-
 	get_paramcombs(M, 1, [];
 								 cond = combine_functions_cond(cond, 
 																Utils.getprop(M, :constraint, nothing)),
@@ -1976,11 +1975,13 @@ function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
 
 	#M must have M.allparams::Function, M.NrParamSets::Int,
 
-	news = Utils.mapif(pcomb -> vcat(old..., pcomb),
+	news = Utils.mapif(pcomb -> vcat(old..., repl(level, old...,  pcomb)),
 
 										 new_ -> cond(level, new_...),
 
 										 Utils.AllValCombs(repl(level, old..., get_allP(M, old...))))
+
+
 
 
 	level == get_NrPSets(M) && return news
