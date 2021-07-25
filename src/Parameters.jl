@@ -1569,9 +1569,30 @@ function good_methods(NrParamSets::Int, F::Function, args...)::Bool
 	
 	for i in 1:NrParamSets
 
-		hasmethod(F, 
-							NTuple{i, <:Union{<:UODict, <:AbstractVector{<:UODict}}},
-							args...) || return false 
+		tup = NTuple{i, <:Union{<:UODict, <:AbstractVector{<:UODict}}} 
+		
+		if !hasmethod(F, tup, args...) 
+		
+			@warn F
+			@warn tup 
+			@warn args 
+
+			tup2 = Tuple(Union{<:UODict, <:AbstractVector{<:UODict}} for _=1:i)
+
+
+			if !hasmethod(F, tup2, args...) 
+		
+			@warn tup2
+
+
+
+
+
+			return false 
+
+		end 
+
+		end 
 
 	end 
 
