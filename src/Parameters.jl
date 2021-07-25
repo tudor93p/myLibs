@@ -1975,7 +1975,7 @@ function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation},
 
 	#M must have M.allparams::Function, M.NrParamSets::Int,
 
-	news = Utils.mapif(pcomb -> vcat(old..., repl(level, old...,  pcomb)),
+	news = Utils.mapif(pcomb -> vcat(old, [repl(level, old...,  pcomb)]),
 
 										 new_ -> cond(level, new_...),
 
