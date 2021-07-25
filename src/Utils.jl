@@ -1976,6 +1976,13 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function getprop(prop::Union{List,Symbol}, std_value=nothing)::Function
+
+	M -> getprop(M, prop, std_value)
+
+end 
+
+
 function getprop(M, prop::Symbol, std_value=nothing)
 
 	allnames = isa(M,Module) ? names(M, all=true) : propertynames(M)
