@@ -1957,6 +1957,9 @@ end
 function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
 												cond=nothing, repl=nothing) # First call
 
+	@show Utils.getprop(M, :adjust, nothing) 
+
+
 	get_paramcombs(M, 1, [];
 								 cond = combine_functions_cond(cond, 
 																Utils.getprop(M, :constraint, nothing)),

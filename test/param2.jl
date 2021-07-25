@@ -38,20 +38,6 @@ end
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #===========================================================================#
 #
 # Levels 1 and 2
@@ -429,7 +415,10 @@ test(p::Utils.List, p_::Utils.List) = all(test.(p,p_))
 
 
 
-@show all([test(p...) for p in zip(P,P_)])
+@show all( [test(p...) for p in zip(P,P_)] )
+
+
+
 
 
 
