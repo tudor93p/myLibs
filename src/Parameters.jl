@@ -35,7 +35,7 @@ const UODict = Union{<:AbstractDict, <:OrderedDict, <:NamedTuple}
 #---------------------------------------------------------------------------#
 
 
-function apply_one_or_many(f::Function, l::Int, P...)
+function apply_one_or_many(f::Function, l::Int, P...; default)
 
 	applicable(f, l, P...) && return f(l, P...)
 
@@ -43,7 +43,7 @@ function apply_one_or_many(f::Function, l::Int, P...)
 
 	@warn "Function $f not applicable. Returning P[l]"
 
-	return P[l]
+	return default 
 
 	error()
 
@@ -54,7 +54,7 @@ function recrepl(l::Int, P...; fs::AbstractVector{Function}=Function[])
 
 	isempty(fs) && return P[l]
 
-	new_Pl = apply_one_or_many(fs[1], l, P...)
+	new_Pl = apply_one_or_many(fs[1], l, P...; default=P[l])
 
 	return recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
 								 fs=fs[2:end])
@@ -95,7 +95,7 @@ function combine_functions_cond(args...)::Function
 
 		for cond in good_fs
 			
-			apply_one_or_many(cond, l, P...) || return false 
+			apply_one_or_many(cond, l, P...; default=true) || return false 
 
 		end 
 
@@ -1786,7 +1786,7 @@ function convert_params(M::Union{<:Module, <:ParamFlow, <:Calculation},
 
 		new_ = get_new(level, args)
 
-		r(a) = apply_one_or_many(repl, level, args..., a) 
+		r(a) = apply_one_or_many(repl, level, args..., a; default=get(args, level, a))
 
 		if isnothing(repl) 
 		
