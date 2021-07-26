@@ -321,7 +321,7 @@ end
 function get_data_one(task, pick::Function=Utils.DictFirstVals; 
 											kwargs...)
 
-	P = task.get_paramcombs(;repl=(l,p)->pick(p))[1]
+	P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
 
 	return task.get_data(P...; force_comp=true, mute=true, kwargs...)
 
@@ -331,7 +331,7 @@ end
 
 function get_plot_one(task, pick=Utils.DictFirstVals)
 
-	good_P = task.get_paramcombs(;repl=(l,p)->pick(p))[1]
+	good_P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
 
 	plot_P = task.get_plotparams(good_P...)
 
