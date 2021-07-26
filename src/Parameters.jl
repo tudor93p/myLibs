@@ -1677,7 +1677,7 @@ struct Calculation
 
 		C = add_kwargs(PF, Compute; kwargs...) 
 
-		return new(string(name), PF, C, C, (args...)->true)
+		return new(string(name), PF, C, C, (args...;kwargs...)->true)
 
 	end 
 
