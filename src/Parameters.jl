@@ -1840,7 +1840,7 @@ function convertParams_toPlot(M::Union{<:Module, <:ParamFlow, <:Calculation},
 
 		convert_many = Utils.flatmap,
 
-		final_f = args -> OrderedDict(args...),
+		final_f = args -> OrderedDict(vcat(args...)),
 
 		kwargs...
 
