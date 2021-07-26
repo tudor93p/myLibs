@@ -1762,53 +1762,52 @@ get_allP(m::Calculation, args...) = get_allP(m.PF, args...)
 
 #get_allP, get_NrPSets -- applied to M
 
-function convert_params(M::Union{<:Module, <:ParamFlow, <:Calculation},
-												args=[];
-												get_new=(l,a)->get_allP(M, a...),
+				# FIRST CALL 
+function convert_params(M::Union{<:Module, <:ParamFlow, <:Calculation};
 												repl=nothing,
+												kwargs...)
+	convert_params(M, [];
+								 repl=combine_functions_addrem(get_PF_kwargs(M, :adjust, nothing), repl),
+								 kwargs...)
+
+end  
+
+
+
+					# FURTHER CALLS 
+function convert_params(M::Union{<:Module, <:ParamFlow, <:Calculation},
+												args::AbstractVector; 
+												repl::Function, 
+												get_new=(l,a)->get_allP(M, a...),
 												convert_one=identity,
 												convert_many=map,
 												final_f=identity)
 
-
-	function act_on_plev(f1::Function)
-
-		f2(arg::UODict) = f1(arg) 
-
-		function f2(arg::Utils.List) 
-
-			Utils.isList(arg, UODict) && return convert_many(f1,arg)
-		
-			error("\n $arg \nParameter structure not understood.")
-	
-		end
-
-		return f2
-	
-	end
-
-
-
 	for level in 1:get_NrPSets(M)
 
-		new_ = get_new(level, args)
-
-		r(a) = apply_one_or_many(repl, level, args..., a; default=get(args, level, a))
-
-		if isnothing(repl) 
-		
-				push!(args, new_) 
-			
-		else 
-
-				push!(args, act_on_plev(r)(new_))
-
-		end
+		push!(args, repl(level, args..., get_new(level, args)))
 
 	end
 
 
-	return final_f(map(act_on_plev(convert_one), args))
+	return map(args) do P
+
+		if applicable(convert_one, P)
+			
+			return convert_one(P)
+
+		elseif Utils.isList(P) && all(p->applicable(convert_one, p), P)
+
+			return convert_many(convert_one, P)
+
+		else 
+
+			error("\n $P \nParameter structure not understood.")
+
+		end 
+
+	end |> final_f 
+
 
 end
 
@@ -1841,7 +1840,7 @@ function convertParams_toPlot(M::Union{<:Module, <:ParamFlow, <:Calculation},
 
 		convert_many = Utils.flatmap,
 
-		final_f = args -> OrderedDict(vcat(args...)),
+		final_f = args -> OrderedDict(args...),
 
 		kwargs...
 
@@ -1862,23 +1861,24 @@ end
 function convertParams_fromPlot(M::Union{<:Module,<:ParamFlow,<:Calculation},
 																P::UODict; kwargs...)
 
-	convert_params(M;
+	function repl(params::UODict)::OrderedDict
 
-		repl = function (level::Int, params::UODict)
+		K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
+		
+										k -> haskey(P,k[2]),
+		
+										collect(keys(params)))
+		
+		return OrderedDict(k1 => P[k2] for (k1,k2) in K)
 
-										K = Utils.mapif(k1->(k1,convertKey_toPlot(params,k1)),
+	end 
 
-																		k -> haskey(P,k[2]),
+	repl(P::Utils.List)::Vector{OrderedDict} = repl.(P)
 
-																		collect(keys(params)))
+	repl(l::Int, P...) = repl(P[l])
 
-										return OrderedDict(k1 => P[k2] for (k1,k2) in K)
 
-									end,
-
-		kwargs...
-
-		)
+	return convert_params(M; repl=repl, kwargs...)
 
 end
 

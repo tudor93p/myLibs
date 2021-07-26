@@ -330,14 +330,22 @@ function adjust(level::Int, P...)
 
 #		@show getindex.(P[level],:X2)
 
-		newv(x::Number) = x<0 ? abs(x) + abs(P[1][:X1]) : x
+#@show P[1] P[2] length(P)
+
+	@assert Utils.isList(P[2],UODict) P[2]
+
+		newv(x::Number) = x<0 ? abs(x) + abs(P[1][:X1]) + rand() : x
 
 		newv(x::AbstractVector) = newv.(x)
+
+#		println("I'm adding :X7")
+		
 
 		for (i,p_) in enumerate(P[level])
 	
 			P[level][i][:X2] = newv(p_[:X2])
 			
+#			P[level][i][:X7]=7
 		end 
 
 #		@show getindex.(P[level],:X2)
@@ -348,10 +356,15 @@ function adjust(level::Int, P...)
 
 end 
 
+
+
+@show adjust 
+
+
 c = Parameters.ParamFlow(ROOT, 
 												 (args1[:usedkeys], args1[:digits],args1[:allparams]), 
 												 (args2[:usedkeys], [args2[:digits] for i=1:3], [merge(args2[:allparams],Dict(:Label=>string(l))) for l='A':'C']),
-												 constraint=cond1, adjust=(adjust,adjust)
+												 constraint=cond1, adjust=adjust
 												 )
 
 																 
@@ -359,11 +372,13 @@ c = Parameters.ParamFlow(ROOT,
 @show c.allparams() c.allparams(Dict())
 
 
-println("\nAll combinations")
+println()
+
+@info "All combinations (a few shown randomly)"
 
 
 
-for comb in Parameters.get_paramcombs(c)
+for comb in (Parameters.get_paramcombs(c) |> C -> Utils.Random_Items(C, min(3,length(C))))
 
 	foreach(println, comb)
 
@@ -371,13 +386,18 @@ for comb in Parameters.get_paramcombs(c)
 
 end 
 
+println() 
 
-println("\nChoose one comb")
+@info "Choose one comb"
 
 P = rand(Parameters.get_paramcombs(c))
 
 
-@show P 
+println("####################################")
+
+println("P");println.(P)
+
+println()
 
 
 @show length.(Utils.flat.(P))
@@ -392,14 +412,23 @@ println()
 
 @show c.NrParamSets
 
-#@show Parameters.convertParams_toPlot(c)
-
-@show Parameters.convertParams_toPlot(c, P)
+@show Parameters.convertParams_toPlot(c)
 
 
-P_  = Parameters.convertParams_fromPlot(c, Parameters.convertParams_toPlot(c, P))
 
-#@show P_  
+plot_P  = Parameters.convertParams_toPlot(c, P)
+
+
+println() 
+
+@show plot_P
+
+
+
+P_  = Parameters.convertParams_fromPlot(c, plot_P)
+
+
+@show P_  
 
 function test(p::AbstractDict, p_::AbstractDict) 
 	
@@ -421,7 +450,7 @@ test(p::Utils.List, p_::Utils.List) = all(test.(p,p_))
 
 
 
-@show  [test(p...) for p in zip(P,P_)]  |> all
+@show  [test(p...) for p in zip(P,P_)]  #|> all
 
 
 

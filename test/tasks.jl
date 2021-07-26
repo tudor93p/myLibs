@@ -120,7 +120,7 @@ ComputeTasks.get_data_one(task, mute=false)
 
 
 
-ComputeTasks.get_plot_one(task)
+#ComputeTasks.get_plot_one(task)
 
 
 ComputeTasks.get_data_all(task, check_data=true, mute=false)
