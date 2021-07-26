@@ -1963,14 +1963,19 @@ end
 #
 #---------------------------------------------------------------------------#
 
+get_PF_kwargs(M::Module, args...) = Utils.getprop(M, args...)
+get_PF_kwargs(pf::ParamFlow, args...) = Utils.getprop(pf, args...)
+get_PF_kwargs(c::Calculation, args...) = get_PF_kwargs(c.PF, args...)
+
+
 function get_paramcombs(M::Union{<:Module, <:ParamFlow, <:Calculation};
 												cond=nothing, repl=nothing) # First call
 
 	get_paramcombs(M, 1, [];
 								 cond = combine_functions_cond(cond, 
-																Utils.getprop(M, :constraint, nothing)),
+																get_PF_kwargs(M, :constraint, nothing)),
 								 repl = combine_functions_addrem(repl, 
-																Utils.getprop(M, :adjust, nothing)),
+																get_PF_kwargs(M, :adjust, nothing)),
 								)
 end 
 
