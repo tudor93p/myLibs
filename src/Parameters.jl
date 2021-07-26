@@ -262,16 +262,18 @@ function rmv_add_summarize(; rmv_internal_key = nothing,
 														 constrained_params = nothing,
 														 kwargs...)
 
+	if isnothing(constrained_params) || (
+							Utils.isList(constrained_params) && isempty(constrained_params))
 
-	isnothing(constrained_params) && return (
-								combine_functions_addrem(rmv_internal_key),
-								combine_functions_addrem(add_internal_param)
-																					)
+		return ( combine_functions_addrem(rmv_internal_key),
+						 combine_functions_addrem(add_internal_param)
+						 ) 
+	end 
 
 
 	new_rmvs,new_adds = Utils.zipmap(constrained_params) do (level,cp)
-
-			replace_parameter_fs(cp..., level)
+			
+				isempty(cp) ? (nothing,nothing) : replace_parameter_fs(cp..., level)
 
 		end
 
