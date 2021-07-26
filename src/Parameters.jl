@@ -1362,7 +1362,8 @@ struct ParamFlow
 	function ParamFlow(path, NrParamSets::Int, 
 										 tuples::Vararg{<:Tuple,N}; 
 										 constraint=nothing,
-										 adjust=nothing) where N
+										 adjust=nothing,
+										 kwargs...) where N
 
 		@assert NrParamSets==N "The number of tuples provided ($N) should match the claimed 'NrParamSets' ($NrParamSets)"
 
@@ -1386,7 +1387,7 @@ struct ParamFlow
 
 
 	function ParamFlow(path, NrParamSets::Int, args...; 
-										 constraint=nothing, adjust=nothing)
+										 constraint=nothing, adjust=nothing, kwargs...)
 
 		@assert NrParamSets==1 "The arguments provided contradict the claimed 'NrParamSets' ($NrParamSets)"
 
