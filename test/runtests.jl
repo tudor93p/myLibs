@@ -2,8 +2,21 @@ using Revise
 
 using Test 
 
+
+function pr_in(f::AbstractString) 
+
+	println("\n********* $f ********* \n")
+
+	include("$f.jl")
+
+end
 #include("algebra.jl")
-#include("lattices.jl")
+
+
+#"lattices" |> pr_in 
+
+"lattices_attachleads" |> pr_in
+
 #
 #include("tbmodel.jl")
 #
@@ -14,31 +27,23 @@ using Test
 #
 #
 
-function pr_in(f::AbstractString) 
-
-	println("\n********* $f ********* \n")
-
-	include("$f.jl")
-
-end
-
 #include("layeredsystem.jl")
 
-"param" |> pr_in 
-
-"param2" |>pr_in
-
-
-
-
-"tasks" |> pr_in
-
-
-
-
-
-
-
+#"param" |> pr_in 
+#
+#"param2" |>pr_in
+#
+#
+#
+#
+#"tasks" |> pr_in
+#
+#
+#
+#
+#
+#
+#
 
 
 

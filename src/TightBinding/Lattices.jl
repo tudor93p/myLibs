@@ -738,7 +738,7 @@ end
 
 
 function LattDims(latt::Lattice, 
-									d::AbstractVector{<:Int})::AbstractVector{<:Int}
+									d::AbstractVector{<:Int})::Vector{<:Int}
 
 	@assert issubset(d,	LattDims(latt, :full)) "invalid operation"
 
@@ -1878,6 +1878,53 @@ end
 #---------------------------------------------------------------------------#
 
 
+function RemoveAtoms!(latt::Lattice,
+											inds::AbstractVector{Int},
+											sublatt)::Lattice
+
+	isempty(inds) && return latt
+	
+	latt[:Atoms][sublatt], latt[:Vacancies][sublatt] = [latt[:Atoms][sublatt][:, i] for i in [setdiff(axes(latt[:Atoms][sublatt],2), inds), inds]]
+
+	return latt 
+
+end 
+
+
+
+function RemoveAtoms!(latt::Lattice, 
+											inds::AbstractVector{Bool},
+											sublatt)::Lattice
+
+	any(inds) || return latt 
+
+	latt[:Atoms][sublatt],latt[:Vacancies][sublatt] = [latt[:Atoms][sublatt][:,i] for i in [.!inds, inds]] # unstable , bounds error 
+
+	return latt 
+
+end 
+
+function RemoveAtoms(latt::Lattice,
+										 inds::AbstractVector{Bool},
+										 sublatt)::Lattice
+
+
+	function act_on_atoms(K::Symbol, D::AbstractDict)
+	
+		K==:Atoms || return D
+
+		D[sublatt] = D[sublatt][:,.!inds]
+
+		return D  
+
+	end 
+
+	return Lattice(latt, act_on_atoms=act_on_atoms)
+
+end 
+
+
+
 
 #===========================================================================#
 #
@@ -1890,11 +1937,11 @@ function parse_input_shift(latt::Lattice, R=nothing;
 
 	shift = if !isnothing(R) 
 		
-		to_myMatrix(latt, R)
+		to_myMatrix(R, latt)
 
 					elseif !isnothing(r) 
 					
-		to_myMatrix(latt, r)
+		to_myMatrix(r, latt)
 
 					else 
 
@@ -2010,7 +2057,8 @@ end
 #  
 #end 
 
-function get_Bonds(latt::Lattice; nr_uc=1, neighbor_index=1, kwargs...)::Vector{Tuple{Int,Int}}
+function get_Bonds(latt::Lattice; 
+									 nr_uc=1, neighbor_index=1, kwargs...)::Vector{Tuple{Int,Int}}
 
 	AtomsUC = PosAtoms(latt; kwargs...)
 
@@ -2058,43 +2106,52 @@ end
 #
 #---------------------------------------------------------------------------#
 
-#function SurfaceAtoms(latt::Lattice, bondlength=nothing; kwargs...)
-#
-#	LattDim(Latt)==0 || error()
-#
-#	SurfaceAtoms(PosAtoms(latt; kwargs...), bondlength)
-#
-#end 
+function SurfaceAtoms(latt::Lattice, args...; kwargs...)#::Matrix{Float64}
+
+	LattDim(Latt)==0 || error()
+
+	return SurfaceAtoms(PosAtoms(latt; kwargs...), args...)
+
+end 
 
 
-#function SurfaceAtoms(atoms::AbstractMatrix{Float64})
+function SurfaceAtoms(atoms::AbstractMatrix{Float64}, 
+											bondlength::Number)::Matrix{Float64}
 
-#	size(atoms,2) > 5000 && error("Too many atoms")
-#
-#
+	size(atoms,2) > 5000 && error("Too many atoms")
+
 #	Ds = OuterDist(atoms, atoms)
-#
-#	Utils.Uniqu1
-#
-#	UD = Utils.Unique(Ds; tol=TOLERANCE, sorted=true)[2:end]
-#
-#
-#	bonds = Algebra.get_Bonds(atoms;
-#														inds=true, pos=false, asmatrices=true)
-#
-#
-#	bonds[
-#
-#
 
-#convex hull
-
-
-#end 
+#	d_nn = Utils.Unique(Ds[:]; tol=TOLERANCE, sorted=true)[2]
 
 
 
+	#convex hull ?  
 
+	nr_bonds = NrBonds(atoms, bondlength)
+	
+	
+	return atoms[:,nr_bonds .< maximum(nr_bonds)]
+	
+end 
+
+function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
+
+	NrBonds(PosAtoms(latt; kwargs...), args...)
+
+end 
+
+function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int}
+
+	size(atoms,2) > 1 || return zeros(size(atoms,2))
+
+	allpairs = Algebra.get_Bonds_asMatrix(atoms, bondlength; dim=2, inds=true) 
+
+	isempty(allpairs) && return zeros(size(atoms,2))	
+
+	return map(length, Utils.Unique(allpairs[:]; inds=:all, sorted=true)[2])
+
+end 
 
 #===========================================================================#
 #
@@ -2464,7 +2521,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function SquareLattice(name="A")
+function SquareLattice(name="A")::Lattice
 
 	Lattice(ArrayOps.UnitMatrix(2), name=>0)
 

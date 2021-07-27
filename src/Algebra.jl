@@ -1298,7 +1298,7 @@ end
 
 
 
-function get_Bonds(atoms::AbstractMatrix, len_or_f::Union{<:Function,<:Number}; kwargs...)
+function get_Bonds(atoms::AbstractMatrix, len_or_f::Union{<:Function,<:Real}; kwargs...)
 
 	get_Bonds(atoms, atoms, len_or_f; order_pairs=true, kwargs...)
 						
@@ -1316,9 +1316,7 @@ end
 
 function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, 
 									 isBond::Function; 
-#									 inds=true, pos=false, as_matrices=false, 
 									 dim=1, order_pairs=false, N=5000,
-#										kwargs...
 										)::Vector{Tuple{Int,Int}}
 
 	nr_at = [size(atoms1,dim),size(atoms2,dim)]
@@ -1391,7 +1389,7 @@ end
 #end
 
 
-function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)::AbstractMatrix
+function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)::Matrix
 
 	xor(inds,pos) || error("Specify either 'inds' or 'pos'")
 
@@ -1417,6 +1415,11 @@ function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)::AbstractMatrix
 end 
 
 
+function get_Bonds_asMatrix(args...; inds=false, pos=false, kwargs...)::Matrix
+
+	get_Bonds_toMatrix(get_Bonds(args...; kwargs...), inds=inds, pos=pos)
+
+end 
 
 
 function get_Bonds_toMatrix(atoms1::AbstractMatrix, 

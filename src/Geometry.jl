@@ -27,15 +27,13 @@ end
 function PointInPolygon_wn(P::Utils.List, V::AbstractMatrix; 
 													 dim, prepare_vertices=true, kwargs...)::Bool
 
+
+	prepare_vertices && return PointInPolygon_wn(P, prepare_polygon_vertices(V; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
+
   wn = 0   # the winding number counter
 
   						# repeat the first vertex at the end
 
-	if prepare_vertices
-
-		V = prepare_polygon_vertices(V; dim=dim, kwargs...)
-
-	end 
 
 	v(i) = selectdim(V, dim, i)
 
