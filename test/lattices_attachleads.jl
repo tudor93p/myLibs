@@ -52,18 +52,10 @@ function jl2(N::AbstractVector{Int},
 
 		d_nn = Lattices.Distances(SqLatt)[1]
 
-#		function RemoveSingleBonds!(Latt::Lattice)
 
-		rmv_inds = Lattices.NrBonds(Latt, d_nn) .<= 1
+		Lattices.RemoveSingleBonds!(Lattices.AddAtoms(Latt, rand(2), "B"), d_nn)
 
-#		any(rmv_inds) || return Latt 
-		
-		Lattices.RemoveAtoms!(Latt, rmv_inds, "A") #unstable 
-
-#		return RemoveSingleBonds!(Latt) 
-#
-#		end 
-
+		Lattices.RemoveSingleBonds!(Latt, d_nn)
 
 
 		LattAtoms = Lattices.PosAtoms(Latt)
@@ -129,19 +121,22 @@ function jl3(Lead::Lattices.Lattice,
 end  
 
 
-jl2([5,6],
-		mapreduce( a->15*[cos(a) sin(a)], vcat,rand(5)*2pi),
-		rand(),
-		1)
+println(Lattices.AddAtoms(Lattices.SquareLattice(), rand(2,7), ["A","B","C"]).Atoms )
 
 
-jl3(Lattices.SquareLattice(),
-		[[1 2];[1 0]],#[2,2],
-		rand(2,10),
-		Lattices.SquareLattice()
-		)
+#jl2([5,6],
+#		mapreduce( a->15*[cos(a) sin(a)], vcat,rand(5)*2pi),
+#		rand(),
+#		1)
+#
+#
+#jl3(Lattices.SquareLattice(),
+#		[[1 2];[1 0]],#[2,2],
+#		rand(2,10),
+#		Lattices.SquareLattice()
+#		)
+#
 
-
-pytest.plot(jl2, jl3)
+#pytest.plot(jl2, jl3)
 
 

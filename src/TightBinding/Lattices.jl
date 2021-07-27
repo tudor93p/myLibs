@@ -1851,19 +1851,17 @@ function AddAtoms(latt::Lattice, positions=[], labels="A"; kind=:Atoms)
 																								size(positions,2), string),
 												inds=:all) 
 
+	new_dict = map(findall(!isempty, inds)) do not_empty
+
+			new_labels[not_empty]=>view(positions, :, inds[not_empty])
+
+	end |> OrderedDict
+
 
 	function act_on_atoms(K::Symbol, D::AbstractDict)
 	
-		kind!=K && return D
-	
-		return map(findall(!isempty, inds)) do not_empty
-
-			k,R = new_labels[not_empty], view(positions, :, inds[not_empty])
-
-			return Pair(k, haskey(D, k) ? hcat(D[k], R) : R)
-
-		end 
-
+		kind==K ? merge(hcat, D, new_dict) : D
+		
 	end 
 
 	return Lattice(latt, act_on_atoms=act_on_atoms)
@@ -2108,7 +2106,7 @@ end
 
 function SurfaceAtoms(latt::Lattice, args...; kwargs...)#::Matrix{Float64}
 
-	LattDim(Latt)==0 || error()
+	LattDim(latt)==0 || error()
 
 	return SurfaceAtoms(PosAtoms(latt; kwargs...), args...)
 
@@ -2152,6 +2150,35 @@ function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int}
 	return map(length, Utils.Unique(allpairs[:]; inds=:all, sorted=true)[2])
 
 end 
+
+
+
+function RemoveSingleBonds!(Latt::Lattice, d_nn::Real)::Lattice
+
+
+#sublatt_labels(Latt)::Vector
+
+	x = applyOnLattAtoms(hcat, Latt, :Atoms) do atoms::AbstractMatrix,k::Any
+
+		@show k 
+		axes(atoms,2)
+
+#		in(k, SL) ? atoms : E 
+
+	end 
+
+	@show x 
+
+	rmv_inds = NrBonds(Latt, d_nn) .<= 1
+
+	any(rmv_inds) || return Lattices
+
+	RemoveAtoms!(Latt, rmv_inds, "A") #unstable 
+
+	return RemoveSingleBonds!(Latt, d_nn)
+
+end 
+
 
 #===========================================================================#
 #
