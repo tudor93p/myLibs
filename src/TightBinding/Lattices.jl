@@ -1090,7 +1090,7 @@ end
 #---------------------------------------------------------------------------#
 
 function OuterOp(f::Symbol)::Function
-	
+
 	function outer_op(args::Vararg{Any,2}; kwargs...)::Array
 
 		getproperty(Algebra, f)(map(args) do X 
@@ -1381,7 +1381,7 @@ function parse_input_RsNs( latt::Union{Nothing,Lattice}=nothing;
 
 	isnothing(A) && error("Cannot proceed with unknown vectors")
 
-	!isnothing(Ns) && return CombsOfVecs(A, to_myMatrix(Ns, A))
+	!isnothing(Ns) && return CombsOfVecs(A, to_myMatrix(Ns, LattDim(A)))
 
 	!isnothing(StopStart) && return UnitCells(A, StopStart...)
 
@@ -1509,7 +1509,8 @@ function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
 											 A::AbstractMatrix{<:Real};
 											 kwargs...)::Matrix{Float64}
 
-	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim"
+	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim" 
+
 	Atoms_ManyUCs(atoms, parse_input_RsNs(;Ns=ns, A=A, kwargs...))
 
 end 
@@ -1906,7 +1907,6 @@ function RemoveAtoms(latt::Lattice,
 										 inds::AbstractVector{Bool},
 										 sublatt)::Lattice
 
-
 	function act_on_atoms(K::Symbol, D::AbstractDict)
 	
 		K==:Atoms || return D
@@ -2140,14 +2140,21 @@ function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 end 
 
 function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int}
+	out = zeros(Int, size(atoms,2))
 
-	size(atoms,2) > 1 || return zeros(size(atoms,2))
+	size(atoms,2) > 1 || return out 
 
 	allpairs = Algebra.get_Bonds_asMatrix(atoms, bondlength; dim=2, inds=true) 
 
-	isempty(allpairs) && return zeros(size(atoms,2))	
+	isempty(allpairs) && return out
 
-	return map(length, Utils.Unique(allpairs[:]; inds=:all, sorted=true)[2])
+	for (i,bonds) in Utils.EnumUnique(allpairs[:])
+		
+		out[i] = length(bonds)
+
+	end 
+
+	return out 
 
 end 
 
@@ -2158,20 +2165,20 @@ function RemoveSingleBonds!(Latt::Lattice, d_nn::Real)::Lattice
 
 #sublatt_labels(Latt)::Vector
 
-	x = applyOnLattAtoms(hcat, Latt, :Atoms) do atoms::AbstractMatrix,k::Any
-
-		@show k 
-		axes(atoms,2)
-
-#		in(k, SL) ? atoms : E 
-
-	end 
-
-	@show x 
+#	x = applyOnLattAtoms(hcat, Latt, :Atoms) do atoms::AbstractMatrix,k::Any
+#
+#		@show k 
+#		axes(atoms,2)
+#
+##		in(k, SL) ? atoms : E 
+#
+#	end 
+#
+#	@show x 
 
 	rmv_inds = NrBonds(Latt, d_nn) .<= 1
 
-	any(rmv_inds) || return Lattices
+	any(rmv_inds) || return Latt
 
 	RemoveAtoms!(Latt, rmv_inds, "A") #unstable 
 
@@ -2186,46 +2193,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Maximize_ContactSurface(starting_points, direction; vertices=nothing, ordered_vertices=nothing)
-	
 
-#    from shapely.geometry import LinearRing,MultiPoint,LineString
-#    from shapely.ops import nearest_points
-#  
-#    if ordered_vertices is not None:
-#        V = ordered_vertices
-#    else:
-#        V = Order_PolygonVertices(vertices)
-#   
-#    poly_sides,poly_verts = LinearRing(V),MultiPoint(V)
-#  
-#
-#    shifts = np.zeros((2,2))
-#
-#    for start in starting_points:
-#
-#        line = LineString([start,start+direction])
-#       
-#        if poly_sides.intersection(line).is_empty:
-#        
-#            Ps = [p.coords for p in nearest_points(line,poly_verts)]
-#
-#            s = np.diff(Ps,axis=0).reshape(-1)
-#            
-#            for (i,shift) in enumerate(shifts):
-#
-#                if np.dot(shift,s) >= np.dot(shift,shift):
-#
-#                    shifts[i] = s
-#
-#    norms = np.linalg.norm(shifts,axis=1)
-#
-#    if any(norms<1e-10):
-#        return shifts[np.argmax(norms),:]
-#
-#    return shifts[np.argmin(norms),:]
-#
-end 
+
+
 
 function Align_toAtoms(latt::Lattice, atoms::AbstractMatrix{Float64}, shift_dir::Int=+1; bonds=nothing)
 
@@ -2236,62 +2206,47 @@ function Align_toAtoms(latt::Lattice, atoms::AbstractMatrix{Float64}, shift_dir:
 		
 		c = Utils.DistributeBallsToBoxes.([-1,1], LattDim(latt))
 
-		bonds = CombsOfVecs(latt, vcat(c...))
+		bonds = CombsOfVecs(latt, hcat(vcat(c...)...))
 
 	end 
 
-	atoms = Order_PolygonVertices(atoms)
+	f = Geometry.PointInPolygon_wn(atoms; order_vertices=true, dim=2)
 
 
-#PointInPolygon_wn(SurfaceAtoms; order_vertices=false)
+	while any(f, eachcol(PosAtoms(latt)))
+
+		ShiftAtoms!(latt, n=sign(-shift_dir))
+
+	end 
 
 
+	while any(approx.(OuterDist(atoms, latt),0))
+
+		ShiftAtoms!(latt, n=sign(-shift_dir))
+		
+	end 
 
 
-#    def is_inside(l):
-#
-#        for a in l.PosAtoms():
-#    #            if Geometry.PointInPolygon_wn(a,SurfaceAtoms):
-#
-#                return True
-#
-#        return False
-#
-#
-#    while is_inside(self):
-#
-#        self.Shift_Atoms(n=np.sign(-shift_dir),method="self")
-#
-#    while self.Dist_to_is(SurfaceAtoms,0).any():
-#
-#        self.Shift_Atoms(n=np.sign(-shift_dir),method="self")
+	dmax = maximum(OuterDist(atoms, atoms))*5
 
-
-
-	dmax = maximum(Algebra.OuterDist(atoms, atoms))*5
-
-
-	dmax=10
+#	dmax=10
 
 	direction = sign(shift_dir)*LattVec(latt)[:,abs(shift_dir)]
 
-
 	longdir = 2*dmax * LA.normalize(direction)
+
 
 
 #	ShiftAtoms!(latt, r=-longdir/2)
 
 
-	Maximize_ContactSurface(PosAtoms(latt),
+	shift = Geometry.Maximize_ContactSurface(PosAtoms(latt),
 													longdir,
-													ordered_vertices=atoms)
+													atoms,
+													dim=2) 
 
-#
-#    self.Shift_Atoms(r=Geometry.Maximize_ContactSurface(
-#                            self.PosAtoms(),
-#                            longdir,
-#                            ordered_vertices=SurfaceAtoms),
-#                    method="self")
+
+	ShiftAtoms!(latt, r=shift)
 
 
 	return latt 

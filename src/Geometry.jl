@@ -1,8 +1,15 @@
 module Geometry
 #############################################################################
 
-import ConcaveHull
+import ConcaveHull, CGAL
+#import GeometryBasics, 
 
+import LinearAlgebra; const LA=LinearAlgebra
+
+#using GeometryBasics: Point, MultiPoint, LineString, Line 
+import GeometryBasics 
+
+using CGAL: Point2 as Point, Line2 as Line, Segment2 as Segment, do_intersect, squared_distance, projection
 
 import ..Utils
 
@@ -108,9 +115,8 @@ function prepare_polygon_vertices(V::AbstractMatrix;
 	end 
 
 	return cat(selectdim(V, [2,1][dim], 1:2),
-					selectdim(selectdim(V, [2,1][dim], 1:2), dim, 1:1),
-					dims=dim)
-
+						 selectdim(selectdim(V, [2,1][dim], 1:2), dim, 1:1),
+						 dims=dim)
 end 
 
 function PointInPolygon_wn(V::AbstractMatrix; kwargs...)::Function
@@ -142,6 +148,115 @@ function rhomboidVertices_fromDVectors(v::AbstractMatrix; dim)::Matrix
 
 end
 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function Points(V::AbstractMatrix; dim=2)::Vector{Point}
+
+	Points(eachslice(V, dims=dim)...)
+
+end 
+
+
+function Points(ps::Vararg{<:AbstractVector}; kwargs...)::Vector{Point}
+
+	[Point(p[1],p[2]) for p in ps]
+
+end 
+
+function Points(ps::AbstractVector{<:Point}; kwargs...)::Vector{Point} 
+
+	ps 
+
+end 
+
+function Points(ps::Vararg{<:Point})::Vector{Point}
+
+	collect(ps)
+
+end 
+
+
+function Segments(ps::Vararg{<:Point,N})::Vector{Segment} where N
+
+	[Segment(ps[i],ps[i+1]) for i in 1:N-1]
+
+end  
+
+function Segments(ps...; dim=2)::Vector{Segment}
+
+	Segments(Points(ps...; dim=dim)...)
+	
+
+end 
+
+
+function xyz(P)::Vector{Float64}
+
+	[getproperty(CGAL, f)(P) for f in [:x, :y, :z][1:CGAL.dimension(P)]]
+
+end
+
+		
+
+#function SquaredDistance(p1::Point, p2::Point)::Float64
+
+#CGAL.Point2
+
+
+
+
+function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64}, 
+																 direction::AbstractVector{Float64}, 
+																 V::AbstractMatrix{Float64}; 
+																 dim::Int,
+																 prepare_vertices::Bool=true, 
+																 kwargs...)
+
+	prepare_vertices && return Maximize_ContactSurface(starting_points, direction, prepare_polygon_vertices(V; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
+
+
+	poly_verts = Points(V; dim=dim)
+
+	poly_sides = Segments(poly_verts)
+	
+	println()
+	println()
+
+
+
+	shifts = map(eachslice(starting_points, dims=dim)) do start 
+
+		line = Line(Points(start, start + direction + 1e-12rand(2))...)
+
+		@show start start+direction
+		@show sum(do_intersect.([line], poly_sides))
+		
+		q =  any(side->do_intersect(line, side), poly_sides) 
+# Intersction is not correct!!!!!	bounding box or GeometryBasics
+		@show q
+
+		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
+
+		p = partialsort(poly_verts, 1, by = p->squared_distance(line, p))
+
+		return xyz(p - projection(line, p)) # from the line to the vertex 
+
+	end 
+
+	println.(shifts) 
+
+	println() 
+
+	return partialsort!(shifts, 1, by=LA.norm, rev=true)
+
+end 
 
 
 

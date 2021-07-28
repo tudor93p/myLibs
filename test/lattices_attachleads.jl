@@ -17,9 +17,9 @@ println()
 
 
 
-function jl2(N::AbstractVector{Int}, 
+function jl2(N::AbstractVector{<:Int}, 
 						 polygon::AbstractMatrix{Float64}, 
-						 desired_angle::Float64, seed::Int)
+						 desired_angle::Float64)
 
     println("jl2")
 
@@ -41,29 +41,19 @@ function jl2(N::AbstractVector{Int},
 		if all(rmv_inds) 
 
 			rmv_inds[1:5] .= false
+
 		end 
-
-		@show sum(rmv_inds)
-
-#    Latt = Latt0.Copy().Remove_atoms(list(filter(lambda a: not Geometry.PointInPolygon_wn(a,polygon), LattAtoms0))).Remove_SingleBonds()
-#    
-
-		Latt = Lattices.RemoveAtoms(Latt0, rmv_inds, "A") 
 
 		d_nn = Lattices.Distances(SqLatt)[1]
 
-
-		Lattices.RemoveSingleBonds!(Lattices.AddAtoms(Latt, rand(2), "B"), d_nn)
+		Latt = Lattices.RemoveAtoms(Latt0, rmv_inds, "A") 
 
 		Lattices.RemoveSingleBonds!(Latt, d_nn)
-
 
 		LattAtoms = Lattices.PosAtoms(Latt)
 
 		BA = Lattices.SurfaceAtoms(LattAtoms, d_nn)
     
-##    Latt = Latt.Remove_atoms(BA).Add_atoms(BA,"Boundary") 
-#    
     
     
 	circle_outside, lead_pos = pytest.py1(desired_angle, transpose(LattAtoms0))
@@ -108,10 +98,20 @@ function jl3(Lead::Lattices.Lattice,
 	Lattices.ReduceDim!(Lead, 1)
 
 
-	LeadAtoms2 = Lattices.PosAtoms(Lead)
+	LeadAtoms2 = Lattices.PosAtoms(Lead) 
+
+	jlLattAtoms = transpose(LattAtoms) 
 
 #    Lead,Bridge = Lead.Attach_toAtoms(LattAtoms, bonds=np.vstack((SqLatt.LattVect,-SqLatt.LattVect)))
- 
+
+	d_nn = Lattices.Distances(SqLatt)[1]
+	BA = Lattices.SurfaceAtoms(jlLattAtoms, 1)
+
+	@show size(BA) size(jlLattAtoms)
+
+	Lattices.Align_toAtoms(Lead, BA)
+	
+
 	Bridge = zeros(2,0)
 	
 	LeadAtoms3 = Lattices.PosAtoms(Lead)
@@ -121,7 +121,6 @@ function jl3(Lead::Lattices.Lattice,
 end  
 
 
-println(Lattices.AddAtoms(Lattices.SquareLattice(), rand(2,7), ["A","B","C"]).Atoms )
 
 
 #jl2([5,6],
@@ -130,13 +129,13 @@ println(Lattices.AddAtoms(Lattices.SquareLattice(), rand(2,7), ["A","B","C"]).At
 #		1)
 #
 #
-#jl3(Lattices.SquareLattice(),
-#		[[1 2];[1 0]],#[2,2],
-#		rand(2,10),
-#		Lattices.SquareLattice()
-#		)
-#
+jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
+		[[1 2];[1 0]],
+		hcat(vcat.(Base.product(1:5,1:5)...)...) .- 1.0,
+		Lattices.SquareLattice()
+		)
 
-#pytest.plot(jl2, jl3)
+
+pytest.plot(jl2, jl3)
 
 
