@@ -1,4 +1,5 @@
-import myLibs: Lattices, Geometry
+import PyPlot; const plt=PyPlot
+import myLibs: Lattices, Geometry 
 
 import PyCall 
 
@@ -95,7 +96,7 @@ function jl3(Lead::Lattices.Lattice,
 
 
 
-	Lattices.ReduceDim!(Lead, 1)
+	Lattices.ReduceDim!(Lead, 2) # python 1 = julia 2
 
 
 	LeadAtoms2 = Lattices.PosAtoms(Lead) 
@@ -109,7 +110,7 @@ function jl3(Lead::Lattices.Lattice,
 
 	@show size(BA) size(jlLattAtoms)
 
-	Lattices.Align_toAtoms(Lead, BA)
+	Lattices.Align_toAtoms(Lead, BA, -1) # -1 important
 	
 
 	Bridge = zeros(2,0)
@@ -135,7 +136,9 @@ jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
 		Lattices.SquareLattice()
 		)
 
+fig,ax = plt.subplots()
 
-pytest.plot(jl2, jl3)
+pytest.plot0(4, 0*2pi, 3, ax, jl2, jl3)
 
 
+#pytest.plot(jl2, jl3)

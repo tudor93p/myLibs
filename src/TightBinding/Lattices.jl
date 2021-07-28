@@ -2114,7 +2114,7 @@ end
 
 
 function SurfaceAtoms(atoms::AbstractMatrix{Float64}, 
-											bondlength::Number)::Matrix{Float64}
+											bondlength::Real)::Matrix{Float64}
 
 	size(atoms,2) > 5000 && error("Too many atoms")
 
@@ -2127,7 +2127,6 @@ function SurfaceAtoms(atoms::AbstractMatrix{Float64},
 	#convex hull ?  
 
 	nr_bonds = NrBonds(atoms, bondlength)
-	
 	
 	return atoms[:,nr_bonds .< maximum(nr_bonds)]
 	
@@ -2232,6 +2231,9 @@ function Align_toAtoms(latt::Lattice, atoms::AbstractMatrix{Float64}, shift_dir:
 #	dmax=10
 
 	direction = sign(shift_dir)*LattVec(latt)[:,abs(shift_dir)]
+
+	@show shift_dir direction LattVec(latt) 
+
 
 	longdir = 2*dmax * LA.normalize(direction)
 

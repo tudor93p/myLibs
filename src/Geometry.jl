@@ -225,23 +225,31 @@ function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64},
 	poly_verts = Points(V; dim=dim)
 
 	poly_sides = Segments(poly_verts)
-	
-	println()
-	println()
 
+
+	@show direction 	
 
 
 	shifts = map(eachslice(starting_points, dims=dim)) do start 
 
 		line = Line(Points(start, start + direction + 1e-12rand(2))...)
 
-		@show start start+direction
-		@show sum(do_intersect.([line], poly_sides))
+		@show start 
+
+		out1= mapreduce(hcat, first.([start, start+direction])) do x
+
+			@show [x, CGAL.y_at_x(line,x)]
+
+		end 
+
+
+#		@show sum(do_intersect.([line], poly_sides))
 		
 		q =  any(side->do_intersect(line, side), poly_sides) 
 # Intersction is not correct!!!!!	bounding box or GeometryBasics
 		@show q
 
+#		return out1 
 		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
 
 		p = partialsort(poly_verts, 1, by = p->squared_distance(line, p))
@@ -249,6 +257,9 @@ function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64},
 		return xyz(p - projection(line, p)) # from the line to the vertex 
 
 	end 
+
+#	return shifts
+
 
 	println.(shifts) 
 
