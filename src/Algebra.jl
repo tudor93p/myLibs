@@ -103,7 +103,7 @@ function Mean(A::AbstractArray, dims::Union{Tuple,Int})
 end
 
 
-function Mean(A::AbstractArray, dims::Nothing=nothing)
+function Mean(A::Utils.List, dims::Nothing=nothing)
 
 	sum(A)/length(A)
 
