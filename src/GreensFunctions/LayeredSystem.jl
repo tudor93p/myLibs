@@ -31,7 +31,7 @@ import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps
 #---------------------------------------------------------------------------#
 
 
-function PrepareLead(label, pyLead, BridgeAtoms, 
+function PrepareLead(label, pyLead, BridgeAtoms=nothing, 
 										 HoppMatr=nothing, coupling=nothing, LeadGF=nothing, )
 """ 
 	- pyLead = python Lattice object; Lead aligned and attached to Atoms
