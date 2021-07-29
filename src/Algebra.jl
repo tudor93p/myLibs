@@ -1263,6 +1263,74 @@ end
 #
 #---------------------------------------------------------------------------#
 
+Dist(x::Real, y::Real)::Real = abs(x-y)
+
+function Dist(x::Real, b::T)::T where {T<:AbstractVecOrMat}
+	
+	abs.(x-b)  
+
+end 
+
+function Dist(a::T, y::Real)::T where T<:AbstractVecOrMat
+	
+	abs.(a-y) 
+
+end 
+
+function Dist(a::AbstractVector{<:Real}, 
+							b::AbstractVector{<:Real}; kwargs...)::Float64
+	
+	LA.norm(a-b)
+
+end 
+
+
+function Dist(a::AbstractVector{<:Real},
+							B::AbstractMatrix{<:Real}; dim, kwargs...)::Vector{Float64}
+
+	LA.norm.(eachslice(B.-reshape(A, insert!(Any[Colon()], dim, 1)...); 
+										 dims=dim))
+
+end 
+
+
+function Dist(A::AbstractMatrix{<:Real},
+							b::AbstractVector{<:Real}; kwargs...)::Vector{Float64}
+
+	Dist(b, A; kwargs...)
+
+end 
+
+
+
+function Dist(A::AbstractMatrix{<:Real},
+							B::AbstractMatrix{<:Real}; dim, kwargs...)::Matrix{Float64}
+
+	OuterDist(A, B; dim=dim)
+
+end 
+
+
+function Dist(t::Tuple{Vararg{<:Real}}, arg::T; kwargs...) where T<:Union{<:Real, AbstractVecOrMat{<:Real}}
+	
+	Dist(vcat(t...), arg; kwargs...)
+
+end 
+
+function Dist(arg::T, t::Tuple{Vararg{<:Real}}; kwargs...) where T<:Union{<:Real, AbstractVecOrMat{<:Real}}
+
+	Dist(arg, vcat(t...); kwargs...)
+
+end 
+
+function Dist(t1::T1, t2::T2; kwargs...)::Float64 where {T1<:T,T2<:T} where T<:Tuple{Vararg{<:Real}}
+
+	Dist(vcat(t1...), vcat(t2...); kwargs...)
+
+end 
+
+
+
 function EuclDistEquals(d0; tol=1e-8, dim=1)
 
 	isd0(dist) = isapprox(dist, d0, atol=tol)
@@ -1270,16 +1338,12 @@ function EuclDistEquals(d0; tol=1e-8, dim=1)
 #	dim==1 means vectors on rows
 # dim==2 means vectors on columns 
 
-	shape = setindex!(Any[Colon()],dim,1) 
 
-	vtm(A::AbstractVector) = reshape(A,shape...)
-	vtm(A::AbstractMatrix) = A
+
 
 	return function(A::a, B::b; kwargs...) where {a<:T,b<:T} where T<:AbstractVecOrMat
 
-		a<:AbstractVector && b<:AbstractVector && return isd0(LA.norm(A-B))
-
-		return isd0.(OuterDist(vtm(A),vtm(B),dim=dim))
+		isd0.(Dist(A,B; dim=dim))
 
 	end
 
@@ -1287,7 +1351,20 @@ function EuclDistEquals(d0; tol=1e-8, dim=1)
 end 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
+
+	
+function LargestLengthscale(points::AbstractMatrix; dim::Int)::Float64
+
+	Dist(Utils.zipmap(extrema, eachslice(points, dims=[2,1][dim]))...)
+
+end 
+	
 
 #===========================================================================#
 #

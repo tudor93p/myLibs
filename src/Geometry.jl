@@ -11,7 +11,7 @@ import GeometryBasics
 
 using CGAL: Point2 as Point, Line2 as Line, Segment2 as Segment, do_intersect, squared_distance, projection
 
-import ..Utils
+import ..Utils, ..ArrayOps, ..Algebra
 
 
 
@@ -93,7 +93,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Order_PolygonVertices(V::AbstractMatrix; dim)::AbstractMatrix
+function Order_PolygonVertices(V::AbstractMatrix{T}; dim)::Matrix{T} where T<:Number
 
 	C = sum(V, dims=dim)[:]/size(V,dim) # center of the polygon
 
@@ -212,60 +212,127 @@ end
 
 
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function concave_hull(points::AbstractVector{<:AbstractVector{T}}; outdim=2)::Vector{Vector{T}} where T<:Real
+	
+	ch = ConcaveHull.concave_hull(points)
+
+
+	return ch.vertices 
+
+#	s = ArrayOps.Array_from_ListIndsVals(
+#							[outdim,[2,1][outdim]],
+#							[length(ch.vertices), length(ch.vertices[1])]
+#							)
+#
+#	@show ch 
+#@show s  
+#
+#	out = similar(ch, Tuple(s))
+#
+#	
+#	for (i,v) in enumerate(ch.vertices)
+#
+#		setindex!(selectdim(out, dim, i), v, :)
+#
+#	end 
+#
+#
+#	return out
+
+end 
+
+
+
+function concave_hull(points::AbstractMatrix{T}; dim=2, kwargs...)::Matrix{T} where T<:Real
+
+	ch = concave_hull(collect(eachslice(points, dims=dim)); kwargs...)
+
+ 	return cat(Utils.VecAsMat.(ch,dim)...,dims=dim)
+
+
+end
+
+
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64}, 
 																 direction::AbstractVector{Float64}, 
-																 V::AbstractMatrix{Float64}; 
+																 vertices::AbstractMatrix{Float64}; 
 																 dim::Int,
 																 prepare_vertices::Bool=true, 
-																 kwargs...)
+																 kwargs...)::Vector{Float64}
 
-	prepare_vertices && return Maximize_ContactSurface(starting_points, direction, prepare_polygon_vertices(V; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
-
-
-	poly_verts = Points(V; dim=dim)
-
-	poly_sides = Segments(poly_verts)
+	prepare_vertices && return Maximize_ContactSurface(starting_points, direction, prepare_polygon_vertices(vertices; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
 
 
-	@show direction 	
+	poly_verts = Points(vertices; dim=dim)
+
+	poly_sides = Segments(CGAL.convex_hull_2(poly_verts)) 
+
 
 
 	shifts = map(eachslice(starting_points, dims=dim)) do start 
 
-		line = Line(Points(start, start + direction + 1e-12rand(2))...)
+		line = Line(Points(start, start + direction)...)
 
-		@show start 
-
-		out1= mapreduce(hcat, first.([start, start+direction])) do x
-
-			@show [x, CGAL.y_at_x(line,x)]
-
-		end 
-
-
-#		@show sum(do_intersect.([line], poly_sides))
-		
-		q =  any(side->do_intersect(line, side), poly_sides) 
-# Intersction is not correct!!!!!	bounding box or GeometryBasics
-		@show q
-
-#		return out1 
-		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
+#		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
 
 		p = partialsort(poly_verts, 1, by = p->squared_distance(line, p))
 
-		return xyz(p - projection(line, p)) # from the line to the vertex 
+		return xyz(p - projection(line, p)) # from the line to the vertex  
 
 	end 
 
-#	return shifts
+	shift_perp = partialsort!(shifts, 1, by=LA.norm, rev=true) 
+					# largest shift => all starting points happy  
 
 
-	println.(shifts) 
+	shifts = map(eachslice(starting_points, dims=dim)) do start_
 
-	println() 
+		start = start_ + shift_perp 
 
-	return partialsort!(shifts, 1, by=LA.norm, rev=true)
+		pstart,pstop = Points(start, start+direction)
+
+		line = Line(pstart, pstop)
+
+		ps = filter(p->squared_distance(line, p)<1e-12, poly_verts)
+
+		isempty(ps) && return nothing 
+
+		p = partialsort(ps, 1, by = p->squared_distance(pstart, p))
+
+		return xyz(p-pstart) - direction
+
+	end 
+
+	shift_parallel = partialsort!(filter!(!isnothing,shifts), 1, by=LA.norm)
+
+
+	return shift_perp + shift_parallel
 
 end 
 
@@ -279,63 +346,56 @@ end
 #---------------------------------------------------------------------------#
 
 
+function ClosestContact_LinesPolygon(starting_points::AbstractMatrix{Float64},
+																		 direction::AbstractVector{Float64},
+																		 vertices::AbstractMatrix{Float64}; 
+																		 dim::Int,
+																		 prepare_vertices::Bool=true,
+																		 kwargs...)::Vector{Float64}
 
-function concave_hull(points::AbstractVector{AbstractVector{<:Real}}; outdim=2)
+
+
+	prepare_vertices && return ClosestContact_LinesPolygon(starting_points, direction, prepare_polygon_vertices(vertices; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
+
+
+
+	poly_verts = Points(vertices; dim=dim)
+
 	
-	ch = ConcaveHull.concave_hull(points)
+	lines = [Line(Points(start, start + direction + 1e-12rand(2))...) for start in eachslice(starting_points, dims=dim)]
 
 
-	s = Utils.Array_from_ListIndsVals(
-							[outdim,[2,1][outdim]],
-							[length(ch.vertices), length(ch.vertices[1])]
-							)
-
-	out = similar(ch, Tuple(s))
-
-	
-	for (i,v) in enumerate(ch.vertices)
-
-		setindex!(selectdim(out, dim, i), v, :)
-
-	end 
+	D = Algebra.OuterBinary(lines, poly_verts, squared_distance)  
 
 
-	return out
+	@show minimum(D)
+
+
+
+#
+#	argmin(eachrow(D))
+
+
+#	x = map(eachslice(starting_points, dims=dim)) do start 
+#
+#		line = Line(Points(start, start + direction + 1e-12rand(2))...)
+#
+#		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
+#
+#		p = partialsort(poly_verts, 1, by = p->squared_distance(line, p))
+#
+#		return xyz(p - projection(line, p)) # from the line to the vertex 
+#
+#	end 
+#
+#	println.(x)
+
+	return [1.0]
+
+
+
 
 end 
-
-
-
-function concave_hull(points::AbstractMatrix{<:Real}; dim=2, kwargs...)
-
-	concave_hull(collect(eachslice(points, dims=dim)); kwargs...)
-
-end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

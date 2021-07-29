@@ -1,4 +1,3 @@
-import PyPlot; const plt=PyPlot
 import myLibs: Lattices, Geometry 
 
 import PyCall 
@@ -53,8 +52,13 @@ function jl2(N::AbstractVector{<:Int},
 
 		LattAtoms = Lattices.PosAtoms(Latt)
 
-		BA = Lattices.SurfaceAtoms(LattAtoms, d_nn)
+#		@show size(Lattices.SurfaceAtoms(LattAtoms, d_nn))
+
+#		@show size(Geometry.concave_hull(LattAtoms; dim=2))
+
+#		BA = Geometry.concave_hull(LattAtoms; dim=2)
     
+		BA = Lattices.SurfaceAtoms(LattAtoms, d_nn)
     
     
 	circle_outside, lead_pos = pytest.py1(desired_angle, transpose(LattAtoms0))
@@ -92,33 +96,15 @@ function jl3(Lead::Lattices.Lattice,
 
 	end 
 			
-
-
-
-
 	Lattices.ReduceDim!(Lead, 2) # python 1 = julia 2
 
+	LeadAtoms2 = transpose(Lattices.PosAtoms(Lead))
 
-	LeadAtoms2 = Lattices.PosAtoms(Lead) 
+	Lattices.Align_toAtoms!(Lead, transpose(LattAtoms))
 
-	jlLattAtoms = transpose(LattAtoms) 
+	LeadAtoms3 = transpose(Lattices.PosAtoms(Lead))
 
-#    Lead,Bridge = Lead.Attach_toAtoms(LattAtoms, bonds=np.vstack((SqLatt.LattVect,-SqLatt.LattVect)))
-
-	d_nn = Lattices.Distances(SqLatt)[1]
-	BA = Lattices.SurfaceAtoms(jlLattAtoms, 1)
-
-	@show size(BA) size(jlLattAtoms)
-
-	Lattices.Align_toAtoms(Lead, BA, -1) # -1 important
-	
-
-	Bridge = zeros(2,0)
-	
-	LeadAtoms3 = Lattices.PosAtoms(Lead)
-#    one extra unit cell ?  
-
-	return transpose(LeadAtoms2), transpose(LeadAtoms3), transpose(Bridge)
+	return LeadAtoms2, LeadAtoms3, zeros(0,2)
 end  
 
 
@@ -136,9 +122,9 @@ jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
 		Lattices.SquareLattice()
 		)
 
-fig,ax = plt.subplots()
+#import PyPlot; fig,ax = PyPlot.subplots()
+#
+#pytest.plot0(14, 0* pi/180, 5, ax, jl2, jl3)
+#
 
-pytest.plot0(4, 0*2pi, 3, ax, jl2, jl3)
-
-
-#pytest.plot(jl2, jl3)
+pytest.plot(jl2, jl3)

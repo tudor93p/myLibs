@@ -2122,10 +2122,6 @@ function SurfaceAtoms(atoms::AbstractMatrix{Float64},
 
 #	d_nn = Utils.Unique(Ds[:]; tol=TOLERANCE, sorted=true)[2]
 
-
-
-	#convex hull ?  
-
 	nr_bonds = NrBonds(atoms, bondlength)
 	
 	return atoms[:,nr_bonds .< maximum(nr_bonds)]
@@ -2138,7 +2134,8 @@ function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 
 end 
 
-function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int}
+function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int} 
+
 	out = zeros(Int, size(atoms,2))
 
 	size(atoms,2) > 1 || return out 
@@ -2146,6 +2143,7 @@ function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int}
 	allpairs = Algebra.get_Bonds_asMatrix(atoms, bondlength; dim=2, inds=true) 
 
 	isempty(allpairs) && return out
+
 
 	for (i,bonds) in Utils.EnumUnique(allpairs[:])
 		
@@ -2156,6 +2154,18 @@ function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int}
 	return out 
 
 end 
+
+
+#function NrBonds(atoms1::AbstractMatrix{Float64}, 
+#								 atoms2::AbstractMatrix{Float64},
+#								 bondlength::Real)::Tuple{Vector{Int},Vector{Int}}
+#
+#	EnumUnique(allpairs[:,1])
+#
+#	out1[i] = ...
+#	allpairs[:,2]
+#
+#end  
 
 
 
@@ -2192,115 +2202,117 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function do_overlap(latt::Lattice, args...;kwargs...)::Bool
+
+	do_overlap(PosAtoms(latt), args...; kwargs...)
+
+end 
+
+
+function do_overlap(atoms::AbstractMatrix{<:Real}, 
+										surface::AbstractMatrix{<:Real}; 
+										kwargs...)::Bool
+
+	for P in eachcol(atoms) 
+
+		if Geometry.PointInPolygon_wn(P, surface; dim=2, prepare_vertices=false)
+
+			return true
+
+		end 
+
+	end 
+
+	return any(approx.(OuterDist(surface, atoms), 0))
+
+end 
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-function Align_toAtoms(latt::Lattice, atoms::AbstractMatrix{Float64}, shift_dir::Int=+1; bonds=nothing)
+
+function Align_toAtoms!(latt::Lattice, latt2::Lattice, args...;
+												kwargs...)::Lattice
+
+	Align_toAtoms!(latt, PosAtoms(latt2), Distances(latt2)[1], args...;
+								 kwargs...)
+
+end 
+
+
+function Align_toAtoms!(latt::Lattice, 
+												atoms::AbstractMatrix{Float64},
+												d_nn::Float64, args...;
+												prepare_vertices=false, order_vertices=false,
+												kwargs...)::Lattice
+
+	Align_toAtoms!(latt::Lattice, SurfaceAtoms(atoms, d_nn), args...; 
+								 prepare_vertices=true, order_vertices=true, kwargs...) 
+								 
+end 
+
+
+
+function Align_toAtoms!(latt::Lattice, 
+												surface::AbstractMatrix{Float64}, 
+												shift_dir::Int=-1; 
+												kwargs...)::Lattice 
+	
+	Align_toAtoms!(latt, 
+								 surface, 
+								 sign(shift_dir)*LattVec(latt)[:,abs(shift_dir)];
+								 kwargs...)
+
+end 
+
+
+function Align_toAtoms!(latt::Lattice, 
+												surface::AbstractMatrix{Float64}, 
+												shift_dir::AbstractVector{Float64};
+												prepare_vertices=true, order_vertices=true, 
+												kwargs...)::Lattice
 
 	# shift_dir = +/- i means positive/negative a_i
 	# slowed down if all atoms provided instead of the surface ones
 
-	if isnothing(bonds)
+#	if isnothing(bonds)
+#		
+#		c = Utils.DistributeBallsToBoxes.([-1,1], LattDim(latt))
+#
+#		bonds = CombsOfVecs(latt, hcat(vcat(c...)...))
+#
+#	end 
+	
+	prepare_vertices && return Align_toAtoms!(latt, Geometry.prepare_polygon_vertices(surface; dim=2, order_vertices=order_vertices), shift_dir; prepare_vertices=false, kwargs...)
+
+
+
+	while true 
+
+		ShiftAtoms!(latt;
+								r=-shift_dir*Algebra.LargestLengthscale(surface; dim=2)*1.3)
 		
-		c = Utils.DistributeBallsToBoxes.([-1,1], LattDim(latt))
-
-		bonds = CombsOfVecs(latt, hcat(vcat(c...)...))
+		do_overlap(latt, surface) || break 
 
 	end 
 
-	f = Geometry.PointInPolygon_wn(atoms; order_vertices=true, dim=2)
+	ShiftAtoms!(latt, r=Geometry.Maximize_ContactSurface(PosAtoms(latt),
+																											 shift_dir,
+																											 surface, 
+																											 dim=2,
+																											 prepare_vertices=false)
+							)
 
+	#bridge may be needed !! bonds must be provided  
 
-	while any(f, eachcol(PosAtoms(latt)))
-
-		ShiftAtoms!(latt, n=sign(-shift_dir))
-
-	end 
-
-
-	while any(approx.(OuterDist(atoms, latt),0))
-
-		ShiftAtoms!(latt, n=sign(-shift_dir))
-		
-	end 
-
-
-	dmax = maximum(OuterDist(atoms, atoms))*5
-
-#	dmax=10
-
-	direction = sign(shift_dir)*LattVec(latt)[:,abs(shift_dir)]
-
-	@show shift_dir direction LattVec(latt) 
-
-
-	longdir = 2*dmax * LA.normalize(direction)
-
-
-
-#	ShiftAtoms!(latt, r=-longdir/2)
-
-
-	shift = Geometry.Maximize_ContactSurface(PosAtoms(latt),
-													longdir,
-													atoms,
-													dim=2) 
-
-
-	ShiftAtoms!(latt, r=shift)
 
 
 	return latt 
-
-#
-#    contact = Geometry.ClosestContact_LinesPolygon(
-#		self.PosAtoms(),
-#		longdir,
-#                ordered_vertices=SurfaceAtoms)
-#
-#    rij = contact["stop"] - contact["start"]
-#
-#    out = self.Shift_Atoms(r=rij)
-#
-#	# Now the lead head (atom 'i') coincides with one surface atom 'j'
-#	# We want to go back such that there i and j don't overlap anymore
-#	# This will enable a bond between i and j
-#	# A bond b is 'going back' if cos(b,rij) is as negative as possible
-#
-#    bonds = bonds[np.argsort(bonds/la.norm(bonds,axis=1,keepdims=True)@rij)]
-#
-#
-#    def good(L):
-#
-#      for n in range(2):
-#
-#        if L.Dist_to_is(n*direction+SurfaceAtoms,0).any():
-#
-#          return False
-#
-#      return True
-#
-#
-#
-#    while not good(out):
-#
-#      for s in bonds:
-# 
-#        out2 = out.Shift_Atoms(r=s)
-#
-#        if good(out2):
-#
-#          return out2
-#
-#      out = out.Shift_Atoms(r=bonds[0])
-#
-#    return out
-#
-
-
-	nothing
-
 
 end 
 
