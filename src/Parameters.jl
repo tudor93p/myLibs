@@ -54,20 +54,32 @@ function recrepl(l::Int, P...; fs::AbstractVector{Function}=Function[])
 
 	isempty(fs) && return P[l]
 
-	println()
-	@show l fs[1] 
-
-	println.(enumerate(P))
-
-
+#	id  =rand(1:1000)
+#
+#	println("\n*** id $id begin ***")
+#
+#	@show l fs[1] 
+#
+#	println.(enumerate(P))
+#
+#
+#	println("\n*** id $id apply one or many ***\n")
 
 	new_Pl = apply_one_or_many(fs[1], l, P...; default=P[l])
-	@show new_Pl 
+#	@show new_Pl 
+#
+#	
+#	println("\n*** id $id recursive calls ***\n")
+	out = recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
+								 fs=fs[2:end]) 
 
-	println()
+#	println("\n*** id $id returns ***\n")
+#
+#	println(out)
+#
+#	println("\n*** id $id end ***\n")
 
-	return recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
-								 fs=fs[2:end])
+	return out 
 end 
 
 
@@ -1777,7 +1789,7 @@ function convert_params(M::Union{<:Module, <:ParamFlow, <:Calculation};
 												repl=nothing,
 												kwargs...)
 	convert_params(M, [];
-								 repl=combine_functions_addrem(get_PF_kwargs(M, :adjust, nothing), repl),
+								 repl=combine_functions_addrem(repl, get_PF_kwargs(M, :adjust, nothing)),
 								 kwargs...)
 
 end  

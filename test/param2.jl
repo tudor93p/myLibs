@@ -25,16 +25,34 @@ lev1_input = Dict(
 												 :T1 => ("k",8),
 												 ),
 
-			:digits => (X1 = (1,1), Y1=(1,2), T1=())
+									:digits => (X1 = (1,1), Y1=(1,2), T1=(),Q1=(1,1))
 
 			)
 
 
-lev1_usedkeys = [:X1,:T1,:Z1] 
+lev1_usedkeys = [:X1,:T1,:Z1,:Q1]
+usedkeys=lev1_usedkeys
 
-end 
 
 
+function adjust_paramcomb(l::Int, P...)
+
+	l==1 || return P[l]
+
+	p = copy(P[1])
+
+	isa(p[:X1], Number) && return setindex!(p, p[:X1]/2, :Q1)
+	
+	return delete!(p, :Q1)
+
+end
+
+
+
+
+
+
+end
 
 
 
@@ -66,6 +84,17 @@ lev2_input = Dict(
 
 lev2_usedkeys = [:Z2,:Y2,:X2,:Label]
 
+usedkeys=lev2_usedkeys 
+
+
+
+function adjust_paramcomb(l, P...) 
+	
+	isa(P[1][:X1],Number) && @assert haskey(P[1], :Q1)
+
+	return P[l]
+end 
+
 end 
 
 #===========================================================================#
@@ -83,6 +112,7 @@ args2 = merge(M2.lev2_input,
 							Dict(:usedkeys => M2.lev2_usedkeys, :path => ROOT,)
 							)
 
+#if false   ##############3
 
 pds = Parameters.typical_params_digits(((args[:usedkeys], args[:digits]) for args in (args1, args2))...)
 
@@ -454,17 +484,52 @@ test(p::Utils.List, p_::Utils.List) = all(test.(p,p_))
 
 
 
+#end # first 'if'
+
+
+println("############################")
+
+
+
+c = Parameters.ParamFlow(ROOT, 
+												 (args1[:usedkeys], args1[:digits], args1[:allparams]), 
+												 (args2[:usedkeys], [args2[:digits] for i=1:2], [merge(args2[:allparams],Dict(:Label=>string(l))) for l='A':'B']),
+												 adjust=(M1.adjust_paramcomb,M2.adjust_paramcomb)
+												 )
 
 
 
 
 
+@show c.allparams()
+@show c.allparams(Dict())
+
+pickfirst(l,P...)=Utils.DictFirstVals(P[l])
+
+for item in Parameters.get_paramcombs(c; repl=pickfirst)
+																			
+	println("\n ---------- Original P -----------\n")
+	println.(item)
+	
+	println("\n ---------- Plot P -----------\n")
+
+	pv = Parameters.convertParams_toPlot(c, item)
+
+	println(pv)
+
+	println("\n ---------- Recovering P -----------\n")
 
 
+	item2 = Parameters.convertParams_fromPlot(c, pv)
 
+	println.(item2)
 
+	println()
 
+@show  [test(p...) for p in zip(item,item2)]  #|> all
+	break
 
+end 
 
 
 
