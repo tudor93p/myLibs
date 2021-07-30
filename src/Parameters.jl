@@ -55,10 +55,16 @@ function recrepl(l::Int, P...; fs::AbstractVector{Function}=Function[])
 	isempty(fs) && return P[l]
 
 	println()
-	@show l P[l] fs[1] 
-	println()
+	@show l fs[1] 
+
+	println.(enumerate(P))
+
+
 
 	new_Pl = apply_one_or_many(fs[1], l, P...; default=P[l])
+	@show new_Pl 
+
+	println()
 
 	return recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
 								 fs=fs[2:end])
