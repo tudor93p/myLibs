@@ -11,7 +11,7 @@ using ..Parameters: UODict
 
 
 
-
+export CompTask
 
 #===========================================================================#
 #
@@ -65,7 +65,7 @@ get_taskname(t) = t.name
 
 
 
-function init_task(M;
+function CompTask(M;
 
 									found_files = M.FoundFiles,
 
@@ -628,14 +628,14 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 						add=Parameters.combine_functions_addrem(newp, add_internal_param)
 
-						return init_task(M;
+						return CompTask(M;
 														 rmv_internal_key = rmv_ikey,
 														 add_internal_param = add,
 														 )
 					 end	
 					 
 
-	task0 = init_task(M; rmv_internal_key=rmv_ikey)
+	task0 = CompTask(M; rmv_internal_key=rmv_ikey)
 
 
 				# ----------------- #

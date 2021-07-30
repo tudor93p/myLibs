@@ -1,5 +1,6 @@
 import myLibs: ComputeTasks 
 
+using myLibs.ComputeTasks: CompTask 
 
 module M 
 
@@ -53,7 +54,7 @@ for (m,ps) in ([M,(P,)],[M2,(P,P,)])
 	add(l::Int, p::AbstractDict) = merge(p,Dict(:Q=>0.3))
 
 
-	local task = ComputeTasks.init_task(m; 
+	local task = CompTask(m; 
 																rmv_internal_key = rmv,
 																add_internal_param = add,
 																)

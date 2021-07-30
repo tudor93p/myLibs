@@ -17,35 +17,35 @@ end
 
 #"geometry" |> pr_in 
 
-"lattices_attachleads" |> pr_in
+#"lattices_attachleads" |> pr_in
 
 #
 #include("tbmodel.jl")
 #
 #"utils" |> pr_in 
-#
+
 
 #include("bandstr.jl") 
-#
-#
+
+
 
 #include("layeredsystem.jl")
 
 #"param" |> pr_in 
-#
+
 #"param2" |>pr_in
-#
-#
-#
-#
-#"tasks" |> pr_in
-#
-#
-#
-#
-#
-#
-#
+
+
+
+
+"tasks" |> pr_in
+
+
+
+
+
+
+
 
 
 
