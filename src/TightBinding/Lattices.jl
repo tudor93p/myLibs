@@ -2292,6 +2292,7 @@ function Align_toAtoms!(latt::Lattice,
 
 
 
+
 	while true 
 
 		ShiftAtoms!(latt;
@@ -2300,6 +2301,7 @@ function Align_toAtoms!(latt::Lattice,
 		do_overlap(latt, surface) || break 
 
 	end 
+
 
 	ShiftAtoms!(latt, r=Geometry.Maximize_ContactSurface(PosAtoms(latt),
 																											 shift_dir,

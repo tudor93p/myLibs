@@ -387,7 +387,7 @@ end
 
 function mapif(f::Function,pred::Function,itr)
 
-	filter(pred,map(f,itr))
+	filter(pred, map(f,itr))
 
 end
 

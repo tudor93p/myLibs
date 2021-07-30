@@ -109,13 +109,30 @@ end
 
 
 
+Lead = Lattices.Lattice([-1.0 0.0; 0.0 2.0],
+												OrderedDict{Any, Matrix{Float64}}("Lead-1" => [-4.5 -4.5; 1.5 2.5]),
+												nothing,
+												
+												[1])
+															 
+Atoms = [-4.5 -4.5 -4.5 -4.5 -4.5 -3.5 -3.5 -2.5 -2.5 -1.5 -1.5 -0.5 -0.5 0.5 0.5 1.5 1.5 2.5 2.5 3.5 3.5 4.5 4.5 4.5 4.5 4.5; -2.0 -1.0 0.0 1.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 -1.0 0.0 1.0 2.0];
+															 
+@show Lattices.PosAtoms(Lead)
+@show Lattices.LattVec(Lead) 
 
-#jl2([5,6],
-#		mapreduce( a->15*[cos(a) sin(a)], vcat,rand(5)*2pi),
-#		rand(),
-#		1)
-#
-#
+@show size(Atoms) 
+
+
+Lattices.Align_toAtoms!(Lead, Atoms)
+
+
+@show Lattices.PosAtoms(Lead)
+
+jl2([5,6],
+		mapreduce(a->15*[cos(a) sin(a)], vcat,rand(5)*2pi),
+		rand())
+
+
 jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
 		[[1 2];[1 0]],
 		hcat(vcat.(Base.product(1:5,1:5)...)...) .- 1.0,
@@ -127,4 +144,11 @@ jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
 #pytest.plot0(14, 0* pi/180, 5, ax, jl2, jl3)
 #
 
-pytest.plot(jl2, jl3)
+pytest.plot(jl2, jl3) 
+
+
+
+
+
+
+

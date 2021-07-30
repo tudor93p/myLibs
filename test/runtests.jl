@@ -17,7 +17,7 @@ end
 
 #"geometry" |> pr_in 
 
-#"lattices_attachleads" |> pr_in
+"lattices_attachleads" |> pr_in
 
 #
 #include("tbmodel.jl")
@@ -33,7 +33,7 @@ end
 
 #"param" |> pr_in 
 #
-"param2" |>pr_in
+#"param2" |>pr_in
 #
 #
 #

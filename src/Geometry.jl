@@ -277,6 +277,45 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function nearest_point(x::Union{<:Line, <:Point}, 
+											 points::AbstractVector{Point})::Point 
+
+	partialsort(points, 1, by = p->squared_distance(x, p)) 
+
+end 
+
+function nearest_points(line::Line, points::AbstractVector{Point})::Tuple{Point,Point}
+
+	p = nearest_point(line, points)
+
+	return projection(line, p), p
+
+end 
+
+
+
+function any_intersects(line::Line, objects::AbstractVector)::Bool
+
+	any(x -> do_intersect(line, x), objects)
+
+end 
+
+
+function any_intersects(objects::AbstractVector)::Function
+
+	anyint(line::Line)::Bool = any_intersects(line, objects)
+
+end 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64}, 
@@ -291,111 +330,56 @@ function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64},
 
 	poly_verts = Points(vertices; dim=dim)
 
-	poly_sides = Segments(CGAL.convex_hull_2(poly_verts)) 
 
 
-
-	shifts = map(eachslice(starting_points, dims=dim)) do start 
-
-		line = Line(Points(start, start + direction)...)
-
-#		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
-
-		p = partialsort(poly_verts, 1, by = p->squared_distance(line, p))
-
-		return xyz(p - projection(line, p)) # from the line to the vertex  
-
-	end 
-
-	shift_perp = partialsort!(shifts, 1, by=LA.norm, rev=true) 
-					# largest shift => all starting points happy  
-
-
-	shifts = map(eachslice(starting_points, dims=dim)) do start_
-
-		start = start_ + shift_perp 
-
-		pstart,pstop = Points(start, start+direction)
-
-		line = Line(pstart, pstop)
-
-		ps = filter(p->squared_distance(line, p)<1e-12, poly_verts)
-
-		isempty(ps) && return nothing 
-
-		p = partialsort(ps, 1, by = p->squared_distance(pstart, p))
-
-		return xyz(p-pstart) - direction
-
-	end 
-
-	shift_parallel = partialsort!(filter!(!isnothing,shifts), 1, by=LA.norm)
-
-
-	return shift_perp + shift_parallel
-
-end 
-
-
-
-
-#===========================================================================#
-#
-#
-#
-#---------------------------------------------------------------------------#
-
-
-function ClosestContact_LinesPolygon(starting_points::AbstractMatrix{Float64},
-																		 direction::AbstractVector{Float64},
-																		 vertices::AbstractMatrix{Float64}; 
-																		 dim::Int,
-																		 prepare_vertices::Bool=true,
-																		 kwargs...)::Vector{Float64}
-
-
-
-	prepare_vertices && return ClosestContact_LinesPolygon(starting_points, direction, prepare_polygon_vertices(vertices; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
-
-
-
-	poly_verts = Points(vertices; dim=dim)
+	line(start::AbstractVector) = Line(Points(start, start + direction)...)
+	line(start::AbstractVector, shift::AbstractVector) = line(start+shift)
 
 	
-	lines = [Line(Points(start, start + direction + 1e-12rand(2))...) for start in eachslice(starting_points, dims=dim)]
+	iter_start = eachslice(starting_points, dims=dim) 
 
 
-	D = Algebra.OuterBinary(lines, poly_verts, squared_distance)  
+	ray_cuts = any_intersects(Segments(CGAL.convex_hull_2(poly_verts))) 
+
+	nr_inside(args...)::Int = count((ray_cuts(line(s, args...)) for s in iter_start))
 
 
-	@show minimum(D)
+	shifts,nrs = Utils.zipmap(iter_start) do start
+
+		p_line, p = nearest_points(line(start), poly_verts) 
+								# the closest p and its projection on the line
+
+		shift = xyz(p - p_line) 	# vector from the line to the vertex  
+
+		return shift, nr_inside(shift)
+
+	end 
 
 
+	# choose the smallest shift that maximizes the number of rays inside 
 
-#
-#	argmin(eachrow(D))
-
-
-#	x = map(eachslice(starting_points, dims=dim)) do start 
-#
-#		line = Line(Points(start, start + direction + 1e-12rand(2))...)
-#
-#		any(side->do_intersect(line, side), poly_sides) && return zeros(2)
-#
-#		p = partialsort(poly_verts, 1, by = p->squared_distance(line, p))
-#
-#		return xyz(p - projection(line, p)) # from the line to the vertex 
-#
-#	end 
-#
-#	println.(x)
-
-	return [1.0]
+	shift_perp = argmin(LA.norm, shifts[collect(nrs).==maximum(nrs)])
 
 
 
+	shifts_parallel = Utils.mapif(!isnothing, iter_start .+ [shift_perp]) do start 
+
+		L = line(start) 
+
+		ps = filter(p->squared_distance(L, p)<1e-12, poly_verts)
+
+		return isempty(ps) ? nothing : xyz(nearest_point(Point(start...), ps)) - start
+
+
+	end 
+
+									# smallest parallel shift 
+	
+	return shift_perp + argmin(LA.norm, shifts_parallel) - direction
 
 end 
+
+
 
 
 
