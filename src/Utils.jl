@@ -1338,19 +1338,19 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function NT(data::Union{<:AbstractDict,<:OrderedDict, <:NamedTuple}, 
+function NT(data::Union{<:AbstractDict,<:OrderedDict,<:NamedTuple},
 						Keys=collect(keys(data)))::NamedTuple
 
   NamedTuple{Tuple(Keys)}([data[k] for k in Keys])
 
-end
-
-function NT(data::List, args...)::Vector{NamedTuple}
-	
-	[NT(d) for d in data]
-
-
 end 
+
+
+#function NT(data::List, args...)::Vector{NamedTuple}
+#	
+#	[NT(d) for d in data]
+#
+#end 
 
 
 #===========================================================================#
