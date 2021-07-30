@@ -1544,7 +1544,7 @@ end
 
 function sel(dim::Int)::Function 
 
-	function out(A::AbstractArray, inds)  
+	function out(A::AbstractArray, inds)
 
 		selectdim(A, dim, inds) 
 
@@ -1563,6 +1563,16 @@ function sel(dim::Int, inds)::Function
 
 end 
 
+
+function sel(A::AbstractArray, dim::Int)::Function
+
+	function out(inds)
+
+		selectdim(A, dim, inds)
+
+	end 
+
+end 
 
 
 #===========================================================================#

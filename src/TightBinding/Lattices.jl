@@ -900,6 +900,10 @@ end
 #---------------------------------------------------------------------------#
 
 
+
+
+
+
 function sublatt_labels(latt::Lattice, kind::Symbol)::Vector
 
 	sublatt_labels(latt; kind=kind)
@@ -1038,6 +1042,7 @@ function PosAtoms(latt::Lattice;
 	end 
 
 end 
+
 
 
 
