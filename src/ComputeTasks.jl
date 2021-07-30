@@ -110,8 +110,14 @@ function init_task(M;
 		mute && return F(p...; kwargs...)
 
 		println("\n$text: ", Parameters.tostr(M) , "\n")
-		
-		foreach(d->println(Utils.NT(d)), p)
+	
+
+		for d in p 
+			
+			Utils.isList(d) ? println.(Utils.NT.(d)) : println(Utils.NT(d))
+
+		end 
+
 	
 		out = @time F(p...; kwargs...)
 	
@@ -333,8 +339,12 @@ function get_plot_one(task, pick=Utils.DictFirstVals)
 
 	good_P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
 
+	println("\ngood_P\n",good_P...)
+
 	plot_P = task.get_plotparams(good_P...)
 
+	println("\nplot_P\n",plot_P)
+	
 	return task.plot(plot_P)
 
 end

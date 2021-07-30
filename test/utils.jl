@@ -83,7 +83,7 @@ println()
 
 FSM = "dat"
 
-fname(x) = string("test/savefile/",x)
+fname = x->string("test/savefile/",x)
 
 Write!,outdict = ReadWrite.Write_PhysObs(fname, FSM)
 
@@ -142,10 +142,13 @@ NR_KPOINTS = 30
 
 
 
+using OrderedCollections: OrderedDict 
 
+Utils.NT(Dict(:a=>2))|>println
 
+Utils.NT(OrderedDict(:a=>2))|>println
 
-
+Utils.NT((a=2,)) |>println
 
 
 

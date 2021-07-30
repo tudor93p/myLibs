@@ -1338,29 +1338,19 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function NT(data,Keys=nothing)
+function NT(data::Union{<:AbstractDict,<:OrderedDict, <:NamedTuple}, 
+						Keys=collect(keys(data)))::NamedTuple
 
-
-  if isa(data,AbstractDict) | isa(data,NamedTuple)
-
-		Keys = Assign_Value(Keys,vcat(keys(data)...))
-
-    data = [data[k] for k in Keys]
-  end
-
-#  data = try [data[k] for k in Keys]
-#
-#	 catch error
-#
-#           !any(isa.(error,[MethodError,ArgumentError])) && error("Please provide a list-type container (Array/...) or an associative collection (Dict/NamedTuple) with the right keys.")
-#
-#	   data
-#
-#	 end
-
-  return NamedTuple{Tuple(Keys)}(data)
+  NamedTuple{Tuple(Keys)}([data[k] for k in Keys])
 
 end
+
+function NT(data::List, args...)::Vector{NamedTuple}
+	
+	[NT(d) for d in data]
+
+
+end 
 
 
 #===========================================================================#
