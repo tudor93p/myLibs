@@ -504,6 +504,14 @@ c = Parameters.ParamFlow(ROOT,
 @show c.allparams()
 @show c.allparams(Dict())
 
+
+
+Parameters.convertParams_toPlot(c) |>println
+
+
+
+abc 
+
 pickfirst(l,P...)=Utils.DictFirstVals(P[l])
 
 for item in Parameters.get_paramcombs(c; repl=pickfirst)

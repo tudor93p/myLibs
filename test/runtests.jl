@@ -22,7 +22,7 @@ end
 #
 #include("tbmodel.jl")
 #
-"utils" |> pr_in 
+#"utils" |> pr_in 
 #
 
 #include("bandstr.jl") 
@@ -33,7 +33,7 @@ end
 
 #"param" |> pr_in 
 #
-#"param2" |>pr_in
+"param2" |>pr_in
 #
 #
 #
