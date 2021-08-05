@@ -1503,7 +1503,7 @@ function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
 
 	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim"
 
-	FlatOuterSum(atoms, ucs) 
+	return FlatOuterSum(atoms, ucs) 
 
 end 
 
@@ -1526,6 +1526,7 @@ function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
 											 kwargs...)::Matrix{Float64}
 
 	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim"
+	
 	Atoms_ManyUCs(atoms, parse_input_RsNs(latt; Ns=ns, kwargs...))
 
 end 
@@ -1536,7 +1537,8 @@ end
 
 function Atoms_ManyUCs(latt::Lattice; kwargs...)::Matrix{Float64}
 
-	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim"
+	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim" 
+
 	Atoms_ManyUCs(PosAtoms(latt; kwargs...), parse_input_RsNs(latt; kwargs...))
 
 end

@@ -31,10 +31,8 @@ import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps
 #---------------------------------------------------------------------------#
 
 
-function PrepareLead(label, pyLead, BridgeAtoms=nothing, 
-										 HoppMatr=nothing, coupling=nothing, LeadGF=nothing, )
 """ 
-	- pyLead = python Lattice object; Lead aligned and attached to Atoms
+	- Lead -- aligned and attached to Atoms
 
 	- BridgeAtoms::Matrix{Float64} is non-empty only for unregular lead-atom
 				iterfaces. Contains additional atoms to ensure maximum contact
@@ -45,72 +43,101 @@ function PrepareLead(label, pyLead, BridgeAtoms=nothing,
 
 """
 
+function PrepareLead(atoms::AbstractMatrix)::Dict{Symbol,Any}
 
-	LeadAtoms = pyLead.PosAtoms()
+	Dict{Symbol,Any}(:head=>[atoms])
 
-	lattice_out = Dict(:label => label, :head => [LeadAtoms] )
+end 
+
+
+function PrepareLead(label::AbstractString, LeadAtoms::AbstractMatrix
+										 )::Dict{Symbol,Any}
+
+	merge!(Dict{Symbol,Any}(:label => label), PrepareLead(LeadAtoms))
+	
+end  
+
+
+function PrepareLead(label::AbstractString, Lead::Lattices.Lattice
+										 )::Dict{Symbol,Any}
+
+	PrepareLead(label, Lattices.PosAtoms(Lead))
+
+end 
+
+
+function PrepareLead(label::AbstractString, 
+										 Lead::Union{Lattices.Lattice, AbstractMatrix},
+										 BridgeAtoms::AbstractMatrix
+										 )::Dict{Symbol,Any}
+
+	merge!(vcat, PrepareLead(BridgeAtoms), PrepareLead(label, Lead)) 
+
+end 
 
 
 
-	hamilt_out = isnothing(HoppMatr) & isnothing(LeadGF) |> function (latt) 
+function PrepareLead(label::AbstractString, 
+										 Lead::Lattices.Lattice,
+										 coupling::Function,
+										 LeadHoppMatr::Function,
+										 LeadGF::Function,
+										 )::Dict{Symbol,Any}
 
-		latt && return Dict()
+	LeadAtoms0, LeadAtoms1 = [Lattices.Atoms_ManyUCs(Lead; Ns=n) for n=[0,1]]
 
-		return Dict(	
-					
+
+	return merge!(PrepareLead(label, LeadAtoms0), Dict(	
+
 						:coupling => coupling,
 
-						:intracell => [HoppMatr(LeadAtoms)],
+						:intracell => [LeadHoppMatr(LeadAtoms0)],
 
-						:intercell => [HoppMatr(LeadAtoms,LeadAtoms .+ pyLead.LattVect)],
+						:intercell => [LeadHoppMatr(LeadAtoms0, LeadAtoms1)],
 
-						:GF => E->[LeadGF(E)]
+						:GF => function GF(E::Number)::Vector{Matrix} 
+						
+												[LeadGF(E)] 
+											
+									end
 
 								)
-	end
+							)
 
-
-	isnothing(BridgeAtoms) && return merge(lattice_out, hamilt_out)
-
-
-
-
-	lattice_out = Dict(:label => label, :head => [BridgeAtoms,LeadAtoms] )
-	
-
-	isnothing(HoppMatr) && isnothing(LeadGF) && return lattice_out
-
-
-	BridgeIntra = HoppMatr(BridgeAtoms) 
-
-	BridgeToLead = HoppMatr(BridgeAtoms,LeadAtoms)
+end 
 
 
 
+function PrepareLead(label::AbstractString, 
+										 Lead::Lattices.Lattice,
+										 BridgeAtoms::AbstractMatrix,
+										 coupling::Function,
+										 LeadHoppMatr::Function,
+										 LeadGF::Function,
+										 )::Dict{Symbol,Any}
+
+	BridgeIntra = LeadHoppMatr(BridgeAtoms) 
+
+	BridgeToLead = LeadHoppMatr(BridgeAtoms, Lattices.PosAtoms(Lead))
 
 
-
-	return merge(lattice_out, Dict(
-
-		:coupling => coupling,
-
-		:intracell => [BridgeIntra,hamilt_out[:intracell][1]],
-
-		:intercell => [BridgeToLead,hamilt_out[:intercell][1]],
-
-#		:GF => 	E-> (g->[GreensFunctions.GF(E,BridgeIntra,(BridgeToLead',g)),g])(LeadGF(E))
-	
-		:GF => function (E)
+	out = merge!(vcat,
+							 Dict{Symbol,Any}(:intracell=>[BridgeIntra], 
+																:intercell=>[BridgeToLead]),
+							PrepareLead(label, Lead, coupling, LeadHoppMatr, LeadGF))
+				
+				
+	out[:GF] = function GF(E::Number)::Vector{Matrix}
 	
 				g = LeadGF(E)
 
 				g1 = inv(Array(E*LA.I - BridgeIntra - BridgeToLead*g*BridgeToLead'))
 
-				return [g1,g]
+				return [g1, g]
 
 		end
 
-		))
+	return out
 
 end
 
@@ -123,7 +150,7 @@ end
 
 
 
-function LeadAtomOrder(nr_at=0; 
+function LeadAtomOrder(nr_at::Int=0; 
 											 LeftLead=nothing, RightLead=nothing, kwargs...)
 
 	LNames,LSizes = begin
@@ -168,13 +195,18 @@ function LeadAtomOrder(nr_at=0;
 
 end
 
+function AllAtoms(latt::Lattices.Lattice; kwargs...)::Matrix{Float64}
 
-function AllAtoms(Latt; LeftLead=nothing,RightLead=nothing)
+	AllAtoms(Lattices.PosAtoms(latt); kwargs...)
 
-	Atoms = (Latt isa AbstractMatrix) ? Latt : Latt.PosAtoms()
+end 
 
-	vcat(Atoms,[vcat(L[:head]...) 
-												for L in [LeftLead,RightLead] if !isnothing(L)]...)
+
+function AllAtoms(Atoms::AbstractMatrix; 
+									LeftLead=nothing, RightLead=nothing)::Matrix{Float64}
+
+	hcat(Atoms, (hcat(L[:head]...) 
+							 	for L in filter(!isnothing, (LeftLead, RightLead)))...)
 
 end
 
