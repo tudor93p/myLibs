@@ -4,7 +4,7 @@ module TBmodel
 
 import ..LA, ..SpA
 
-import ..Utils, ..Algebra
+import ..Utils, ..Algebra, ..Lattices
 
 
 #===========================================================================#
@@ -14,46 +14,135 @@ import ..Utils, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
-function BlochHamilt_Parallel(pyLatt,arg1_BH,arg2_BH,surface=0)
- 
-  Parallel_Layer = pyLatt.Reduce_Dim(surface)
-      
-      # -1 if "surface" is given for julia instead of python
-      # 	(in julia it counts from 1, in python from 0)
-      # Remove the specified dimension "surface" => dimension = d-1
-  
-  return Bloch_Hamilt(arg1_BH(Parallel_Layer);arg2_BH...,argH="phi")
 
-  	  # a function of k parallel, vector of dimension d-1
+default_surface(Latt::Lattices.Lattice)::Int = Lattices.LattDims(Latt)[1]
+
+function args_BHPP(Latt::Lattices.Lattice, 
+									 arg1_BH::Function,
+									 surface::Int=default_surface(Latt),
+									 )::Tuple{Lattices.Lattice, Function, Dict, Int}
+
+	(Latt, arg1_BH, Dict(), surface) 
+
+end 
+
+
+function args_BHPP(Latt::Lattices.Lattice, arg2_BH::AbstractDict, args...
+									 )::Tuple{Lattices.Lattice, Function, Dict, Int}
+
+	args_BHPP(Latt, Lattices.NearbyUCs, arg2_BH, args...)
+
+end 
+
+function args_BHPP(Latt::Lattices.Lattice,
+									 surface::Int=default_surface(Latt),
+									 )::Tuple{Lattices.Lattice, Function, Dict, Int}
+
+	(Latt, Lattices.NearbyUCs, Dict(), surface)
+
+end 
+
+
+function args_BHPP(Latt::Lattices.Lattice,
+									 arg1_BH::Function,
+									 arg2_BH::AbstractDict,
+									 surface::Int=default_surface(Latt),
+									 )::Tuple{Lattices.Lattice, Function, Dict, Int}
+
+	(Latt, arg1_BH, arg2_BH, surface)
+
+end 
+
+
+
+
+
+
+
+
+
+function BlochHamilt_Parallel_(Latt::Lattices.Lattice,
+															arg1_BH::Function,
+															arg2_BH::AbstractDict,
+															surface::Int,
+															)::Function
+ 
+	# Remove the specified dimension "surface" => dimension = d-1
+  
+	Bloch_Hamilt(arg1_BH(Lattices.ReduceDim(Latt, surface));
+							 arg2_BH..., argH="phi")
+
+	# a function of k parallel, vector of dimension d-1
   
 end
 
- 
-function BlochHamilt_Perpendicular(pyLatt,arg1_BH,arg2_BH,surface=0)
+function BlochHamilt_Parallel(args...)::Function 
 
-  Coupled_Layers = pyLatt.Reduce_Dim(surface,complement=true)
-        # Remove from Latt all dimensions not in "surface" 
+	BlochHamilt_Parallel_(args_BHPP(args...)...)
+
+end 
+
+
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+
+iter_matrix(A::AbstractMatrix)::Vector = collect(eachcol(A))
+
+iter_matrix(A::AbstractVector)::Vector = A 
+
+
+
+
+function BlochHamilt_Perpendicular(args...)::Dict 
+	
+	BlochHamilt_Perpendicular_(args_BHPP(args...)...)
+	
+end 
+
+ 
+function BlochHamilt_Perpendicular_(Latt::Lattices.Lattice,
+																		arg1_BH::Function, 
+																		arg2_BH::AbstractDict,
+																		surface::Int,
+																		)::Dict
+
+	
+        # Remove from Latt all dimensions != "surface" 
 				# the resulting lattice has dimension 1
 				
-  (ms,Rms,AtomsUC) = arg1_BH(Coupled_Layers)
+	TBL = arg1_BH(Lattices.KeepDim(Latt, surface))
 
-	ms,Rms = map([ms,Rms]) do A
 
-		return ndims(A) == 2 ? Utils.ArrayToList(A) : A
-	end
+	ms = [length(m)==1 ? m[1] : error() for m in iter_matrix(TBL[1])]
+
+	Rms = Utils.VecAsMat.(iter_matrix(TBL[2]), 2)
+
+	AtomsUC = TBL[3] 
 
 
 	for sgn in [+1,-1]
 
-		useful_ms = findall([m[1]*sgn > 0 for m in ms])
+		useful_ms = ms*sgn .> 0 
 
-		isempty(useful_ms) && continue 
+		any(useful_ms) || continue 
 		
-		return Dict(map(useful_ms) do i
-	
-			m,Rm = sgn*ms[i][1],hcat(sgn*Rms[i]...)
+		return Dict(map(sgn * ms[useful_ms], sgn * Rms[useful_ms]) do m,R
 
-			return m => HoppingMatrix(AtomsUC, AtomsUC .+ Rm; arg2_BH...)
+			m => HoppingMatrix(AtomsUC, AtomsUC .+ R; arg2_BH...)
 
 		end)
 
@@ -62,6 +151,13 @@ function BlochHamilt_Perpendicular(pyLatt,arg1_BH,arg2_BH,surface=0)
 	return Dict()
 
 end
+
+function BlochHamilt_ParallPerp(args...)::Tuple{Function, Dict}
+	
+	Utils.invmap(args_BHPP(args...), (BlochHamilt_Parallel_,
+																		BlochHamilt_Perpendicular_))
+
+end 
 
 
 
@@ -74,19 +170,19 @@ end
 #				
 #---------------------------------------------------------------------------#
 
-function Hamilt_indices(orbital,atom,nr_orbitals)
+function Hamilt_indices(orbital, atom, nr_orbitals::Int)
 
   return orbital .+ (atom .- 1) * nr_orbitals
 
 end
 
-function Hamilt_indices_all(orbs,atoms,d0=length(orbs);
-														iter="atoms",flat=false)
+
+function Hamilt_indices_all(orbs::Utils.List, atoms::Utils.List,
+														d0::Int=length(orbs);
+														iter::AbstractString="atoms",flat::Bool=false
+														)::Vector
 
   iter=="orbitals" && flat==true && println("\nWarning! The function returns flat  Hamiltonian indices by iterating over orbitals. In multi-orbital system, the order will *not* be consistent with the way the Hamiltonian is built and unexpected results will occur.\n")
-
-
-  any(isnothing.([orbs,atoms,d0])) && error("Not enough info provided")
 
   f(x) = flat ? vcat(x...) : x
 
@@ -234,25 +330,17 @@ function Compute_Hopping_Matrices(
 
 	AtomsUC = Lattice[3] 
 
-	ms,Rms = map(Lattice[1:2]) do A 
+	ms,Rms = map(iter_matrix, Lattice[1:2])
 
-		ndims(A)<2 && return A 
 
-		ndims(A)==2 && return collect(eachcol(A))
-
-		error()
-
-	end 
-
-#  ms,Rms = map(A -> ndims(A) == 2 ? Utils.ArrayToList(A) : A, [ms,Rms])
 
 	# if few procs, Rms will be distributed. Otherwise -> atoms
 	
-  Tms = (parallel && nprocs()<=size(Rms,2) ? pmap : map)(Rms) do Rm
+  Tms = (parallel && nprocs()<=length(Rms) ? pmap : map)(Rms) do Rm
 
     HoppingMatrix(AtomsUC,	Rm .+ AtomsUC;
 													kwargs...,
-      										parallel = parallel && nprocs()>size(Rms,2)
+													parallel = parallel && nprocs()>length(Rms)
       										)
   end
 
@@ -268,9 +356,14 @@ function Compute_Hopping_Matrices(
   inter = nonzeroT[nonzeroT .!= intra]
 		# correspond to the non-zero inter-cell hopping
 
-  inter_out = !isempty(inter) ? map(A->A[inter], [ms,Rms,Tms]) : nothing
+	isempty(inter) && return Tms[intra], nothing 
 
-  return Tms[intra], inter_out
+	return (Tms[intra], 
+					Utils.zipmap(inter) do  i
+															 
+						collect(ms[i]), collect(Rms[i]), Tms[i]
+
+					end |> collect)
 
 end
 
@@ -281,7 +374,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Bloch_Hamilt(Lattice; argH::String="",savefile="",	Hopping...)
+function Bloch_Hamilt(Lattice; argH::String="",savefile="",	Hopping...)::Function
 			
   data = Compute_Hopping_Matrices(Lattice; Hopping...)
 
@@ -296,7 +389,7 @@ end
 
 
 
-function Bloch_Hamilt(savefile::String="";argH::String="")
+function Bloch_Hamilt(savefile::String="";argH::String="")::Function
 
   error("Read_Hamilt_Data not yet rewritten")
 
@@ -327,14 +420,19 @@ function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, inter::Utils.List;
 
   argH = get_argH(argH, ms, Rms)
 
-  iter = zip(Tms, [Rms,ms][findfirst(argH .== ["k","phi"])])
+
+	@assert !any(m-> m==-m, ms)
+
+  iter2 = [Rms,ms][findfirst(argH .== ["k","phi"])]
+
 
 
   return function h(k)
-	
-    h1 = sum([T*exp(Algebra.dot(k,R)im) for (T,R) in iter])
 
-					# Bloch phase ℯ^(i 𝐤 ⋅ 𝐑 ), even if dimensions mismatch
+		h1 = sum((T*exp(Algebra.dot(k,R)im) for (T,R) in zip(Tms,iter2)))
+
+					# Bloch phase ℯ^(i 𝐤 ⋅ 𝐑 ), even if dimensions mismatch 
+					# 														(first common n entries are used)
    
     return intra + h1 + h1'
 

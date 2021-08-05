@@ -20,7 +20,7 @@ end
 #"lattices_attachleads" |> pr_in
 
 #
-#include("tbmodel.jl")
+"tbmodel" |> pr_in 
 #
 #"utils" |> pr_in 
 
@@ -29,7 +29,7 @@ end
 
 
 
-"layeredsystem" |> pr_in
+#"layeredsystem" |> pr_in
 
 #"param" |> pr_in 
 

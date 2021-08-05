@@ -1129,6 +1129,23 @@ dot(A::Number, B::Number)::Number = dot([A],[B])
 dot(A::Number, B::AbstractVector)::Number = dot([A],B)
 dot(A::AbstractVector, B::Number)::Number = dot(A,[B])
 
+
+function dot(A::AbstractArray{T,0}, B)::Number where T 
+	
+	dot(vcat(A...), B)
+
+end 
+
+function dot(A, B::AbstractArray{T,0})::Number where T 
+	
+	dot(A, vcat(B...))
+
+end
+
+
+
+
+
 function dot(A::AbstractVector, B::AbstractVector)::Number
 
   i = 1:min(length(A), length(B))
