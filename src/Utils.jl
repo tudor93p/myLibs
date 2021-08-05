@@ -1985,7 +1985,7 @@ end
 
 function getprop(M, prop::Symbol, std_value=nothing)
 
-	allnames = isa(M,Module) ? names(M, all=true) : propertynames(M)
+	allnames = isa(M,Module) ? names(M, all=true, imported=true) : propertynames(M)
 
 	return in(prop, allnames) ? getproperty(M, prop) : std_value 
 
