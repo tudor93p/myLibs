@@ -463,8 +463,12 @@ end
 #---------------------------------------------------------------------------#
 
 
-function GF_SanchoRubio(Energy,H_intracell,H_intercell;
-												target="bulk+-",max_iter=50,tol=1e-8)
+function GF_SanchoRubio(Energy::Number, 
+												H_intracell::AbstractMatrix{ComplexF64},
+												H_intercell::AbstractMatrix{ComplexF64};
+												target::AbstractString="bulk+-",
+												max_iter::Int=50,
+												tol::Float64=1e-8)::Dict{String,Matrix{ComplexF64}}
 
 				# The system is assumed homogeneous
 				# in general, H(cell_i,cell_j) and H(cell_i)
@@ -545,8 +549,8 @@ function GF_SanchoRubio(Energy,H_intracell,H_intercell;
 	# -------- returning the desired target GF --------- #
 
 
-	length(output_keys)==1 && return SR_iter()[1]
-  
+#	length(output_keys)==1 && return SR_iter()[1]
+ 
 	return Dict(zip(output_keys, SR_iter()))
 
 
