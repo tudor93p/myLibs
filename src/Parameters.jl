@@ -1699,7 +1699,7 @@ struct Calculation
 
 		C = add_kwargs(PF, Compute; kwargs...) 
 
-		return new(string(name), PF, C, C, (args...;kwargs...)->true)
+		return new(string(name), PF, C, C, (args...;kwargs...)->false)
 
 	end 
 
@@ -1751,7 +1751,8 @@ end
 
 
 
-tostr(C::Calculation)::String = C.name 
+tostr(C::Calculation)::String = C.name  
+
 get_NrPSets(m::Module)::Int = m.NrParamSets
 get_NrPSets(pf::ParamFlow)::Int = pf.NrParamSets 
 get_NrPSets(c::Calculation)::Int = get_NrPSets(c.PF)

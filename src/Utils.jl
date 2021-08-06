@@ -1563,7 +1563,10 @@ end
 #---------------------------------------------------------------------------#
 
 
-function VecAsMat(V::AbstractArray, dim::Int)::AbstractMatrix
+function VecAsMat(V::AbstractArray{T}, dim::Int
+								 )::AbstractMatrix{T} where T<:Number
+
+	count(size(V).>1)>1 && error("Wrong shape, vector not understood")
 
 	dim==2 && return reshape(V, :, 1)  # Column vector 
 
@@ -1728,7 +1731,11 @@ end
 
 
 
+function VecsToMat(vecs...; dim::Int)::Matrix 
 
+	cat((VecAsMat(v, dim) for v in vecs)..., dims=dim)
+
+end 
 
 
 function RecursiveMerge_(;kwargs...)::Function  
@@ -1748,9 +1755,9 @@ end
 
 function RecursiveMerge_(u::AbstractVector{<:Number},
 												 v::AbstractVector{<:Number}; 
-												 dim=2, kwargs...)::AbstractMatrix{<:Number}
+												 dim::Int, kwargs...)::AbstractMatrix{<:Number}
 	
-	cat(VecAsMat(u, dim), VecAsMat(v, dim), dims=dim)
+	VecsToMat(u, v; dim=dim)
 
 end 
 

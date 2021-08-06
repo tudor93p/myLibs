@@ -155,8 +155,47 @@ L = Lattices.Superlattice(Lattices.SquareLattice("A"), [3,2], Labels=x->x[1])
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+println()
+
+L = Lattices.Superlattice(Lattices.SquareLattice("A"), [[4 3];[1 2]]) 
+
+@show Lattices.LattVec(L)
+
+println()
+
+@show Lattices.LattDim(L)
+
+@show Lattices.ReciprocalVectors(L) |> size 
+
+for (a,b) in zip(eachcol(Lattices.ReciprocalVectors(L)), eachcol(Lattices.LattVec(L))) 
+
+#	@show a b 
+       @show LinearAlgebra.dot(a,b)
+#			 println()
+		 end 
 
 
+println()
+Lattices.KeepDim!(L, rand(1:2))
+
+@show Lattices.LattDim(L) 
+
+
+@show Lattices.ReciprocalVectors(L) |> size
+
+
+
+for (a,b) in zip(eachcol(Lattices.ReciprocalVectors(L)), eachcol(Lattices.LattVec(L)))
+#	@show a b 
+       @show LinearAlgebra.dot(a,b)
+#			 println()
+       end
 
 
 

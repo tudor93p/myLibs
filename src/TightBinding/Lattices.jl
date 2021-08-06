@@ -2365,9 +2365,13 @@ end
 #---------------------------------------------------------------------------#
 
 
-function ReciprocalVectors(latt::Lattice)::Matrix 
+function ReciprocalVectors(latt::Lattice)::Matrix{Float64}
 
-	LattVec(2pi*inv(latt.LattVec[LattDims(latt, :full), :]), LattDims(latt))
+	LA.checksquare(latt.LattVec)
+
+#	[LattDims(latt, :full), :]
+
+	return LattVec(2pi*inv(transpose(latt.LattVec)), LattDims(latt))
 
 end 
 
@@ -2379,13 +2383,13 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function BrillouinZone(latt::Lattice)::Matrix
+function BrillouinZone(latt::Lattice)::Matrix{Float64}
 
 	LattDim(latt)==0 && return zeros(0,1)
 
   K = ReciprocalVectors(latt) 
 
-	LattDim(latt)==1 && return hcat(zero(K), K) 
+	LattDim(latt)==1 && return Utils.VecsToMat(zero(K), K; dim=2)
 
 	error()
 
