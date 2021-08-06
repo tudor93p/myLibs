@@ -494,13 +494,14 @@ function GF_SanchoRubio(Energy::Number,
 
   Errors = zeros(max_iter)
 
-	function updateErrors!(iter,alpha,beta)
+
+	function updateErrors!(iter, alpha, beta)
 
     Errors[iter] = LA.norm(alpha) + LA.norm(beta)
 
   end
 
-  function converged(iter)
+	function converged(iter::Int)::Bool
 
 		if iter>=3 && all(<(tol), Errors[iter-3+1:iter])
 
@@ -508,7 +509,7 @@ function GF_SanchoRubio(Energy::Number,
 
 		elseif iter==max_iter 
 
-			println("\nSancho-Rubio algorithm did not converge after ",max_iter," iterations.\n",Errors)
+			@warn "The Sancho-Rubio algorithm did not converge after $max_iter iterations. The errors are:\n $Errors"
 
 			return true
 			
@@ -522,16 +523,16 @@ function GF_SanchoRubio(Energy::Number,
 	# ------ performing the iterations of the algorithm ----- # 
 
 
-  function SR_iter(alpha=Array(H_intercell),
-									 beta=alpha',
-									 epsBulk=Array(H_intracell),
-									 epsSurf=epsBulk,
-									 epsDualSurf=epsBulk,
-									 i=1)
+	function SR_iter(alpha::AbstractMatrix{ComplexF64}=Array(H_intercell),
+									 beta::AbstractMatrix{ComplexF64}=alpha',
+									 epsBulk::AbstractMatrix{ComplexF64}=Array(H_intracell),
+									 epsSurf::AbstractMatrix{ComplexF64}=epsBulk,
+									 epsDualSurf::AbstractMatrix{ComplexF64}=epsBulk,
+									 i::Int=1)
 
-		updateErrors!(i,alpha,beta)
+		updateErrors!(i, alpha, beta)
 
-		converged(i) && return GF.(Energy,[epsBulk,epsSurf,epsDualSurf][desired_keys])
+		converged(i) && return GF.(Energy, [epsBulk,epsSurf,epsDualSurf][desired_keys])
 			
     gBulk = GF(Energy,epsBulk)
 																		# auxiliary vars

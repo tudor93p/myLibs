@@ -1228,6 +1228,41 @@ function execute_julia_function(args,nr_results,read_write_funs,file_function;Nr
 end
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+dict_constr(::OrderedDict) = OrderedDict
+dict_constr(::AbstractDict) = Dict 
+dict_constr(::NamedTuple) = NamedTuple 
+
+
+function dict_like(source::Union{<:AbstractDict, <:NamedTuple}, dest::List)
+	
+	dict_constr(source)(dest)
+	
+end 
+	
+function dict_like(source::Union{<:AbstractDict, <:NamedTuple},
+									 dest::Union{<:AbstractDict, <:NamedTuple})
+
+	dict_like(source, (k=>v for (k,v) in pairs(dest)))
+
+end 
+
+
+function dict_like(source::Union{<:AbstractDict, <:NamedTuple}, dest::Pair)
+
+	dict_like(source, [dest])
+
+end 
+
+
+
+
 
 
 #===========================================================================#
@@ -1247,9 +1282,11 @@ function pickrand(params)
 
 end 
 
-dict_constr(::OrderedDict) = OrderedDict
-dict_constr(::AbstractDict) = Dict 
-dict_constr(::NamedTuple) = NamedTuple 
+
+
+
+
+
 
 
 function DictRandVals(params::Union{<:AbstractDict, <:NamedTuple}
@@ -1671,6 +1708,20 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+
+
+#merge(D1, dict_constr(D1)(pairs(D2)))
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 
 
