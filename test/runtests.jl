@@ -13,14 +13,14 @@ end
 #include("algebra.jl")
 
 
-"lattices" |> pr_in 
+#"lattices" |> pr_in 
 
 #"geometry" |> pr_in 
 
 #"lattices_attachleads" |> pr_in
 
 #
-#"tbmodel" |> pr_in 
+"tbmodel" |> pr_in 
 #
 #"utils" |> pr_in 
 

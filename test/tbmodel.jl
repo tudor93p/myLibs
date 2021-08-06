@@ -12,7 +12,7 @@ hopp(ri,rj) = isapprox(norm(ri-rj),0)*2.0+isapprox(norm(ri-rj),1)*1.0
 
 #println(TBmodel.HoppingMatrix(R; Hopping=hopp))
 
-TBL = ([0,1], [0,[2,0]], R)
+TBL = ([0,1], [[1,0.],[2.,0]], R)
 
 inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
 
@@ -24,23 +24,32 @@ inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
 
 @show size.(Tms)
 
+for (argH, k) in [("k", rand(2)), ("phi", rand())]
 
+	println()
+	@show argH 
+	@show size(TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH=argH)(k))
 
+end 
+
+println()
 H = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp)
 
 
-@show H(1) - H([2]) + H([3,4]) - H([5,6,7])
+
+#@show H(1) - H([2]) + H([3,4]) - H([5,6,7])
+
+@show H(1)
 
 
 
-println()
-println()
 println()
 
 F = Operators.Position_Expectation(1, R, nr_orb=1)#; kwargs...)#, fpos=df[2])
 
 
 E =  LinearAlgebra.eigen(Matrix(H(1)))
+												 
 
 #@show propertynames(E)
 
@@ -63,6 +72,8 @@ P = E.vectors;
 #
 #
 #---------------------------------------------------------------------------#
+
+
 
 
 println("\n\n------------ Parallel and perpedicular Hamilt ------\n")
@@ -94,6 +105,7 @@ println()
 
 
 @show intra 
+
 println("\ninter:")
 !isnothing(inter) && println.(inter)
 
@@ -109,10 +121,11 @@ H = TBmodel.Bloch_Hamilt(tbl; Hopping=hopp)
 
 println()
 
+
 Hpar = TBmodel.BlochHamilt_Parallel(L, Dict(:Hopping=>hopp))
 
 
-@show Hpar(rand(Lattices.LattDim(L)-1))
+@show Hpar(rand()) #Bloch phase #Lattices.LattDim(L)-1))
 
 println()
 
@@ -135,7 +148,7 @@ HPar,Hperp = TBmodel.BlochHamilt_ParallPerp(L, Dict(:Hopping=>hopp))
 @show Hperp[1]
 
 
-@show Hpar(rand(Lattices.LattDim(L)-1))
+@show Hpar(rand())#Bloch phase 
 
 
 

@@ -64,21 +64,24 @@ end
 function BlochHamilt_Parallel_(Latt::Lattices.Lattice,
 															arg1_BH::Function,
 															arg2_BH::AbstractDict,
-															surface::Int,
+															surface::Int;
+															argH="phi"
 															)::Function
  
 	# Remove the specified dimension "surface" => dimension = d-1
   
 	Bloch_Hamilt(arg1_BH(Lattices.ReduceDim(Latt, surface));
-							 arg2_BH..., argH="phi")
+							 arg2_BH..., argH=argH)
 
-	# a function of k parallel, vector of dimension d-1
+	# Can be a function of  ---- k_parallel, a vector of length d-1
+	# 											---- the Bloch phase phi = k_parallel dot a
+	#
   
 end
 
-function BlochHamilt_Parallel(args...)::Function 
+function BlochHamilt_Parallel(args...; kwargs...)::Function 
 
-	BlochHamilt_Parallel_(args_BHPP(args...)...)
+	BlochHamilt_Parallel_(args_BHPP(args...)...; kwargs...)
 
 end 
 
@@ -100,9 +103,25 @@ end
 
 
 
-iter_matrix(A::AbstractMatrix)::Vector = collect(eachcol(A))
+function iter_matrix(A::AbstractMatrix{T})::Vector{Vector{T}} where T<:Number
 
-iter_matrix(A::AbstractVector)::Vector = A 
+	[collect(a[:]) for a in eachcol(A)]
+
+end 
+
+
+function iter_matrix(A::AbstractVector{T})::Vector{T} where T<:Number 
+
+	collect(A)
+
+end 
+
+	
+function iter_matrix(A::AbstractVector{<:AbstractVector{<:T}})::Vector{Vector{T}} where T<:Number
+
+	[collect(a[:]) for a in A]
+
+end 
 
 
 
@@ -127,7 +146,7 @@ function BlochHamilt_Perpendicular_(Latt::Lattices.Lattice,
 	TBL = arg1_BH(Lattices.KeepDim(Latt, surface))
 
 
-	ms = [length(m)==1 ? m[1] : error() for m in iter_matrix(TBL[1])]
+	ms = [length(m)==1 ? first(m) : error() for m in iter_matrix(TBL[1])]
 
 	Rms = Utils.VecAsMat.(iter_matrix(TBL[2]), 2)
 
@@ -333,7 +352,6 @@ function Compute_Hopping_Matrices(
 	ms,Rms = map(iter_matrix, Lattice[1:2])
 
 
-
 	# if few procs, Rms will be distributed. Otherwise -> atoms
 	
   Tms = (parallel && nprocs()<=length(Rms) ? pmap : map)(Rms) do Rm
@@ -361,7 +379,7 @@ function Compute_Hopping_Matrices(
 	return (Tms[intra], 
 					Utils.zipmap(inter) do  i
 															 
-						collect(ms[i]), collect(Rms[i]), Tms[i]
+						ms[i], Rms[i], Tms[i]
 
 					end |> collect)
 
@@ -420,25 +438,26 @@ function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, inter::Utils.List;
 
   argH = get_argH(argH, ms, Rms)
 
-
 	@assert !any(m-> m==-m, ms)
 
-  iter2 = [Rms,ms][findfirst(argH .== ["k","phi"])]
+	iter2 = [Rms,ms][findfirst(argH .== ["k","phi"])]
 
 
+#  return function h(k)
 
-  return function h(k)
-
-		h1 = sum((T*exp(Algebra.dot(k,R)im) for (T,R) in zip(Tms,iter2)))
-
+#		phases = (Algebra.dot(k,R) for R in iter2) 
 					# Bloch phase ℯ^(i 𝐤 ⋅ 𝐑 ), even if dimensions mismatch 
 					# 														(first common n entries are used)
-   
+
+	return function h(k)
+
+		phases = (LA.dot(k,R) for R in iter2)
+
+		h1 = sum(T*exp(phi*im) for (T,phi) in zip(Tms,phases))
+
     return intra + h1 + h1'
 
   end
-
-
 
 
 end
@@ -451,8 +470,12 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_argH(argH,ms,Rms)
+function get_argH(argH::AbstractString, 
+									ms::Tuple{Vararg{T, N}},									
+									Rms::Tuple{Vararg{AbstractVector{Float64}, N}},
+									)::String where N where T<:Union{Int, AbstractVector{Int}}
   
+
   args = ["k","phi"]
 
   argH in args && return argH
@@ -462,9 +485,7 @@ function get_argH(argH,ms,Rms)
 	# it should be physical 'k' if the length of the lattice vectors,
 	#	 is equal to their number, and Bloch phase 'phi' otherwise
 
-  length(ms[1]) == length(Rms[1]) && return args[1]
-
-  return args[2]
+	return length(ms[1])==length(Rms[1]) ? args[1] : args[2]
 
 end
 
