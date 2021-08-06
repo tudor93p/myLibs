@@ -110,7 +110,7 @@ function Diagonalize(H, kPoints, filename=nothing;
 
 	nr_bands_calc = get_nrbands(nr_bands, H(k1))
 
-	if isnothing(operators)
+	if isnothing(operators) || isempty(operators)
 		operators = [[],[]]
 	end 
 
