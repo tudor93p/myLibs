@@ -1262,6 +1262,12 @@ end
 
 
 
+function adapt_merge(D0::Union{<:AbstractDict, <:NamedTuple}, dicts...)
+
+	merge(D0, (dict_like(D0, d) for d in dicts)...) 
+
+end 
+
 
 
 
