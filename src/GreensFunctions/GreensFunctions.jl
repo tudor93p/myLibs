@@ -275,13 +275,24 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function GF_Decimation(Hopping, VirtLeads=Dict(), LeadLayerSlicer=nothing;
-											 NrLayers, AtomsOfLayer, IndsAtomsOfLayer=nothing,
-											 graph_fname="",kwargs...)
+function GF_Decimation(Hopping::AbstractDict, 
+											 VirtLeads::AbstractDict=Dict(),
+											 LeadLayerSlicer=nothing;
+											 NrLayers::Int, 
+											 AtomsOfLayer::Function, 
+											 IndsAtomsOfLayer=nothing,
+											 graph_fname::AbstractString="",
+											 kwargs...)
 
 	HoppMatr(args...) = TBmodel.HoppingMatrix(AtomsOfLayer.(args)...;Hopping...)
 
-	return GF_Decimation(HoppMatr,NrLayers;VirtLeads...,translate=LeadLayerSlicer,plot_graph=(graph_fname,IndsAtomsOfLayer))
+	# will be called as 'HoppMatr(layer_n, layer_m)' or just 'HoppMatr(layer_n)'
+
+
+	return GF_Decimation(HoppMatr, NrLayers;
+											 VirtLeads..., 
+											 translate=LeadLayerSlicer,
+											 plot_graph=(graph_fname,IndsAtomsOfLayer))
 	
 
 
@@ -295,7 +306,9 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 											 LeftLead=nothing, RightLead=nothing, 
 											 translate=nothing, plot_graph=nothing)
 
-	g = LayeredSystem.LayeredSystem_toGraph(HoppMatr,NrLayers;LeftLead=LeftLead,RightLead=RightLead)
+	g = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers; 
+																					LeftLead=LeftLead, 
+																					RightLead=RightLead)
 
 
 #	if !isnothing(plot_graph)

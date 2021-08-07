@@ -398,21 +398,29 @@ end
 
 #function WLO(H,kPoints,filename=nothing;kLabels=axes(kPoints,1),parallel=false,tol=1e-8,operators=[[],[]],nr_bands=nothing,sigma=tol/10)
 
-function occupied(E,P)
+function occupied(E::AbstractVector{Float64},
+									P::AbstractMatrix{ComplexF64}; 
+									dim::Int)::AbstractMatrix{ComplexF64}
 
-  return P[:,sortperm(E) .<= div(size(E,1),2)]
+	selectdim(P, [2,1][dim], sortperm(E) .<= div(length(E), 2) )
 
 end
 
-function WLO_(psi,kPoints)
+function WLO_(psi::Function, kPoints::AbstractMatrix{Float64}; dim::Int)::Matrix{ComplexF64}
 
-  Psi = map(psi,eachrow(kPoints[1:end-1,:]))
+	Psi = [psi(selectdim(kPoints, dim, i)) for i=1:size(kPoints,dim)-1]
 
   return Psi[1]'*mapreduce(P->P*P',*,Psi[2:end])*Psi[1]
 
 end
 
-function WLO(H,kPoints;tol=1e-8,nr_bands=nothing,sigma=tol/10)
+
+
+function WLO(H::Function,
+						 kPoints::AbstractMatrix{<:Float64};
+						 tol::Float64=1e-8,
+						 nr_bands=nothing,
+						 sigma::Float64=tol/10)::Matrix{ComplexF64}
 
   eig = get_eigen(H,true;tol=tol,nr_bands=nr_bands,sigma=sigma)
 

@@ -17,20 +17,19 @@ import ..Utils, ..TBmodel, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
-function ToBasis(Nambu=false,Zero=0)
+function ToBasis(Nambu::Bool=false,Zero=0)
 
-  return Nambu ? h->[h Zero; Zero -conj(h)] : h->h 
+  Nambu ? h->[h Zero; Zero -conj(h)] : h->h 
 
 end
 
-function BasisInfo(using_SC_basis)
+function BasisInfo(using_SC_basis::Bool)::Function
 
 	!using_SC_basis && return (label=nothing;kwargs...) -> [1.0]
 
-	function get_vector(label=nothing; kwargs...)
+	function get_vector(label::AbstractString; kwargs...)::Vector{Float64}
 #			kwargs:#		charge=false, spin=false, electron=false, hole=false)
 	
-		if !isnothing(label)
 
 			label=="Charge" && return get_vector(;charge=true)
 
@@ -43,8 +42,11 @@ function BasisInfo(using_SC_basis)
 			label=="Sz" && return get_vector(;spin=true)
 
 			error("Label $label not understood")
-		end 
 
+	end 
+
+
+	function get_vector(label::Nothing=nothing; kwargs...)::Vector{Float64}
 
 		out = map([(1,1), (1,-1), (-1,1), (-1,-1)]) do (C,S)
 
@@ -62,13 +64,20 @@ function BasisInfo(using_SC_basis)
 
 		end 
 
-		length(unique(out))==1 && return convert(Vector{Float64}, out[1:1])
+		return length(unique(out))==1 ? out[1:1] : out 
 
-		return convert(Vector{Float64}, out)
 
 	end 
 
 end
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{Float64}; 

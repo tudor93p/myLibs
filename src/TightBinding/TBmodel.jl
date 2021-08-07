@@ -298,22 +298,23 @@ end
 
 
 function HoppingMatrix(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
-											 Hopping::Function, Nr_Orbitals=1, 
-											 parallel=false, hopp_cutoff=1e-6, kwargs...
+											 Hopping::Function, 
+											 Nr_Orbitals::Int=1, 
+											 parallel::Bool=false, 
+											 hopp_cutoff::Float64=1e-6, 
+											 kwargs...
 											 )::SpA.SparseMatrixCSC
-
-# Nr_Orbitals = trunc(Int64,sqrt(length(Hopping(Rsi[1,:],Rsj[1,:]))))
 
   indsvals_to_Tm(vcat(
 
       (parallel ? pmap : map)(enumerate(eachcol(Rsi))) do (i,Ri)
       	# for each atom i at position Ri
 
-				return get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, Nr_Orbitals)
+								get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, Nr_Orbitals)
 
 	  	# find the atoms where it hopps and the amplitudes
 
-    end...),size(Rsi,2)*Nr_Orbitals, size(Rsj,2)*Nr_Orbitals)
+    end...), size(Rsi,2)*Nr_Orbitals, size(Rsj,2)*Nr_Orbitals)
 
 end
 
