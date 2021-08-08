@@ -2064,9 +2064,10 @@ function get_Bonds(latt::Lattice;
 
 	n = ui[neighbor_index + count(ud.<TOLERANCE)]
 
-	ci = CartesianIndices((IndsVecs(AtomsUC), 
-												 IndsVecs(AtomsUC), 
-												IndsVecs(UCs)))[n] 
+
+	iA,iUC = axes.((AtomsUC,UCs), VECTOR_STORE_DIM)
+
+	ci = CartesianIndices((iA, iA, iUC))[n]
 
 	return Utils.mapif(!isempty, ci) do cart_idx 
 
