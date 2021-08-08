@@ -531,14 +531,12 @@ function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 
 		out1 = slicer(name, index)
 
-		@show ou1 
 		isnothing(out1) && return nothing 
 
 		@assert out1 isa T 
 		
 		out2 = slicer(args...)
 
-		@show ou2 
 
 		isnothing(out2) && return nothing 
 
@@ -546,10 +544,6 @@ function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 
 		(ni1,slice1),(ni2,slice2) = out1,out2
 
-		println("\n****")
-		@show ni1 slice1 ni2 slice2 
-		@show  (ni1...,ni2...)  (slice1...,slice2...)
-		println("****\n")
 		
 
 		return (ni1...,ni2...), (slice1...,slice2...)
@@ -772,9 +766,7 @@ function Distribute_Leads(
 
 	function slicer(name::String,index::Int64)
 
-		println("\n--------------Here")
 
-		@show name index 
 		name in ["LeftLead","RightLead"] && return (name,index),(Colon(),)
 
 		if name=="Atom"
@@ -783,21 +775,17 @@ function Distribute_Leads(
 		
 			isnothing(lead) && return nothing
 
-			@show lead 
 
 			out1, (slice1, ) = slicer(lead[1]...)
 
-			@show out1 slice1 
 
 			i_at = indexin(index, AtomsInLead(lead[1]))[1]
 
 			slice2 = TBmodel.Hamilt_indices(1:Nr_Orbitals, i_at, Nr_Orbitals)
 
-			@show i_at slice2 
 
 			slice1 isa Colon && return out1, (slice2, )
 
-			@show  (slice1[slice2],)
 
 			return out1, (slice1[slice2],)
 
@@ -808,23 +796,16 @@ function Distribute_Leads(
 
 		allleads = LeadsOfSide(side)
 
-		@show side index 
 
 		length(allleads)==1 && return (side,index),(Colon(),)
 
 	 	lead = findfirst(isequal(name),allleads)
 
-		@show lead 
 
 
 		R = Utils.sepLengths_cumulRanges(LeadSizes[side][min(end,index)], lead) 
 
-		@show R typeof(R) 
-
-		println("------Here\n")
-
-
-		return (side,index), R
+		return (side,index), (R,)
 
 
 	end
@@ -860,22 +841,18 @@ function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, Nr_Orb
 
 		out1 = slicer(string(name), index)
 
-		@show out1 
 
 		isnothing(out1) && return nothing 
 
 		out2 = slicer(args...)
 
-		@show out2 
 
 
 		isnothing(out2) && return nothing 
 
 		(ni1,slice1),(ni2,slice2) = out1,out2
 
-		@show (ni1...,ni2...) (slice1...,slice2...)
 
-		println("-==============\n")
 
 
 		return (ni1...,ni2...),(slice1...,slice2...)

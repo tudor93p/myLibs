@@ -19,7 +19,7 @@ function LDOS(Gr::AbstractMatrix{ComplexF64}; kwargs...)
 
 end
 
-function DOS(Gr::AbstractMatrix{ComplexF64}; Op=[1], kwargs...)::Real
+function DOS(Gr::AbstractMatrix{ComplexF64}; Op=[1], kwargs...)
 
 	trace = Operators.Trace("orbitals", Op; sum_up=true, kwargs...)
 	

@@ -452,7 +452,6 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 
 						@assert length(slice)==2
 
-						@show name1 index1 name2 index2 dir slice n1i1n2i2 
 
 						return G(node(n1i1n2i2...)...,dir)[slice...]
 
