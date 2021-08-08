@@ -584,7 +584,7 @@ end
 #---------------------------------------------------------------------------#
 
 function Combine_Leads(leads, atoms::AbstractMatrix{Float64}, label; 
-											 dim::Int)
+											 dim::Int, kwargs...)
 
 	isempty(leads) && return nothing
 
