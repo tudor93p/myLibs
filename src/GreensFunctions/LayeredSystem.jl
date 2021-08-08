@@ -150,8 +150,9 @@ end
 
 
 
-function LeadAtomOrder(nr_at::Int=0; 
-											 LeftLead=nothing, RightLead=nothing, kwargs...)
+function LeadAtomOrder(nr_at::Int=0; dim::Int,
+											 LeftLead=nothing, RightLead=nothing, 
+											 kwargs...)::Dict
 
 	LNames,LSizes = begin
 
@@ -159,7 +160,7 @@ function LeadAtomOrder(nr_at::Int=0;
 
 		local I = findall(!isnothing,Ls)
 
-		["LeftLead","RightLead"][I],[size.(Ls[i][:head],1) for i in I]
+		["LeftLead","RightLead"][I],[size.(Ls[i][:head],dim) for i in I]
 
 	end
 
@@ -179,21 +180,12 @@ function LeadAtomOrder(nr_at::Int=0;
 		
 	end
 
-
-#		LN in LNames 
-#
-#		i = findfirst(isequal(LN),LNames)
-#
-#		isnothing(i) && error("'$LN' not found")
-#
-#		out[(LN,LSizes[i])]
-
-
-
 	return out
 
-
 end
+ 
+
+
 
 function AllAtoms(latt::Lattices.Lattice; kwargs...)::Matrix{Float64}
 
@@ -221,73 +213,79 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Distribute_Atoms(Atoms, isbond, LeadContacts; dim=1)
+function Distribute_Atoms(Atoms::AbstractMatrix{<:Number}, 
+													isbond::Function, 
+													LeadContacts::AbstractVector{<:AbstractVector{Int}}; 
+													dim::Int)::Dict{Symbol, Any}
 			"""	
 	Atoms::Array{Float64,2} -> positions of atoms in the scattering region
 
-	isbond(a,b)::Function -> says whether there's a bond between a and b
-										(possibly much faster than computing the Hamiltonian)
+isbond(a,b)::Function -> says whether there's a bond between a and b
+									(possibly much faster than computing the Hamiltonian)
 
-	LeadContacts
+LeadContacts
 
-			"""
-
-
-
-			# -------- find layers iteratively ----------- # 
+		"""
 
 
-	function f(layer, candidates, out=Dict{Int64,Int64}())
 
+		# -------- find layers iteratively ----------- # 
+
+
+	function find_layers_iter(layer::Int, 
+								 candidates::AbstractVector{Int}, 
+								 out::AbstractDict{Int,Int}=Dict{Int64,Int64}()
+								 )::Tuple{Int,Dict{Int,Int}}
+	
 		if isempty(candidates) || size(Atoms,dim)==out.count
 		
 			Set(keys(out))==Set(axes(Atoms,dim)) && return layer-1,out
-
+	
 			error("There are unallocated atoms.")
-
+	
 		end
-
+	
 		merge!(out, Dict(c=>layer for c in candidates))
-
+	
 		candidates = filter(setdiff(axes(Atoms,dim), keys(out))) do i
-
+	
 							any(candidates) do j 
-
+	
 								isbond(selectdim(Atoms, dim, j), selectdim(Atoms, dim, i))
-
+	
 							end 
 		end 
-
-
-		return f(layer+1, candidates, out)
-
+	
+	
+		return find_layers_iter(layer+1, candidates, out)
+	
 	end
-
-
-	N,D = f(1,vcat(LeadContacts...) |> lc -> isempty(lc) ? [1] : lc)
-
-
+	
+	
+	N,D = find_layers_iter(1, vcat(LeadContacts...) |> lc -> isempty(lc) ? [1] : lc)
+	
+	
 	# -------- sanity check and return -------------------- #
-
-
+	
+	
 	LayerOfAtom, IndsAtomsOfLayer = Utils.FindPartners(D, sortfirst=true)
-
-
-
-
+	
+	
+	
+	
 	return Dict(
-
+	
 			:NrLayers=> N,
-
+	
 			:LayerOfAtom => LayerOfAtom,
-
+	
 			:IndsAtomsOfLayer => IndsAtomsOfLayer,
-
+	
 			:AtomsOfLayer => L->selectdim(Atoms, dim, IndsAtomsOfLayer(L)),
-
+	
 						)
-
-
+	
+	
 end
 
 
@@ -299,21 +297,23 @@ end
 
 
 function get_LeadContacts(Atoms; Leads=[], isBond=nothing,
-																				LeadContacts=nothing, kwargs...)
-	
-	!isnothing(LeadContacts) && LeadContacts
+																			LeadContacts=nothing, 
+																			kwargs...)::Vector{Vector{Int}}
 
-	isempty(Leads) | isnothing(Atoms) && return []
+!isnothing(LeadContacts) && return LeadContacts
 
-	return [findall(any.(eachcol(isBond(L[:head][1],Atoms)))) for L in Leads]
+isempty(Leads) | isnothing(Atoms) && return []
+
+return [findall(any.(eachcol(isBond(L[:head][1],Atoms)))) for L in Leads]
 
 end
 
 
 
 
-function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::AbstractDict;
-											 get_leadcontacts=false, kwargs...)
+function LayerAtomRels_(Atoms::AbstractMatrix{<:Number}, 
+												LayerAtom::AbstractDict;
+											 get_leadcontacts::Bool=false, kwargs...)
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 
@@ -335,7 +335,7 @@ end
 
 
 function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
-											 get_leadcontacts=false, dim, kwargs...)
+											 get_leadcontacts=false, dim::Int, kwargs...)
 
 															#	all atoms belong to the same layer 
 	if LayerAtom=="trivial" 
@@ -455,7 +455,7 @@ function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
 
 
 
-	VirtLeads, LeadRels = Distribute_Leads(Leads, LeadContacts; Nr_Orbitals=Nr_Orbitals, LayerAtom...)
+	VirtLeads, LeadRels = Distribute_Leads(Leads, LeadContacts; Nr_Orbitals=Nr_Orbitals, LayerAtom..., kwargs...)
 	
 	if isnothing(Nr_Orbitals) || (
 													!isempty(Leads) && !haskey(Leads[1],:intracell)
@@ -552,11 +552,11 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Check_AtomToLayer(LeadContacts=[];kwargs...)
+function Check_AtomToLayer(LeadContacts=[]; kwargs...)::Bool
 	
 	for key in [:NrLayers,:LayerOfAtom,:IndsAtomsOfLayer,:AtomsOfLayer]
 		
-		haskey(kwargs,key) || return false
+		haskey(kwargs, key) || return false
 
 	end
 
@@ -583,7 +583,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Combine_Leads(leads,atoms,label)
+function Combine_Leads(leads, atoms::AbstractMatrix{Float64}, label; 
+											 dim::Int)
 
 	isempty(leads) && return nothing
 
@@ -603,7 +604,7 @@ function Combine_Leads(leads,atoms,label)
 
 			(k=>leads[1][k] for k in [:intracell,:intercell,:GF])...
 			
-			)), size.(leads[1][:intracell],1)
+			)), size.(leads[1][:intracell],dim)
 
 	end
 
@@ -623,20 +624,20 @@ function Combine_Leads(leads,atoms,label)
 
 		:label =>	label,
 
-		:head => map(1:nr_ucs) do j vcat(f(:head,j)...) end,
+		:head => map(1:nr_ucs) do j cat(f(:head,j)...,dims=dim) end,
 		)
 
 	!hamilt && return lattice_out,nothing
 
 	NewLead = merge(lattice_out, Dict(
 
-		:coupling => vcat(coupling.(leads)...),
+		:coupling => cat(coupling.(leads)...;dims=dim),
 
 		:intracell => map(1:nr_ucs) do j Utils.BlkDiag(f(:intracell,j)) end,
 
 		:intercell => map(1:nr_ucs) do j Utils.BlkDiag(f(:intercell,j)) end,
 
-		:GF => function (E)
+		:GF => function total_GF(E::Number)::Vector{Matrix{ComplexF64}}
 
 							gfs_at_E = [l[:GF](E) for l in leads]	# one single evaluation!
 							
@@ -650,7 +651,7 @@ function Combine_Leads(leads,atoms,label)
 		
 						))
 
-	subsizes = map(1:nr_ucs) do j size.(f(:intracell,j),1) end
+	subsizes = map(1:nr_ucs) do j size.(f(:intracell,j),dim) end
 
 	return NewLead,subsizes
 
@@ -699,12 +700,12 @@ function Distribute_Leads(
 
 		for (side,n) in keys(lead_distrib)
 
-			all(isequal(n), layers) && push!(lead_distrib[(side,n)],iL)
+			all(isequal(n), layers) && push!(lead_distrib[(side,n)], iL)
 
 		end	
 	end
 
-	if sum(length.(values(lead_distrib))) != length(Leads)
+	if sum(length, values(lead_distrib)) != length(Leads)
 
 		error("A lead is not coupled to terminal layers.")
 
@@ -717,7 +718,7 @@ function Distribute_Leads(
 
 	for ((side,n),i) in filter!(p->!isempty(p.second),lead_distrib)
 
-		out = Combine_Leads(Leads[i],	AtomsOfLayer(n), side)
+		out = Combine_Leads(Leads[i],	AtomsOfLayer(n), side; kwargs...)
 
 		VirtLeads[Symbol(side)] = out[1]
 		
