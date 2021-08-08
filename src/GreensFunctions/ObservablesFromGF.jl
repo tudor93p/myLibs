@@ -168,8 +168,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function TunnelingConductance_LeeFisher(GD,i,j=i;f=LA.tr)
-
+function TunnelingConductance_LeeFisher(GD::Function, i::Int, j::Int=i;
+																				f::Function=LA.tr)
 
 	G(n,m) = (g -> (g' - g)/(2im))(GD(n,m))
 

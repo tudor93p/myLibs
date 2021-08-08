@@ -833,7 +833,6 @@ function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, Nr_Orb
 
 		(ni1,slice1),(ni2,slice2) = out1,out2
 
-
 		return (ni1...,ni2...),(slice1...,slice2...)
 	
 	end
@@ -851,7 +850,7 @@ function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, Nr_Orb
 		!isnothing(out) && return out
 								# isnothing(out) means the atom is in one of the leads
 
-		return LeadSlicer(name,index)
+		return LeadSlicer(name, index)
 
 	end
 
