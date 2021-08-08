@@ -634,9 +634,9 @@ function Combine_Leads(leads, atoms::AbstractMatrix{Float64}, label;
 
 		:coupling => vcat(coupling.(leads)...),
 																		
-		:intracell => map(1:nr_ucs) do j Utils.BlkDiag(f(:intracell,j)) end,
+		:intracell => map(1:nr_ucs) do j ArrayOps.BlkDiag(f(:intracell,j)) end,
 
-		:intercell => map(1:nr_ucs) do j Utils.BlkDiag(f(:intercell,j)) end,
+		:intercell => map(1:nr_ucs) do j ArrayOps.BlkDiag(f(:intercell,j)) end,
 
 		:GF => function total_GF(E::Number)::Vector{Matrix{ComplexF64}}
 
@@ -644,7 +644,7 @@ function Combine_Leads(leads, atoms::AbstractMatrix{Float64}, label;
 							
 							return map(1:nr_ucs) do j 		
 
-								Utils.BlkDiag(q[min(j,end)] for q in gfs_at_E)
+								ArrayOps.BlkDiag(q[min(j,end)] for q in gfs_at_E)
 
 							end
 

@@ -501,7 +501,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function BlkDiag(arg::T) where T
+function BlkDiag(arg::T)::Matrix where T
 	
 	Utils.isList(T,AbstractMatrix) && return cat(arg...,dims=(1,2))
 
