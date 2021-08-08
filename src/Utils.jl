@@ -750,13 +750,13 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Quadrant(A::AbstractMatrix, C::AbstractMatrix; dim)::Int
+function Quadrant(A::AbstractMatrix, C::AbstractMatrix; dim::Int)::Int
 
 	Quadrant(A.-C; dim=dim)
 
 end
 
-function Quadrant(A::AbstractMatrix; dim)::Int
+function Quadrant(A::AbstractMatrix; dim::Int)::Int
 
 	Quadrant.(eachslice(A, dims=dim))
 

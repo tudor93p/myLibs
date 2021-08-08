@@ -748,7 +748,7 @@ function Distribute_Leads(
 
 	nr_at = sum(length∘IndsAtomsOfLayer, 1:NrLayers)
 
-	AtomsInLead,LeadOfAtom = Utils.FindPartners(LeadAtomOrder(nr_at; VirtLeads...))
+	AtomsInLead,LeadOfAtom = Utils.FindPartners(LeadAtomOrder(nr_at; kwargs..., VirtLeads...))
 
 
 
