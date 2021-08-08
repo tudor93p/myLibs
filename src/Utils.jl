@@ -1763,11 +1763,21 @@ end
 
 function RecursiveMerge_(u::AbstractMatrix{<:Number},
 												 v::AbstractVector{<:Number}; 
-												 dim=2, kwargs...)::AbstractMatrix{<:Number}
+												 dim::Int, kwargs...)::AbstractMatrix{<:Number}
 	
 	cat(u, VecAsMat(v, dim), dims=dim)
 
 end 
+
+function RecursiveMerge_(u::AbstractMatrix{<:Number},
+												 v::AbstractMatrix{<:Number}; 
+												 dim::Int, kwargs...)::AbstractMatrix{<:Number}
+	
+	cat(u, v, dims=dim)
+
+end 
+
+
 
 
 function RecursiveMerge_(A::AbstractDict{Ka,Va}, B::AbstractDict{Kb,Vb}; 

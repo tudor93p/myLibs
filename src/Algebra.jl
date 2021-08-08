@@ -1452,9 +1452,9 @@ end
 
 
 function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 
-														atoms1::AbstractMatrix, 
-														atoms2::AbstractMatrix=atoms1; 
-														dim=1)
+												 atoms1::AbstractMatrix{<:Number}, 
+												 atoms2::AbstractMatrix{<:Number}=atoms1; 
+												 dim::Int)::Vector{Vector{Vector{<:Number}}}
 
 	map(bond_indices) do (a,b)
 

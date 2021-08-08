@@ -873,7 +873,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_hoppings(dev_hopp, LeadLayerSlicer, VirtLeads) 
+function get_hoppings(dev_hopp::Function, 
+											LeadLayerSlicer::Function, 
+										 VirtLeads::AbstractDict)::Function
 
 """
 	input: 
@@ -892,7 +894,7 @@ function get_hoppings(dev_hopp, LeadLayerSlicer, VirtLeads)
 #(master_lead, unit_cell),atom_slice 	= LeadLayerSlicer(lead_name, unit_cell)
 #																= LeadLayerSlicer("Atom", atom_index)
 
-	function ((i,j), Rij=nothing)
+	function get_h((i,j)::Tuple{Int,Int}, Rij=nothing)
 
 		(K1, u1, K2, u2), slice = LeadLayerSlicer("Atom",i,"Atom",j)
 

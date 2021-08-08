@@ -245,7 +245,8 @@ end
 
 
 
-function BondTransmission(G, SE_lead, Bonds, RBonds, Hoppings; f=LA.tr, kwargs...)
+function BondTransmission(G::Function, 
+													SE_lead, Bonds, RBonds, Hoppings; f=LA.tr, kwargs...)
 
 	W = GreensFunctions.DecayWidth(SE_lead)
 
