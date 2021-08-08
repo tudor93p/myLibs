@@ -86,6 +86,7 @@ function SelfEn_fromGDecim(G, VirtLeads, LeadLayerSlicer)
 
 		dir = Dict("LeftLead"=>"left","RightLead"=>"right")[K]
 
+
 		return SelfEn(inter[min(i,end)]'[slice...,slice...],
 																	G(string(k),i+1,dir=dir)
 																		)
@@ -448,6 +449,8 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 																										dir::String="both")
 					
 						n1i1n2i2,slice = translate(name1,index1,name2,index2) 
+
+						@assert length(slice)==2
 
 						@show name1 index1 name2 index2 dir slice n1i1n2i2 
 
