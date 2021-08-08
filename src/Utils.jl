@@ -1788,7 +1788,8 @@ function RecursiveMerge_(A::AbstractDict{Ka,Va}, B::AbstractDict{Kb,Vb};
 end 
 
 
-function RecursiveMerge(arg1::AbstractDict, args...; kwargs...)::AbstractDict{<:Any, Any} 
+function RecursiveMerge(arg1::AbstractDict, args...; 
+												kwargs...)::Dict{<:Any, Any} 
 
 	# mergewith does not preserve OrderedDict! It turns it into Dict 
 	

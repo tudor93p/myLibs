@@ -1591,10 +1591,15 @@ end
 
 
 function good_methods(NrParamSets::Int, F::Function, args...)::Bool
-	
+
+	possib_types = [UODict, 
+									AbstractVector{<:UODict}, 
+									NTuple{N,<:UODict} where N]
+
+
 	for i in 1:NrParamSets
 
-		any(Base.product(([UODict,AbstractVector{UODict}] for _=1:i)...)) do tup
+		any(Base.product((possib_types for _=1:i)...)) do tup
 	
 #		any([NTuple{i, <:Union{<:UODict,<:AbstractVector{<:UODict}}}]) do tup 
 								 
