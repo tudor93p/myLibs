@@ -1596,18 +1596,12 @@ function good_methods(NrParamSets::Int, F::Function, args...)::Bool
 									AbstractVector{<:UODict}, 
 									NTuple{N,<:UODict} where N]
 
-
-	for i in 1:NrParamSets
-
-		any(Base.product((possib_types for _=1:i)...)) do tup
+	any(Base.product((possib_types for _=1:NrParamSets)...)) do tup
 	
-#		any([NTuple{i, <:Union{<:UODict,<:AbstractVector{<:UODict}}}]) do tup 
-								 
-			hasmethod(F, tup, args...)
+		hasmethod(F, tup, args...)
 
-		end || return false 
+	end || return false 
 
-	end 
 
 	return true 
 
