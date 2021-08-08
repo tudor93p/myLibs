@@ -493,14 +493,18 @@ end
 
 function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 
-	function slicer(name::Symbol, index::Int64)
+	T = Tuple{Tuple{AbstractString,Int},
+						Tuple{Union{Colon, Vector{Int}}}}
+
+	function slicer(name::Symbol, index::Int64)::Union{T,Nothing}
 
 		slicer(string(name), index)
 
 	end 
 
 
-	function slicer(name::String,index::Int64)
+	function slicer(name::String, index::Int64)::Union{T, Nothing}
+
 
 		name == "Layer" && return (name,index),(Colon(),)
 
@@ -517,26 +521,38 @@ function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 		length(atoms) == 1 && return ("Layer",layer),(Colon(),)
 		
 		return ("Layer",layer), (TBmodel.Hamilt_indices(collect(1:Nr_Orbitals),
-															indexin(index,atoms)[1],
-															#findfirst(isequal(index),atoms),
-															Nr_Orbitals)
+															indexin(index,atoms)[1], Nr_Orbitals)
 														,)
 	end
 
 
-	function slicer(name::Union{String,Symbol}, index::Int64, args...)
+	function slicer(name::Union{String,Symbol}, index::Int64, args...)#::Union{Nothing,Tuple{Tuple{String,Int,String,Int}, Tuple{Union{Colon, Vector{Int}}, Union{Colon, Vector{Int}}} 
+
 
 		out1 = slicer(name, index)
 
+		@show ou1 
 		isnothing(out1) && return nothing 
 
+		@assert out1 isa T 
+		
 		out2 = slicer(args...)
+
+		@show ou2 
 
 		isnothing(out2) && return nothing 
 
+		@assert out2 isa T 
+
 		(ni1,slice1),(ni2,slice2) = out1,out2
 
-		return (ni1...,ni2...),(slice1...,slice2...)
+		println("\n****")
+		@show ni1 slice1 ni2 slice2 
+		@show  (ni1...,ni2...)  (slice1...,slice2...)
+		println("****\n")
+		
+
+		return (ni1...,ni2...), (slice1...,slice2...)
 	
 	end 
 

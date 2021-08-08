@@ -193,7 +193,7 @@ end
 
 function Hamilt_indices(orbital, atom, nr_orbitals::Int)
 
-  return orbital .+ (atom .- 1) * nr_orbitals
+	orbital .+ (atom .- 1) * nr_orbitals
 
 end
 
