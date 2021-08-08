@@ -13,13 +13,13 @@ import ..GreensFunctions, ..Utils, ..Algebra, ..Operators, ..LayeredSystem
 #
 #---------------------------------------------------------------------------#
 
-function LDOS(Gr; kwargs...)
+function LDOS(Gr::AbstractMatrix{ComplexF64}; kwargs...)
 
 	DOS(Gr; sum_up=false, kwargs...)
 
 end
 
-function DOS(Gr; Op=[1], kwargs...)
+function DOS(Gr::AbstractMatrix{ComplexF64}; Op=[1], kwargs...)::Real
 
 	trace = Operators.Trace("orbitals", Op; sum_up=true, kwargs...)
 	
@@ -39,7 +39,7 @@ function LDOS_Decimation(GD, NrLayers, indsLayer; Op=[1], VirtLeads...)
 
 	dev_atoms = Dict(("Layer",L) => indsLayer(L) for L in 1:NrLayers)
 
-	nr_at = mapreduce(length, +, values(dev_atoms))
+	nr_at = sum(length, values(dev_atoms))
 
 	lead_atoms = LayeredSystem.LeadAtomOrder(nr_at; VirtLeads...)
 
@@ -90,12 +90,13 @@ end
 
 function ComputeDOSLDOS_Decimation(
 										G, NrLayers, IndsAtomsOfLayer, Op=[1], VirtLeads=[];
-										dos=true, ldos=true, doskey=nothing, ldoskey=nothing)
+										dos=true, ldos=true, doskey=nothing, ldoskey=nothing,
+										kwargs...)
 
 	if ldos
 
-		LDOS = LDOS_Decimation(G, NrLayers, IndsAtomsOfLayer;
-																					 Op=Op, VirtLeads...)
+		LDOS = LDOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
+													 Op=Op, VirtLeads..., kwargs...)
 		
 		if !dos 
 
@@ -113,8 +114,8 @@ function ComputeDOSLDOS_Decimation(
 
 	elseif dos
 
-		DOS = DOS_Decimation(
-											G, NrLayers, IndsAtomsOfLayer; Op=Op, VirtLeads...)
+		DOS = DOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
+												 Op=Op, VirtLeads..., kwargs...)
 
 		isnothing(doskey) && return (DOS, nothing)
 
@@ -138,9 +139,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function JosephsonCurrent(GD,i;f=LA.tr)
+function JosephsonCurrent(GD::Function, i::Int; f=LA.tr)
 
-  return -1im*f(GD(i,i-1) - GD(i-1,i))
+  -1im*f(GD(i,i-1) - GD(i-1,i))
 
   # GD = Green's function with Matsubara frequency wn
   # Furusaki:-- "Although the summation over wn in Eq. (5) i
