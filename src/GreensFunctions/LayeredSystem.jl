@@ -629,21 +629,11 @@ function Combine_Leads(leads, atoms::AbstractMatrix{Float64}, label;
 
 	!hamilt && return lattice_out,nothing
 
-	map(1:nr_ucs) do j 
-		
-		@show j
-		@show size.(f(:head,j))
-		
-	end  
-
-	@show size.(coupling.(leads))
-
-	println()
 
 	NewLead = merge(lattice_out, Dict(
 
-		:coupling => cat(coupling.(leads)...; dims=dim),
-
+		:coupling => vcat(coupling.(leads)...),
+																		
 		:intracell => map(1:nr_ucs) do j Utils.BlkDiag(f(:intracell,j)) end,
 
 		:intercell => map(1:nr_ucs) do j Utils.BlkDiag(f(:intercell,j)) end,
