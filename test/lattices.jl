@@ -1,6 +1,6 @@
-using myLibs: Algebra,Lattices ,Utils 
+using myLibs: Algebra, Lattices, Utils 
 
-
+import LinearAlgebra
 @testset "Superlattice" begin 
 
 
@@ -16,9 +16,10 @@ using myLibs: Algebra,Lattices ,Utils
 
 n = [3,5]
 
-	l1 = Lattices.Superlattice(latt,n)#[5,1])
+	l1 = Lattices.Superlattice(latt, n)#[5,1])
 
-	@show size(Lattices.PosAtoms(l1))
+	@show size(Lattices.PosAtoms(l1)) 
+
 	@show Lattices.LattVec(l1)
 	
 
@@ -29,7 +30,12 @@ n = [3,5]
 	println()
 	println()
 
-	l2 = Lattices.to_myODict(["A"=>rand(2,1),rand(2,5),Dict(2=>rand(2,3)),(["A","B"],rand(2,2)),rand(2,4)],l1)
+	l2 = Lattices.to_myODict(["A"=>rand(2,1),
+														rand(2,5),
+														Dict(2=>rand(2,3)),
+														(["A","B"],rand(2,2)),
+														rand(2,4)
+														],l1)
 
 @show	keys(l2)
 	function test(A,B)
@@ -40,16 +46,16 @@ n = [3,5]
 
 		if size(R)==size(P) 
 
-		d= Algebra.OuterDist(R,P,dim=2)
+			d = Lattices.OuterDist(R, P)
 
-		@test all(count.(eachcol(isapprox.(d,0))).==1)
+			@test all(count.(eachcol(isapprox.(d,0))).==1)
 
-	end 
+		end 
 
 		@test isapprox(A.LattVec,B.LattVec)
 	end 
 
-	@show size.(values(l2),2)
+	@show Lattices.NrVecs.(values(l2))
 
 
 	println()
@@ -85,11 +91,21 @@ n = [3,5]
 
 	 test(l1, l5)
 
+end 
 
-	Lattices.ShiftAtoms(l5, n=n)
-	Lattices.ShiftAtoms!(l5, n=n)
+@testset "ShiftAtoms" begin 
 
+	l5 = Lattices.SquareLattice()
 
+	n = [rand(1:10),rand(1:10)]
+
+a = 	 Lattices.PosAtoms(l5)
+
+b = Lattices.ShiftAtoms(l5, n=n) |> Lattices.PosAtoms
+
+c = 	Lattices.ShiftAtoms!(l5, n=n) |> Lattices.PosAtoms
+
+	@test isapprox(b,c)
 
 #	Lattices.map(l5) do kind::Symbol 
 #
@@ -109,8 +125,8 @@ n = [3,5]
 #	end  |> println 
 
 
-end 
 
+end 
 
 l5 = Lattices.SquareLattice()
 
@@ -126,16 +142,45 @@ for item in Lattices.NearbyUCs(l5)
 
 end
 
+println("Reduce Dim")
 
-Lattices.ReduceDim!(l5,1)
+@show Lattices.LattDims(l5) size(Lattices.LattVec(l5)) 
+
+println.(eachcol(Lattices.LattVec(l5)))
+
+
+Lattices.ReduceDim!(l5, 1)
+
+@show Lattices.LattDims(l5,:absolute) 
+@show Lattices.LattDims(l5,:relative)
+@show Lattices.LattDims(l5,:stored)
+
+@show size(Lattices.LattVec(l5))
+println.(eachcol(Lattices.LattVec(l5)))
+
+println()
+
 
 @show Lattices.ReciprocalVectors(l5)
+
+
+@testset "ReciprocalVectors" begin 
+
+for (x,y) in zip(Lattices.eachvec(Lattices.LattVec(l5)),Lattices.eachvec(Lattices.ReciprocalVectors(l5)))
+
+	@test isapprox(LinearAlgebra.dot(x,y),2pi)
+
+end 
+println()
 
 @show Lattices.BrillouinZone(l5)
 
 
 println()
+end 
+
 println()
+
 
 
 
@@ -145,8 +190,15 @@ n = [3,5]
 
 L = Lattices.Superlattice(Lattices.SquareLattice("A"), [3,2], Labels=x->x[1])
 
+for (k,v) in  L.Atoms 
 
-@show L 
+	@show k v 
+
+	println()
+
+end 
+
+println()
 
 
 
@@ -176,7 +228,7 @@ println()
 for (a,b) in zip(eachcol(Lattices.ReciprocalVectors(L)), eachcol(Lattices.LattVec(L))) 
 
 #	@show a b 
-       @show LinearAlgebra.dot(a,b)
+@test isapprox(2pi,LinearAlgebra.dot(a,b))
 #			 println()
 		 end 
 
@@ -189,18 +241,17 @@ Lattices.KeepDim!(L, rand(1:2))
 
 @show Lattices.ReciprocalVectors(L) |> size
 
+@testset "ReciprocalVectors" begin 
 
 
 for (a,b) in zip(eachcol(Lattices.ReciprocalVectors(L)), eachcol(Lattices.LattVec(L)))
 #	@show a b 
-       @show LinearAlgebra.dot(a,b)
+@test isapprox(2pi,LinearAlgebra.dot(a,b))
 #			 println()
        end
 
 
-
-
-
+		 end 
 
 
 

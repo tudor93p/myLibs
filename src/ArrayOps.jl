@@ -372,9 +372,10 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Array_from_ListIndsVals(inds::AbstractMatrix, 
-																 vals::AbstractVector, 
-																 shape::AbstractVector)::Array
+function Array_from_ListIndsVals(inds::AbstractMatrix{Int}, 
+																 vals::AbstractVector{T}, 
+																 shape::AbstractVector{Int}
+																 )::Array{T} where T<:Number
 
 	v0 = first(vals)
 

@@ -1,4 +1,4 @@
-using myLibs: TBmodel, Operators, Lattices 
+using myLibs: TBmodel, Operators, Lattices, H_Superconductor
 using LinearAlgebra 
 
 
@@ -89,7 +89,7 @@ L = Lattices.Superlattice(Lattices.SquareLattice(),[3,1])
 
 @show Lattices.PosAtoms(L) |>size
 @show Lattices.LattDim(L) 
-@show Lattices.VecDim(L)
+@show Lattices.VecLen(L)
 @show Lattices.LattDims(L)
 
 println() 
@@ -152,6 +152,23 @@ HPar,Hperp = TBmodel.BlochHamilt_ParallPerp(L, Dict(:Hopping=>hopp))
 
 
 
+println() 
+println() 
+
+latt = Lattices.Lattice([1.0 0.0; 0.0 1.0], [0.0; 0.0], nothing, [2])
+
+HParams = (Hopping = 1.0, ChemicalPotential = 0.0, SC_Gap = nothing) 
+
+hopp2 = H_Superconductor.SC_Domain(HParams, [1.0])
+
+
+HPerp = TBmodel.BlochHamilt_Perpendicular(latt, hopp2)
+
+#HPar,HPerp = TBmodel.BlochHamilt_ParallPerp(latt, hopp2)
+
+				
+
+@show Hperp[1]
 
 
 
@@ -161,5 +178,15 @@ HPar,Hperp = TBmodel.BlochHamilt_ParallPerp(L, Dict(:Hopping=>hopp))
 
 
 
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 

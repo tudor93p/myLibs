@@ -144,7 +144,7 @@ jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
 #pytest.plot0(14, 0* pi/180, 5, ax, jl2, jl3)
 #
 
-pytest.plot(jl2, jl3) 
+#pytest.plot(jl2, jl3) 
 
 
 

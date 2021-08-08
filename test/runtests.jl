@@ -12,6 +12,7 @@ function pr_in(f::AbstractString)
 end
 #include("algebra.jl")
 
+#"lattices_vecs" |> pr_in
 
 #"lattices" |> pr_in 
 
