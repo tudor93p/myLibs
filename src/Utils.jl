@@ -442,11 +442,11 @@ end
 
 
 
-invmap(arg, fs::Vararg{<:Function}) = invmap(arg, fs)
+invmap(arg, fs::Vararg{<:Function}; kwargs...) = invmap(arg, fs; kwargs...)
 
-function invmap(args, fs::List)
+function invmap(args, fs::List; kwargs...)
 
-	map(f->f(args...), fs)
+	map(f->f(args...; kwargs...), fs)
 
 end 
 
