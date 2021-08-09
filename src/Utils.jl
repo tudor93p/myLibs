@@ -1911,7 +1911,7 @@ end
 
 function CombsOfVecs(vecs::AbstractMatrix{Tv}, 
 										 coeff::AbstractMatrix{Tc}; dim::Int
-										 )::Matrix{promote_type(Tv,Tc)} 
+										 )::Matrix{promote_type(Tv,Tc)} where {Tv,Tc}
 
 	dim==2 && return vecs*coeff # Vectors are on columns 
 
