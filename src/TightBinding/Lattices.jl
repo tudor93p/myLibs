@@ -271,8 +271,13 @@ end
 #
 #---------------------------------------------------------------------------#
 
-LattVec(A::AbstractMatrix{<:Number})::Matrix{Number} = A 
+function LattVec(A::AbstractMatrix{T})::Matrix{T} where T<:Number 
 
+	A
+
+end 
+
+	
 LattVec(latt::Lattice)::Matrix{Float64} = Vecs(latt.LattVec, latt.LattDims) 
 
 function LattVec(latt::Lattice, mode::Symbol)::Matrix{Float64}
