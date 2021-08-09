@@ -1909,9 +1909,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function CombsOfVecs(vecs::AbstractMatrix{<:T}, 
-										 coeff::AbstractMatrix{<:V}; dim::Int
-										 )::Matrix{promote_type(T,V)} where T where V
+function CombsOfVecs(vecs::AbstractMatrix{Number}, 
+										 coeff::AbstractMatrix{Number}; dim::Int
+										 )::Matrix{Number} 
 
 	dim==2 && return vecs*coeff # Vectors are on columns 
 
@@ -1923,7 +1923,7 @@ end
 
 
 function CombsOfVecs10(A::AbstractMatrix{<:Number}, 
-											 stopstart...; dim)::Matrix{Number}
+											 stopstart...; dim::Int)::Matrix{Number}
 
 	CombsOfVecs(A,
 							vectors_of_integers(size(A,dim), stopstart...; dim=dim),
