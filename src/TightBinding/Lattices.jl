@@ -1469,7 +1469,7 @@ end
 
 
 function new_atoms_dict(latt::Lattice,
-												ns_ucs::AbstractMatrix{<:Int},
+												ns_ucs::AbstractMatrix{<:Number},
 															 Labels::Nothing=nothing)::Function
 
 	function out(atoms::AbstractMatrix{<:Float64}, k)::OrderedDict
@@ -1484,7 +1484,7 @@ end
 
 
 function new_atoms_dict(latt::Lattice,
-												ns_ucs::AbstractMatrix{<:Int},
+												ns_ucs::AbstractMatrix{<:Number},
 												Labels::Function)::Function 
 
 	labels_ucs = Labels.(eachvec(Int.(ns_ucs))) 
