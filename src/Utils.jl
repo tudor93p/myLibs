@@ -1909,8 +1909,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function CombsOfVecs(vecs::AbstractMatrix{Number}, 
-										 coeff::AbstractMatrix{Number}; dim::Int
+function CombsOfVecs(vecs::AbstractMatrix{<:Number}, 
+										 coeff::AbstractMatrix{<:Number}; dim::Int
 										 )::Matrix{Number} 
 
 	dim==2 && return vecs*coeff # Vectors are on columns 
