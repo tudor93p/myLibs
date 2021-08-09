@@ -655,9 +655,9 @@ function isList(arg::T, Ti=Any)::Bool where T
 end
 
 
-function isList(;T=Any)::Bool
-
-	arg -> isList(arg, T)
+function isList(;T=Any)::Function 
+	
+	(arg)::Bool -> isList(arg, T)
 	
 end 
 
@@ -1922,8 +1922,8 @@ function CombsOfVecs(vecs::AbstractMatrix{<:T},
 end
 
 
-function CombsOfVecs10(A::AbstractMatrix{<:T},
-											 stopstart...; dim)::Matrix{T} where T 
+function CombsOfVecs10(A::AbstractMatrix{<:Number}, 
+											 stopstart...; dim)::Matrix{Number}
 
 	CombsOfVecs(A,
 							vectors_of_integers(size(A,dim), stopstart...; dim=dim),
