@@ -1469,10 +1469,11 @@ end
 
 
 function new_atoms_dict(latt::Lattice,
-															 ns_ucs::AbstractMatrix,
+												ns_ucs::AbstractMatrix{<:Int}
 															 Labels::Nothing=nothing)::Function
 
-	function out(atoms::AbstractMatrix, k)::OrderedDict
+	function out(atoms::AbstractMatrix{<:Float64}, k)::OrderedDict
+
 			
 		OrderedDict(k=>Atoms_ManyUCs(atoms, ns_ucs, latt)) 
 
@@ -1483,12 +1484,12 @@ end
 
 
 function new_atoms_dict(latt::Lattice,
-												ns_ucs::AbstractMatrix,
+												ns_ucs::AbstractMatrix{<:Int},
 												Labels::Function)::Function 
 
 	labels_ucs = Labels.(eachvec(Int.(ns_ucs))) 
 
-	return function out(atoms::AbstractMatrix, k)::OrderedDict
+	return function out(atoms::AbstractMatrix{<:Float64}, k)::OrderedDict
 		
 		labels = Labels_ManyUCs(k=>atoms, labels_ucs)
 
@@ -1551,7 +1552,7 @@ function Superlattice_(latt::Lattice, n::Matrix{Int}, args...;
 	cov = CombsOfVecs(latt, n, args...)
 
 	return Lattice(latt, args...;
-					act_on_vectors=(v::AbstractMatrix)->cov,
+								 act_on_vectors=(v::AbstractMatrix{<:Float64})->cov,
 					act_on_atoms=new_atoms_dict(latt, ucs_in_UC(n; kw...), Labels),
 				 )
 
