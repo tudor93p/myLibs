@@ -1469,7 +1469,7 @@ end
 
 
 function new_atoms_dict(latt::Lattice,
-												ns_ucs::AbstractMatrix{<:Int}
+												ns_ucs::AbstractMatrix{<:Int},
 															 Labels::Nothing=nothing)::Function
 
 	function out(atoms::AbstractMatrix{<:Float64}, k)::OrderedDict
