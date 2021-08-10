@@ -382,28 +382,13 @@ end
 
 
 
-function gk_gv_vk_dictorJLDAW(T)::NTuple{3,Function}
-
-	T<:AbstractDict && return keys,values,(d,k)->get(d,k,nothing)
-
-	function valofkey(d,k)
-
-		i = findfirst(isequal(k), d.keys)
-
-		return !isnothing(i) ? d.values[i] : nothing 
-
-	end 
-
-	return (d->d.keys, d->d.values, valofkey) 
-
-end 
 
 
 
 
-function choose_obs_i(data::T; P=nothing, k=nothing, f="last") where T
+function choose_obs_i(data; P=nothing, k=nothing, f="last")
 
-	getkeys,getvals,valofkey = gk_gv_vk_dictorJLDAW(T)
+	getkeys,getvals,valofkey = Utils.gk_gv_vk_dictorJLDAW(data)
 
 
 	if !isnothing(k) 

@@ -281,6 +281,42 @@ end
 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function gk_gv_vk_dictorJLDAW(data::AbstractDict)::NTuple{3,Function}
+
+	keys,values,valofkey(d,k)=get(d,k,nothing)
+
+end 
+
+function gk_gv_vk_dictorJLDAW(data)::NTuple{3,Function}
+	
+	(d->d.keys, 
+	 d->d.values, 
+	 
+	function valofkey(d,k)
+
+		i = findfirst(isequal(k), d.keys)
+
+		return isnothing(i) : nothing : d.values[i]
+
+	end  
+
+	)
+
+end  
+
+
+
+
 #===========================================================================#
 #
 #
