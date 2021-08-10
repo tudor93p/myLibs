@@ -273,7 +273,7 @@ end
 
 tolNF(tol::Int)::Tuple{Int,Float64}  = (tol,10.0^(-tol))
 
-function tol(tol::Float64)::Tuple{Int,Float64}
+function tolNF(tol::Float64)::Tuple{Int,Float64}
 
 	tol==0.0 ? 50 : Int(ceil(-log10(tol))), tol
 
