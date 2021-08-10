@@ -306,9 +306,13 @@ function gk_gv_vk_dictorJLDAW(data)::NTuple{3,Function}
 	 
 	function valofkey(d,k)
 
-		i = findfirst(isequal(k), d.keys)
+		for (i,ki) in enumerate(d.keys)
 
-		return isnothing(i) : nothing : d.values[i]
+			k==ki && return d.values[i]
+			
+		end 
+		
+		return nothing 
 
 	end  
 
