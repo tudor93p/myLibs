@@ -293,9 +293,11 @@ end
 
 function gk_gv_vk_dictorJLDAW(data::AbstractDict)::NTuple{3,Function}
 
-	keys,values,valofkey(d,k)=get(d,k,nothing)
+	(keys, values, (d,k)->get(d,k,nothing))
 
-end 
+end  
+
+
 
 function gk_gv_vk_dictorJLDAW(data)::NTuple{3,Function}
 	
