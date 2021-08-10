@@ -43,14 +43,15 @@ import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps
 
 """
 
-function PrepareLead(atoms::AbstractMatrix)::Dict{Symbol,Any}
+function PrepareLead(atoms::AbstractMatrix{<:Number})::Dict{Symbol,Any}
 
 	Dict{Symbol,Any}(:head=>[atoms])
 
 end 
 
 
-function PrepareLead(label::AbstractString, LeadAtoms::AbstractMatrix
+function PrepareLead(label::AbstractString, 
+										 LeadAtoms::AbstractMatrix{<:Number}
 										 )::Dict{Symbol,Any}
 
 	merge!(Dict{Symbol,Any}(:label => label), PrepareLead(LeadAtoms))
@@ -67,8 +68,8 @@ end
 
 
 function PrepareLead(label::AbstractString, 
-										 Lead::Union{Lattices.Lattice, AbstractMatrix},
-										 BridgeAtoms::AbstractMatrix
+										 Lead::Union{Lattices.Lattice, AbstractMatrix{<:Number}},
+										 BridgeAtoms::AbstractMatrix{<:Number}
 										 )::Dict{Symbol,Any}
 
 	merge!(vcat, PrepareLead(BridgeAtoms), PrepareLead(label, Lead)) 
@@ -194,11 +195,18 @@ function AllAtoms(latt::Lattices.Lattice; kwargs...)::Matrix{Float64}
 end 
 
 
-function AllAtoms(Atoms::AbstractMatrix; 
-									LeftLead=nothing, RightLead=nothing)::Matrix{Float64}
+function AllAtoms(Atoms::AbstractMatrix{<:Number};
+									LeftLead=nothing, RightLead=nothing,
+									kwargs...
+									)::Matrix{Float64}
 
-	hcat(Atoms, (hcat(L[:head]...) 
-							 	for L in filter(!isnothing, (LeftLead, RightLead)))...)
+	Leads = filter(!isnothing, (LeftLead, RightLead)) 
+
+	isempty(Leads) && return Atoms
+
+	C(list) = cat(list...; dims=kwargs[:dim]) 
+
+	return C((Atoms, C.(getindex.(Leads,:head))...))
 
 end
 

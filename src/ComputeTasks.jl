@@ -382,7 +382,7 @@ end
 
 
 
-function gk_gv_vk_dictorJLDAW(T)
+function gk_gv_vk_dictorJLDAW(T)::NTuple{3,Function}
 
 	T<:AbstractDict && return keys,values,(d,k)->get(d,k,nothing)
 
@@ -434,7 +434,7 @@ function choose_obs_i(data::T; P=nothing, k=nothing, f="last") where T
 
 			elseif !isnothing(P)
 
-				Dict(P) |> function (p)
+				Dict(P) |> function aux(p)
 
 										haskey(p, "obs_i") && return p["obs_i"]
 
@@ -447,11 +447,7 @@ function choose_obs_i(data::T; P=nothing, k=nothing, f="last") where T
 
 			end
 
-	if !isnothing(i) 
-		
-		return choose_obs_i(data; k=get(K, Int(trunc(i)), nothing), f=f)
-
-	end 
+	isnothing(i) || return choose_obs_i(data;k=get(K,Int(trunc(i)),nothing),f=f)
 
 
 	f == "first" && return choose_obs_i(data; k=K[1])

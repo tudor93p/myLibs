@@ -373,8 +373,8 @@ end
 #---------------------------------------------------------------------------#
 
 function ConvoluteVectorPacket(weights, values, centers, 
-															 delta, vectors::AbstractMatrix;
-															 dim=1,
+															 delta, vectors::AbstractMatrix{<:Number};
+															 dim::Int,
 															 get_weights=false, normalize=true, 
 															 keepdims=true, kwargs...) 
 

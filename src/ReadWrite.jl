@@ -280,9 +280,14 @@ end
 
 
 
-function Read_NamesVals(filename, Names, storemethod)
-	
-	Names = isa(Names,AbstractString) ? [Names] : Names
+function Read_NamesVals(filename::Function, Names::AbstractString, storemethod::AbstractString)::Dict
+
+	Read_NamesVals(filename, [Names], storemethod)
+
+end 
+
+
+function Read_NamesVals(filename::Function, Names::AbstractVector{<:AbstractString}, storemethod::AbstractString)::Dict
 
 	fileNames = unique(filename.(Names).*Extension_Storemethod(storemethod))
 
@@ -497,7 +502,7 @@ function Write_PhysObs(filename::Function, storemethod::AbstractString;
 	get_legend(vals)::Nothing = nothing	 
 
 
-	get_matrix(vals::AbstractVecOrMat, a...)::AbstractVecOrMat{<:Number} = vals
+	get_matrix(vals::AbstractVecOrMat{<:Number}, a...)::AbstractVecOrMat{<:Number} = vals
 
 	get_matrix(vals::Number, a...)::Vector{<:Number} = [vals] 
 
@@ -590,7 +595,7 @@ end
 FoundFiles_PhysObs = FoundFiles_NamesVals
 
 
-function Read_PhysObs(filename, Names, storemethod)
+function Read_PhysObs(filename, Names, storemethod::AbstractString)
 
 	if storemethod=="jld"
 

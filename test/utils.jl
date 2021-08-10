@@ -1,7 +1,6 @@
-
-
 using myLibs: Utils, ReadWrite
 
+using BenchmarkTools
 
 P = rand(10,7) 
 
@@ -49,14 +48,14 @@ println.(Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v))
 
 
 
-@show Utils.PathConnect([],100)
-@show Utils.PathConnect([],100,v)
+@show Utils.PathConnect(Float64[],100)
+@show Utils.PathConnect(Float64[],100,v)
 
 
 
 println() 
 
-d = Utils.RecursiveMerge(1:10) do i 
+d = Utils.RecursiveMerge(1:10, dim=2) do i 
 
 		Dict(	
 			 "x"=>rand(1:10)+i,
@@ -124,11 +123,10 @@ end
 
 for n in ["abc",1,10.5], d in [(),1,3,(1,2),(2,)]
 
-	@show n d  
+#	println();	@show n d  
 
-	println(Utils.nr2string(n,d))
+	Utils.nr2string(n,d)# |> println
 
-	println()
 
 end 
 
@@ -144,13 +142,11 @@ NR_KPOINTS = 30
 
 using OrderedCollections: OrderedDict 
 
-Utils.NT(Dict(:a=>2))|>println
+Utils.NT(Dict(:a=>2))#|>println
 
-Utils.NT(OrderedDict(:a=>2))|>println
+Utils.NT(OrderedDict(:a=>2))#|>println
 
-Utils.NT((a=2,)) |>println
-
-
+Utils.NT((a=2,)) #|>println
 
 
 
@@ -158,4 +154,94 @@ Utils.NT((a=2,)) |>println
 
 
 
-nothing
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+println()
+
+
+include("utils_temp1.jl")
+
+@show typeof(X1) 
+
+obs = setdiff(keys(X1),["Energy"]) |> first 
+@show obs 
+println()
+
+println()
+
+@show size(X1[obs]["A"])
+a=rand(3,5);b=rand(3,5);
+
+
+@show cat(a,b,dims=2) |>size
+
+@show Utils.catNewAx(2,a,b) |> size 
+@show Utils.catNewAx(1,a,b) |> size 
+
+@show Utils.catNewAx(2, a,Int.(round.(10b)), rand(3,5,1)) |> size 
+
+println()
+Energies = X1["Energy"]*range(1,-1,length=5)
+
+@show Energies
+
+
+function X(i)
+
+	i==1 && return X1
+
+	X2 = deepcopy(X1)
+
+	X2["Energy"] = Energies[i]
+
+#	for (k,v) in X2[obs]
+
+	return X2 
+
+end 
+
+
+@show X(1)["Energy"]
+@show X(5)["Energy"]
+
+
+x = Utils.RecursiveMerge(X, 1:5; dim=2)[obs]
+	
+@show x["A"] |> size
+
+
+@show X1[obs]["A"] |> size
+
+#
+#n = 1000
+#
+#vecs = map(1:100) do i 
+#
+#	L = rand(1:10) 
+#
+#	s = ones(Int,L)
+#
+#	s[rand(1:L)] = n
+#
+#	return rand(s...)
+#
+#end 
+#
+#Utils.VecsToMat(vecs...; dim=2);
+#@time Utils.VecsToMat(vecs...; dim=2);
+#@btime Utils.VecsToMat(vecs...; dim=2); 
+#
+
+
+
+
+
+
+
+

@@ -261,21 +261,31 @@ function Unique!(V::AbstractArray{T}; sorted=false, kwargs...) where T
 
 end
 
-function tolNF(tol::Real)
 
-	if isa(tol,Int)
-		
-		return tol,10.0^(-tol)
 
-	elseif isa(tol,Float64)
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-		tol==0.0 && return 50, tol
-	
-		return Int(ceil(-log10(tol))), tol
 
-	end 
+
+tolNF(tol::Int)::Tuple{Int,Float64}  = (tol,10.0^(-tol))
+
+function tol(tol::Float64)::Tuple{Int,Float64}
+
+	tol==0.0 ? 50 : Int(ceil(-log10(tol))), tol
 
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -1095,7 +1105,7 @@ function logspace(start::Real, stop::Real, Len::Int64)
 
 end
 
-function uniqlogsp(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)
+function uniqlogsp(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
 
 	ntol,ftol = tolNF(tol)
 
@@ -1562,30 +1572,98 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function new_axis(nr_dims::Int, dim::Int)::Int 
+
+	dim==1 && return 1
+
+	dim==2 && return nr_dims+1
+
+	error()
+
+end 
+
+function new_axis(x::AbstractArray{T,N}, dim::Int)::Int where {T,N}
+
+	new_axis(N, dim)
+
+end 
+
+
+
+
+
+
+function Add1Dim(A::AbstractArray{T,N}, dim::Int, new_dim::Int
+												 )::AbstractArray{T,N+1} where T<:Number where N
+
+	reshape(A, insert!([size(A)...], new_dim, 1)...) 
+
+end 
+
+
+function Add1Dim(A::AbstractArray{T,N}, dim::Int
+												 )::AbstractArray{T,N+1} where T<:Number where N
+
+	Add1Dim(A, dim, new_axis(A, dim))
+
+end
+
+function Add1Dim(dim::Int)::Function
+
+	function a1d(A::AbstractArray{T,N}
+							 )::AbstractArray{T,N+1} where T<:Number where N
+
+		Add1Dim(A, dim)
+
+	end 
+
+end 
+
+
+function Add1Dim(nr_dims::Int, dim::Int)::Function
+
+	a = new_axis(nr_dims, dim) 
+
+	function a1d(A::AbstractArray{T,N}
+							 )::AbstractArray{T,N+1} where T<:Number where N
+
+		@assert N==nr_dims
+
+		return Add1Dim(A, dim, a)
+
+	end 
+
+end 
+
+
+
+
+
 
 function VecAsMat(V::AbstractArray{T}, dim::Int
 								 )::AbstractMatrix{T} where T<:Number
 
 	count(size(V).>1)>1 && error("Wrong shape, vector not understood")
 
-	dim==2 && return reshape(V, :, 1)  # Column vector 
-
-	dim==1 && return reshape(V, 1, :) # Row vector 
-
-	error() 
+	return Add1Dim(view(V, :), dim)
 
 end 
 
 
 function VecAsMat(dim::Int)::Function 
 
-	function vam(V::AbstractArray)::AbstractMatrix 
+	a = new_axis(1, dim) 
 
-		VecAsMat(V, dim) 
+	return function vam(V::AbstractArray)::AbstractMatrix
+
+		Add1Dim(view(V,:), dim, a) 
 
 	end 
 
 end 
+
+
+
 
 
 function sel(dim::Int)::Function 
@@ -1730,12 +1808,61 @@ end
 #---------------------------------------------------------------------------#
 
 
+function catNewAx(dim::Int, arrays::Vararg{<:AbstractArray})::Array{<:Number}
 
-function VecsToMat(vecs...; dim::Int)::Matrix 
+	Ns = ndims.(arrays)
+
+	N = minimum(Ns)
+
+
+	@assert issubset(Ns, [N, N+1])
+	
+	d = new_axis(N, dim)  
+
+
+	shapes = map(zip(arrays,Ns)) do (a,n)
+
+		inds = collect(1:n)
+
+		n==N+1 && setdiff!(inds, d)
+
+		return size(a)[inds]
+
+	end 
+
+	@assert length(unique(shapes))==1 
+
+
+	function prep(a::AbstractArray{t,n}
+								)::AbstractArray{t} where n where t<:Number
+	
+		n==N ? Add1Dim(a, dim, d) : a
+
+	end 
+
+
+	return cat((prep(a) for a in arrays)..., dims=d)
+
+end  
+
+
+
+function VecsToMat(vecs::Vararg{AbstractArray}; dim::Int)::Matrix 
 
 	cat((VecAsMat(v, dim) for v in vecs)..., dims=dim)
 
 end 
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 function RecursiveMerge_(;kwargs...)::Function  
@@ -1747,35 +1874,39 @@ end
 
 function RecursiveMerge_(x::Union{<:Number,<:AbstractVector{<:Number}},
 												 y::Number;
-												 kwargs...)::AbstractVector{<:Number}
+												 kwargs...)::Vector{<:Number}
 
 	vcat(x,y)
 
 end 
 
-function RecursiveMerge_(u::AbstractVector{<:Number},
-												 v::AbstractVector{<:Number}; 
-												 dim::Int, kwargs...)::AbstractMatrix{<:Number}
-	
-	VecsToMat(u, v; dim=dim)
+
+function RecursiveMerge_(u::AbstractArray{<:Number,N},
+												 v::AbstractArray{<:Number,N}; 
+												 dim::Int, kwargs...
+												 )::Array{<:Number, N+1} where N 
+
+	@assert N in [1,2]
+
+	return catNewAx(dim, u, v)	
 
 end 
 
-function RecursiveMerge_(u::AbstractMatrix{<:Number},
-												 v::AbstractVector{<:Number}; 
-												 dim::Int, kwargs...)::AbstractMatrix{<:Number}
+
+function RecursiveMerge_(u::AbstractArray{<:Number,N},
+												 v::AbstractArray{<:Number,M}; 
+												 dim::Int, kwargs...
+												 )::Array{<:Number, N} where {N,M}
+
+	@assert N==M+1 
 	
-	cat(u, VecAsMat(v, dim), dims=dim)
+	N>3 && @warn "Strange array"
+
+	return catNewAx(dim, u, v)	
 
 end 
 
-function RecursiveMerge_(u::AbstractMatrix{<:Number},
-												 v::AbstractMatrix{<:Number}; 
-												 dim::Int, kwargs...)::AbstractMatrix{<:Number}
-	
-	cat(u, v, dims=dim)
 
-end 
 
 
 
@@ -1792,6 +1923,7 @@ function RecursiveMerge(arg1::AbstractDict, args...;
 												kwargs...)::Dict{<:Any, Any} 
 
 	# mergewith does not preserve OrderedDict! It turns it into Dict 
+	# hence empty dict needed 
 	
 	merge(RecursiveMerge_(;kwargs...), empty(arg1, Any), arg1, args...)
 
@@ -1836,13 +1968,11 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Sum_functions(functions...)::Function
+function Sum_functions(functions::Vararg{Function})::Function
  
+#  return (args...) -> mapreduce(F -> F(args...),+, Functions) 
 
-#  functions = [f for f in functions if isa(f,Function)]
-
-#  return (args...) -> mapreduce(F -> F(args...),+, Functions)
-  return (args...) -> reduce(+,map(f -> f(args...), functions))
+	(args...) -> reduce(+, invmap(args, functions))
 
 end
 
