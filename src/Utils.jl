@@ -1321,35 +1321,20 @@ function adapt_merge(D0::Union{<:AbstractDict, <:NamedTuple}, dicts...)
 end 
 
 
-function dict_diff(D::Union{<:AbstractDict, <:NamedTuple}, 
-									 K::AbstractVector)
-
-	dict_like(D, (k=>D[k] for k in setdiff(keys(D), K)))
-
-end 
-
-function dict_diff(D::Union{<:AbstractDict, <:NamedTuple},
-									 d::Union{<:AbstractDict, <:NamedTuple})
-
-	dict_diff(D, collect(keys(d)))
-
-end 
-
 
 
 function dict_diff(D::Union{<:AbstractDict, <:NamedTuple},
-									 p::Pair)
+									 args...)
 	
-	dict_diff(D, [p.first]) 
+	getkeys(a::AbstractVector) = a
+	getkeys(a::Union{<:AbstractDict, <:NamedTuple}) = collect(keys(a))
+	getkeys(a::Pair) = [p.first]
+	getkeys(a::Union{<:Int,<:Tuple,<:Symbol,<:AbstractString}) = [a]
 
-end 
+	K = setdiff(keys(D), vcat(getkeys.(args)...))
 
+	return dict_like(D, (k=>D[k] for k in K))
 
-function dict_diff(D::Union{<:AbstractDict, <:NamedTuple},
-									 k::Union{<:Int,<:Tuple,<:Symbol,<:AbstractString})
-	
-	dict_diff(D, [k])
-	
 end 
 
 
