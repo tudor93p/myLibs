@@ -1299,7 +1299,7 @@ function dict_like(source::Union{<:AbstractDict, <:NamedTuple}, dest::List)
 end 
 	
 function dict_like(source::Union{<:AbstractDict, <:NamedTuple},
-									 dest::Union{<:AbstractDict, <:NamedTuple})
+									 dest::Union{<:AbstractDict, <:NamedTuple}=source)
 
 	dict_like(source, (k=>v for (k,v) in pairs(dest)))
 
