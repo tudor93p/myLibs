@@ -946,16 +946,16 @@ end
 
 
 
-function prepare_dict_allparams(usedkeys::Function, allp::UODict)::UODict 
+function keep_usedkeys(usedkeys::Function, allp::UODict)::UODict 
 
-	prepare_dict_allparams(usedkeys(), allp)
+	keep_usedkeys(usedkeys(), allp)
 
 end 
 
-function prepare_dict_allparams(usedkeys::AbstractVector{<:Symbol},
+function keep_usedkeys(usedkeys::AbstractVector{<:Symbol},
 																allp::UODict)::UODict 
 
-	Utils.dict_constr(allp)(Symbol(k)=>allp[k] for k in intersect(keys(allp), usedkeys))
+	Utils.dict_keepkeys(allp, usedkeys)
 
 end  
 
@@ -965,7 +965,7 @@ function typical_allparams(NrParamSets::Int,
 													 usedkeys::AbstractVector{<:Symbol},
 													 allp::UODict)::Function 
 
-	d = prepare_dict_allparams(usedkeys, allp)
+	d = keep_usedkeys(usedkeys, allp)
 
 	return function allparams(P...)::UODict#Dict{Symbol,Any}# where {T,N}
 	
@@ -984,7 +984,7 @@ function typical_allparams(NrParamSets::Int,
 													 usedkeys::AbstractVector{<:Symbol},
 													 AllP::AbstractVector{<:UODict})::Function 
 
-	D = [prepare_dict_allparams(usedkeys, allp) for allp in AllP]
+	D = [keep_usedkeys(usedkeys, allp) for allp in AllP]
 
 	return function allparams(P...)::Vector{UODict}
 

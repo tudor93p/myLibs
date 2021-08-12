@@ -240,6 +240,11 @@ x = Utils.RecursiveMerge(X, 1:5; dim=2)[obs]
 
 
 
+d1 = Dict(1=>2,:a=>:b,3=>rand(2),"s"=>rand(1,1))
+
+d2 = [Dict(1=>3)]
+
+println(Utils.dict_keepkeys(d1,d2...))
 
 
 
