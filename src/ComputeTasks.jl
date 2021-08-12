@@ -109,7 +109,12 @@ function CompTask(M;
 
 		mute && return F(p...; kwargs...)
 
-		println("\n$text: ", Parameters.tostr(M) , "\n")
+		println()
+
+		@info string(text, " ", Parameters.tostr(M))
+		
+		println()
+		
 	
 
 		for d in p 
