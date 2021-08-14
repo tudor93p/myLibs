@@ -579,7 +579,7 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 	allparams = map(zip(internal_keys,internal_dims)) do ((k,l),d)
 
-		v = M.allparams(fill(nothing, minimum(l)-1)...)[k]
+		v = Parameters.get_allP(M, fill(Dict(), minimum(l)-1)...)[k]
 
 		return restrict_number_subplots(d, sort(v); kwargs...)
 
