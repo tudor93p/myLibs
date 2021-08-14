@@ -1141,38 +1141,92 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function logspace(start::Real, stop::Real, Len::Int64)
+function linspace(start::Real, stop::Real, Len::Int64)::Vector{Float64}
 
-	exp.(range(log(start),log(stop),length=Len))
+	collect(range(start, stop, length=Len))
+
+end 
+
+function logspace(start::Real, stop::Real, Len::Int64)::Vector{Float64}
+
+	exp.(linspace(log(start), log(stop), Len))
 
 end
 
-function uniqlogsp(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
+#
+#function uniqlogsp(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
+#
+#	ntol,ftol = tolNF(tol)
+#
+#	max_nr_steps = ftol>0 ? Int(floor(Float64(stop-start)/ftol)) : 100Len
+#
+#	steps_step = max(1,Int(round((max_nr_steps-Len)/100.0)))
+#
+#	for L in [Len:steps_step:max_nr_steps;max_nr_steps]
+#
+#		S = Unique(logspace(start, stop, L), tol=tol) 
+#
+#		if length(S)>=Len 
+#			
+#			s = S[Int.(round.(Rescale(1:Len,axes(S,1))))]
+#
+#			return Trunc ? trunc.(s,digits=ntol) : s
+#
+#		end 
+#
+#	end 
+#
+#	error("Interval too small or tolerance too high")
+#
+#end  
+#
+#
 
-	ntol,ftol = tolNF(tol)
 
-	max_nr_steps = ftol>0 ? Int(floor(Float64(stop-start)/ftol)) : 100Len
+#function uniqsp(getsp::Function, start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
 
-	steps_step = max(1,Int(round((max_nr_steps-Len)/100.0)))
+function uniqsp(getsp::Function)::Function 
+	
+	function uniqsp_(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
 
-	for L in [Len:steps_step:max_nr_steps;max_nr_steps]
-
-		S = Unique(logspace(start, stop, L), tol=tol) 
-
-		if length(S)>=Len 
-			
-			s = S[Int.(round.(Rescale(1:Len,axes(S,1))))]
-
-			return Trunc ? trunc.(s,digits=ntol) : s
-
+		ntol,ftol = tolNF(tol)
+	
+		max_nr_steps = ftol>0 ? Int(floor(Float64(stop-start)/ftol)) : 100Len
+	
+		steps_step = max(1,Int(round((max_nr_steps-Len)/100.0)))
+	
+		for L in [Len:steps_step:max_nr_steps;max_nr_steps]
+	
+			S = Unique(getsp(start, stop, L), tol=tol) 
+	
+			if length(S)>=Len 
+				
+				s = S[Int.(round.(Rescale(1:Len,axes(S,1))))]
+	
+				return Trunc ? trunc.(s,digits=ntol) : s
+	
+			end 
+	
 		end 
-
+	
+		error("Interval too small or tolerance too high")
 	end 
 
-	error("Interval too small or tolerance too high")
+end  
 
 
-end 
+
+uniqlogsp = uniqsp(logspace) 
+
+uniqlinsp = uniqsp(linspace)
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 
 

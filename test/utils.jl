@@ -247,6 +247,8 @@ d2 = [Dict(1=>3)]
 println(Utils.dict_keepkeys(d1,d2...))
 
 
-
+@show Utils.uniqlogsp(2,6,6,3; Trunc=true)
+#@show Utils.uniqlogsp2(2,6,6,3; Trunc=true)
+@show Utils.uniqlinsp(2,6,6,3; Trunc=true)
 
 
