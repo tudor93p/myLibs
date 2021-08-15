@@ -458,9 +458,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function combine_files_exist(tasks::AbstractVector{CompTask})
+function combine_files_exist(tasks::AbstractVector{CompTask})::Function
 
-	function files_exist(args...; kwargs...)
+	function files_exist(args...; kwargs...)::Bool
 
 		for t in tasks 
 		
@@ -475,9 +475,9 @@ function combine_files_exist(tasks::AbstractVector{CompTask})
 end 
 
 
-function combine_get_data(tasks::AbstractVector{CompTask})
+function combine_get_data(tasks::AbstractVector{CompTask})::Function
 
-	function get_data(P...; samplevectors=12345, kwargs...)
+	function get_data(P...; samplevectors=12345, kwargs...)::Vector
 
 		if !(isa(samplevectors,Int) && samplevectors==12345)
 
@@ -497,28 +497,78 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+#
+#function restrict_number_subplots(d::Int, v::AbstractVector; max_nr_plotx=nothing, max_nr_ploty=nothing, kwargs...)
+#
+#	if d in [3,4] 
+#		
+#		max_nr = Dict(3=>max_nr_plotx, 4=>max_nr_ploty)[d] 
+#
+#		if !isnothing(max_nr) 
+#		
+#			N = Int(round(max_nr))
+#	
+#			length(v)>N && return v[Utils.RescaleInds(N, v, 1)]
+#
+#		end 
+#
+#	end 
+#
+#	return v
+#
+#end
+#
 
-function restrict_number_subplots(d::Int, v::AbstractVector; max_nr_plotx=nothing, max_nr_ploty=nothing, kwargs...)
-
-	max_nr = [max_nr_plotx, max_nr_ploty][d.==[3,4]]
-
-	if !isempty(max_nr) && !isnothing(max_nr[1]) 
+function fillvals(dims::AbstractVector{<:AbstractVector{Int}},
+									args...)::Vector{Any} 
 		
-		N = Int(round(max_nr[1]))
-	
-		if length(v)>N
+	@assert length(args)==length(dims) 
+
+	v = Vector{Any}(undef, maximum(maximum, dims))
+
+	for (dim, arg) in zip(dims, args)
+		
+		test = Utils.isList(arg) && length(dim)==length(arg)  
+
+		for (i,d) in enumerate(dim) 
 			
-			inds = Utils.Rescale(1:N, axes(v,1)) .|> trunc .|> Int 
+			v[d] = test ? arg[i] : arg
 
-			return v[inds]
-
-		end 
+		end
 
 	end 
 
 	return v
 
-end
+end 
+
+
+function correct_ndims(expected_ndims::Int,										 
+											 d::Union{Number, AbstractArray{<:Number}})
+
+	expected_ndims==0 && return length(d)==1 ? d[1] : error("Wrong dim")
+
+	nr_singletons = ndims(d) - expected_ndims 
+
+	if nr_singletons==0
+
+		return d 
+
+	elseif nr_singletons > 0
+
+		kept_dims = setdiff(1:ndims(d), findall(size(d).==1)[1:nr_singletons])
+
+		return reshape(d, size(d)[kept_dims]...)
+
+	else 
+
+		@warn "Incorrect value" 
+
+		return reshape(d, fill(1, abs(nr_singletons))..., size(d)...)
+
+	end 
+
+end 
 
 
 #===========================================================================#
@@ -529,72 +579,16 @@ end
 
 
 
-function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
-
-	rmv_internal_key, add_internal_param = Parameters.rmv_add_summarize(; kwargs...)
-
-	internal_keys = OrderedDict(internal_keys_)
-
-	external_dims = [k for (k,v) in ext_par]
-
-	external_param = map(ext_par) do (k,v)
-
-		restrict_number_subplots(k, collect(v); kwargs...)
-		
-	end 
-	
-
-	dim = length(internal_keys) + length(external_dims)
-
-	internal_dims = filter(!in(external_dims),1:dim)
-
-	dims = [internal_dims, external_dims]
+function init_multitask(M, 
+												internal_keys::AbstractVector, 
+												ext_dim::AbstractVector=[]; 
+												kwargs...) 
+	#::AbstractVector{Pair{Int,<:AbstractVector{<:Number}}}=[]; kwargs...)
 
 
-	function fillvals(int, ext)
+	rmv, add = Parameters.rmv_add_summarize(; kwargs...)
 
-		v = Vector{Any}(undef, dim)
-
-		for dim_par in zip(dims, (int,ext)), (i,vi) in zip(dim_par...)
-				
-			v[i] = vi
-
-		end
-
-		return v
-
-	end
-
-
-	names, external_names = [["x","y","plotx","ploty"][d] for d in dims]
-
-
-
-	zname = filter(!in([names;external_names]),["x","y","z"])[1]
-
-
-	labels = map(vcat(keys(internal_keys)...)) do k
-																		replace(string(k),"_"=>" ") end
-
-
-	allparams = map(zip(internal_keys,internal_dims)) do ((k,l),d)
-
-		v = Parameters.get_allP(M, fill(Dict(), minimum(l)-1)...)[k]
-
-		return restrict_number_subplots(d, sort(v); kwargs...)
-
-	end 
-
-
-	internal_params, internal_params_inds = [
-		collect(Base.product(q...))[:] for q in [allparams, axes.(allparams,1)]]
-
-
-					#-----------------#
-
-
-
-	rmv_ikey = Parameters.combine_functions_addrem(rmv_internal_key,
+	rmv_ikey = Parameters.combine_functions_addrem(rmv,
 
 							 map(collect(internal_keys)) do ik 
 
@@ -603,46 +597,122 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 								end 
 								)
 
+	function add_ip(intpar::Utils.List)::Function 
 
-	ik_levels = [minimum(vcat(v...)) for v in values(internal_keys)]
+		Parameters.combine_functions_addrem(add) do (level, P...)#::Int, P::Vararg)
 
-	tasks = map(internal_params) do intpar  
+			newp  = map(zip(internal_keys, intpar)) do ((k,ls),v)
 
-						ip_all = collect(zip(keys(internal_keys), intpar))
+				minimum(ls)==level ? k=>v : nothing
 
-						newp(l,p) = merge(p, Dict(ip_all[ik_levels.==l]))
+			end 
 
-						add=Parameters.combine_functions_addrem(newp, add_internal_param)
+			return Utils.adapt_merge(P[l], filter(!isnothing, newp))
 
-						return CompTask(M;
-														 rmv_internal_key = rmv_ikey,
-														 add_internal_param = add,
+		end 
+
+	end 
+
+
+
+	if any(ext_dim.<2) && any(ext_dim.>=2) 
+		
+		@warn "Might have trouble constructing Z"
+
+	end 
+
+
+#	external_dims = [k for (k,v) in ext_par]
+
+#	external_param = map(ext_par) do (k,v)
+#
+#		v
+#		restrict_number_subplots(k, collect(v); kwargs...)
+#		
+#	end 
+
+
+
+	return init_multitask_(M,
+												 OrderedDict(internal_keys),
+#												 [k for (k,v) in ext_par],
+												ext_dim,												 
+												 rmv_ikey,
+												 add_ip,
+													)
+
+
+end 
+
+
+	
+
+
+function init_multitask_(M, 
+												 internal_keys::OrderedDict,#{Symbol,Int},
+												 external_dims::AbstractVector{Int},
+												 rmv_internal_key::Function,
+												 init_add_internal_param::Function,
+												 )
+
+	dim = length(internal_keys) + length(external_dims)
+
+	internal_dims = setdiff(collect(1:dim), external_dims)
+
+	dims = [internal_dims, external_dims]
+
+
+
+	# -------------- names -------------- # 
+	
+	all_names = internal_names, external_names = [["x","y","plotx","ploty"][d] for d in dims]
+
+
+
+	zname = filter(!in(vcat(all_names...)), ["x","y","z"])[1]
+
+	internal_labels = [replace(string(k),"_"=>" ") for (k,v) in internal_keys]
+
+
+
+	# ------- all internal params and their combinations ---- #
+
+	internal_allparams = map(zip(internal_keys, internal_dims)) do ((k,l),d)
+
+		v = Parameters.get_allP(M, fill(Dict(), minimum(l)-1)...)[k]
+
+		return sort(collect(v))
+#		return restrict_number_subplots(d, sort(v); kwargs...)
+
+	end 
+
+
+	combs(q) = collect(Base.product(q...))[:]
+	
+	internal_params_inds = combs(axes.(internal_allparams, 1))
+
+					#-----------------#
+
+	tasks = map(combs(internal_allparams)) do intpar  
+
+						CompTask(M; 
+										 rmv_internal_key = rmv_internal_key,
+										 add_internal_param = init_add_internal_param(intpar),
 														 )
 					 end	
 					 
 
-	task0 = CompTask(M; rmv_internal_key=rmv_ikey)
+	task0 = CompTask(M; rmv_internal_key=rmv_internal_key)
+
+	@show dim 
+@show dims
+	@show all_names
+	@show zname internal_labels internal_allparams internal_params_inds 
 
 
 				# ----------------- #
+#=
 
-
-	function setobs!(Z, inds, obs)
-		
-		if isempty(external_param) 
-		
-			Z[inds...] = obs[1]
-
-		else 
-
-			I = fillvals(inds, fill(:, length(external_dims)))
-	
-			Z[I...] = obs[axes.(external_param, 1)...] 
-
-		end 
-
-
-	end
 					#-----------------#
 
 	function construct_Z(obs::AbstractString, P...; 
@@ -677,12 +747,183 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 	end 
 
 
+=#	 
+
+#get_obs 
+
+#external_param: info on what get_obs returns 
+# length(external_param) == ndims(get_obs(...))
+# dim==1 "x"  
+
+#	dim==1 => return one vector 
+#	dim==2 => return one matrix 
+# dim==3 => return a vector of matrices 
+# dim==4 => return a matrix of matrices 
+
+function setobs!(Z, i, A) 
+
+	I = fillvals(dims, i, Colon())
+
+dim<=2 
+
+Z[I...] = A
+
+
+dim>2 
+
+canvas_inds = 1:dim-2 
+pixel_inds = dim-1:dim 
+
+canvas_posititon, pixel_position = I[canvas_inds], I[pixel_inds] 
+
+if all(in(pixel_inds), external_dims) 
+#if !any(in(1:dim-2), external_dims)
+#means the canvas_posititon contains only integers 
+
+	@assert all(isa.(canvas_posititon, Int))
+
+	return Z[canvas_posititon...][pixel_position...] = A 
+
+end 
+
+
+
+
+s = [Colon() for i in ndims(A)]
+
+e in canvas_inds ? 
+
+
+
+	 external_dims 
+
+
+
+
+
+
+
+
+(isa(i,Int) ? i : a for (i,a) in zip(canvas_posititon, axes(Z))...)
+
 	
+		@assert all(isa.(canvas_pos, Int))
+
+
+		Z[canvas_pos...][pixel_position...] = A 
+
+		#fillvals([canvas_inds, pixel_inds], nothing, nothing)
+
+		for (i,ed) in enumerate(external_dims)
+
+			axes(A,i) 
+
+		end 
+
+
+for i in Base.product(axes(Z)[filter(in(external_dims), canvas_inds)]...)
+
+	canvas_position[?] = i
+
+	ext_index[?] = i
+
+
+
+
+end 
+
+for i1_ in Base.product(test ? i : a for (test,i,a) in zip(i1int, i1, axes(Z)))...)
+
+	Z[i1_...][i2...] = A 
+
+end 
+
+
+
+
+
+	Z[i,j] 
+
+
+
+
+
+
+
+
+
+function setobs!(Z, inds, obs)
+	
+	if isempty(external_param) 
+	
+		Z[inds...] = obs[1]
+
+	else 
+
+		I = fillvals(dims, inds, :)
+		
+		Z[I...] = obs[axes.(external_param, 1)...] 
+
+#		reshape(obs, :)
+
+	end 
+
+
+end
+function result(data)
+
+	dim in [1,2]
+
+	d1 = correct_ndims(data[1])
+
+	out = zeros(fillvals(dims, length.(internal_allparams), size(d1))...)
+
+
+
+#	out[i] = correct_ndims(d) 
+
+#	n = length(s) 
+#	
+#	n in [1,2] && return zeros(s...)
+#
+#	n==3 && return [zeros(s[1], s[2]) for i=1:s[3]]
+#
+#	n==4 && return [zeros(s[1], s[2]) for i=1:s[3], j=1:s[4]]
+end 
+
+#	n-2 
+
+println() 
+
+
+#
+#end 
+#
+#L = fillvals(dims, length.(internal_allparams),
+#						 									length.(external_param))
+
+#
+#dim in [1,2] 
+
+
+# d: one instance of the data 
+#
+# d = correct_ndims(d)  size-corrected data
+
+#	s = fillvals(dims, length.(internal_allparams), size(d))) 
+#
+
+	println(fillvals(dims, length.(internal_allparams), 20))
+
+
+
+
 	function construct_Z(get_obs::Function, Data::AbstractVector,
 											 label::Nothing=nothing)::Dict{String,Any}
 											 
 		out = Dict{String,Any}(
-							zname => zeros(fillvals(length.(allparams),
+							zname => zeros(fillvals(dims,
+																			length.(internal_allparams),
 																			length.(external_param))...))
 
 		for (inds,D) in zip(internal_params_inds, Data)
@@ -694,7 +935,8 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 		return out 
 
 	end
-		
+
+#=
 	function construct_Z(get_obs::Function, Data::AbstractVector,
 											 label::AbstractString)::Dict{String,Any}
 
@@ -716,25 +958,29 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 
 	# --------------- #
 
-	out_dict = merge(
-
-			Dict(zip(external_names,external_param)),
-			
-			Dict(zip(names,allparams)),
-
-			Dict(zip(names.*"label",labels)),
-
-									)
-
-
-
 	nrowcol = map(3:dim) do i
 
 	  pj = argmax([any(d.==i) for d in dims])
 
-		return (allparams, external_param)[pj][argmax(dims[pj].==i)]
+		return (internal_allparams, external_param)[pj][argmax(dims[pj].==i)]
 
 	end  
+
+=#
+
+#construct_Z = nothing
+
+	out_dict = merge(
+
+#			Dict(zip(external_names,external_param)),
+			
+			Dict(zip(internal_names,internal_allparams)),
+
+			Dict(zip(internal_names.*"label",internal_labels)),
+
+									)
+
+
 
 
 	return (CompTask(task0.name,
@@ -745,9 +991,8 @@ function init_multitask(M, internal_keys_, ext_par=[]; kwargs...)
 									 ),
 					out_dict, 
 					construct_Z,
-					nrowcol,
+#					nrowcol,
 					)
-
 end
 
 

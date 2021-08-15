@@ -251,4 +251,19 @@ println(Utils.dict_keepkeys(d1,d2...))
 #@show Utils.uniqlogsp2(2,6,6,3; Trunc=true)
 @show Utils.uniqlinsp(2,6,6,3; Trunc=true)
 
+result = [1, 2, 4, 6, 7] 
+
+for x in [(5,), (rand(5,3),1), (1:5,), ([1,2,3,4,5],)]
+
+	for y in [(7,), (rand(5,7),2), (1:7,), ([1,2,7],)]
+
+#		println("First: ", typeof.(x)...)
+#		println("Second: ", typeof.(y)...)
+		
+		@assert result==Utils.RescaledInds(x..., y...) 
+	
+#		println() 
+	end 
+end 
+
 

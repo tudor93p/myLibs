@@ -1121,17 +1121,74 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Rescale(A::AbstractArray, mM0, mM1=A)::AbstractArray
+function Rescale(A::AbstractArray{<:Number,N}, mM0, mM1=A)::AbstractArray{<:Number,N} where N 
 
   m0,M0 = extrema(mM0)
 
-	length(A)==1 && return A-A .+ m0
+	length(A)==1 && return fill(m0, size(A))
 
 	m,M = extrema(mM1)
 	
 	return (A .- m)*(M0-m0)/(M-m) .+ m0
 
 end
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+RescaleInds(N::Int, args...)::Vector{Int} = RescaleInds(1:N, args...)
+
+function RescaleInds(A::AbstractArray{<:Number}, d::Int,
+											large_arg1::Union{Int,AbstractArray{<:Number}},
+											large_args...)::Vector{Int}
+	
+	RescaleInds(axes(A, d), large_arg1, large_args...)
+
+end 
+
+
+function RescaleInds(A::AbstractVector{Int},
+											large_number::Int)::Vector{Int} 
+
+	RescaleInds(A, 1:large_number)
+
+end 
+
+function RescaleInds(A::AbstractVector{Int},
+											large_array::AbstractArray{<:Number}, d::Int
+											)::Vector{Int} 
+
+	RescaleInds(A, axes(large_array, d))
+
+end 
+
+
+function RescaleInds(small_range::Ts, large_range::Tl
+											)::Vector{Int} where {T<:AbstractVector{Int},
+																						Ts<:T, Tl<:T}
+
+	@assert issubset(small_range, UnitRange(extrema(large_range)...))
+
+	out = Int.(round.(Rescale(small_range, large_range)))
+
+	@assert length(unique(out))==length(small_range)
+
+	return out 
+
+end  
+
+
+
+
+
+
 
 
 
@@ -1153,37 +1210,10 @@ function logspace(start::Real, stop::Real, Len::Int64)::Vector{Float64}
 
 end
 
-#
-#function uniqlogsp(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
-#
-#	ntol,ftol = tolNF(tol)
-#
-#	max_nr_steps = ftol>0 ? Int(floor(Float64(stop-start)/ftol)) : 100Len
-#
-#	steps_step = max(1,Int(round((max_nr_steps-Len)/100.0)))
-#
-#	for L in [Len:steps_step:max_nr_steps;max_nr_steps]
-#
-#		S = Unique(logspace(start, stop, L), tol=tol) 
-#
-#		if length(S)>=Len 
-#			
-#			s = S[Int.(round.(Rescale(1:Len,axes(S,1))))]
-#
-#			return Trunc ? trunc.(s,digits=ntol) : s
-#
-#		end 
-#
-#	end 
-#
-#	error("Interval too small or tolerance too high")
-#
-#end  
-#
-#
 
 
-#function uniqsp(getsp::Function, start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
+
+
 
 function uniqsp(getsp::Function)::Function 
 	
@@ -1201,8 +1231,8 @@ function uniqsp(getsp::Function)::Function
 	
 			if length(S)>=Len 
 				
-				s = S[Int.(round.(Rescale(1:Len,axes(S,1))))]
-	
+				s = S[RescaleInds(Len, S, 1)]
+
 				return Trunc ? trunc.(s,digits=ntol) : s
 	
 			end 

@@ -54,32 +54,11 @@ function recrepl(l::Int, P...; fs::AbstractVector{Function}=Function[])
 
 	isempty(fs) && return P[l]
 
-#	id  =rand(1:1000)
-#
-#	println("\n*** id $id begin ***")
-#
-#	@show l fs[1] 
-#
-#	println.(enumerate(P))
-#
-#
-#	println("\n*** id $id apply one or many ***\n")
-
 	new_Pl = apply_one_or_many(fs[1], l, P...; default=P[l])
-#	@show new_Pl 
-#
-#	
-#	println("\n*** id $id recursive calls ***\n")
-	out = recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
+
+	return recrepl(l, (i==l ? new_Pl : p for (i,p) in enumerate(P))...;
 								 fs=fs[2:end]) 
 
-#	println("\n*** id $id returns ***\n")
-#
-#	println(out)
-#
-#	println("\n*** id $id end ***\n")
-
-	return out 
 end 
 
 
