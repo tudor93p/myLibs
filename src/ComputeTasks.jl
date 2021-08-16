@@ -571,6 +571,97 @@ function correct_ndims(expected_ndims::Int,
 end 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function getf_setval(dims::AbstractVector{<:AbstractVector{Int}})::Function
+
+	dim = maximum(maximum, dims)
+
+	dim<=2 && return function sv!(Z::AbstractArray, i::Tuple,
+																A::Union{Number, AbstractArray{<:Number}}
+																)::Nothing
+
+		Z[fillvals(dims, i, :)] = A 
+
+	end 
+
+
+	function setval!(Z::AbstractArray, I::Tuple, a::Number)::Nothing 
+
+		Z[I[1:dim-2]...][I[dim-1:dim]...] = a
+
+		return 
+
+	end 
+
+
+	function setval!(Z::AbstractArray, i::Tuple,
+									 A::AbstractArray{<:Number})::Nothing 
+
+		I1, I2 = getindex.([fillvals(dims, i, axes(A))], [1:dim-2, dim-1:dim])
+
+		for i1 in Base.product(I1...)
+	
+			Z[i1...][I2...] = A[get.([i1], dims[2], [:])...]
+		
+		end 
+
+		return 
+
+	end 
+
+	return setval!
+
+end  
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+#
+#
+#function getf_getinds(dims::AbstractVector{<:AbstractVector{Int}})::Function
+#
+#	dim = maximum(maximum, dims)
+#
+#	dim<=2 && return function gi(i::Tuple, 
+#															 A::Union{Number, AbstractArray{<:Number}}
+#															 )
+#
+##		fillvals(dims, i, axes(A))
+#
+#	end 
+#
+#
+#	function gi(I::Tuple, a::Number)
+#
+#		I[1:dim-2] => I[dim-1:dim]
+#
+#	end 
+#
+#
+#	function gi(i::Tuple, A::AbstractArray{<:Number})
+#
+#		I1, I2 = getindex.([fillvals(dims, i, axes(A))], [1:dim-2, dim-1:dim])
+#
+#		return [i1 => I2 for i1 in Base.product(I1...)]
+#
+#	end 
+#
+#	return gi 
+#
+#end  
+
+
+
+
 #===========================================================================#
 #
 #
@@ -711,9 +802,12 @@ function init_multitask_(M,
 
 
 				# ----------------- #
+				#
+	setval! = getf_setval(dims)
 #=
 
 					#-----------------#
+
 
 	function construct_Z(obs::AbstractString, P...; 
 											 kwargs...)::Dict{String,Any}
@@ -760,141 +854,70 @@ function init_multitask_(M,
 # dim==3 => return a vector of matrices 
 # dim==4 => return a matrix of matrices 
 
-function setobs!(Z, i, A) 
 
-	I = fillvals(dims, i, Colon())
 
-dim<=2 
-
-Z[I...] = A
-
-
-dim>2 
-
-canvas_inds = 1:dim-2 
-pixel_inds = dim-1:dim 
-
-canvas_posititon, pixel_position = I[canvas_inds], I[pixel_inds] 
-
-if all(in(pixel_inds), external_dims) 
-#if !any(in(1:dim-2), external_dims)
-#means the canvas_posititon contains only integers 
-
-	@assert all(isa.(canvas_posititon, Int))
-
-	return Z[canvas_posititon...][pixel_position...] = A 
-
-end 
-
-
-
-
-s = [Colon() for i in ndims(A)]
-
-e in canvas_inds ? 
-
-
-
-	 external_dims 
-
-
-
-
-
-
-
-
-(isa(i,Int) ? i : a for (i,a) in zip(canvas_posititon, axes(Z))...)
-
-	
-		@assert all(isa.(canvas_pos, Int))
-
-
-		Z[canvas_pos...][pixel_position...] = A 
-
-		#fillvals([canvas_inds, pixel_inds], nothing, nothing)
-
-		for (i,ed) in enumerate(external_dims)
-
-			axes(A,i) 
-
-		end 
-
-
-for i in Base.product(axes(Z)[filter(in(external_dims), canvas_inds)]...)
-
-	canvas_position[?] = i
-
-	ext_index[?] = i
-
-
-
-
-end 
-
-for i1_ in Base.product(test ? i : a for (test,i,a) in zip(i1int, i1, axes(Z)))...)
-
-	Z[i1_...][i2...] = A 
-
-end 
-
-
-
-
-
-	Z[i,j] 
-
-
-
-
-
-
-
-
-
-function setobs!(Z, inds, obs)
-	
-	if isempty(external_param) 
-	
-		Z[inds...] = obs[1]
-
-	else 
-
-		I = fillvals(dims, inds, :)
-		
-		Z[I...] = obs[axes.(external_param, 1)...] 
-
-#		reshape(obs, :)
-
-	end 
-
-
-end
-function result(data)
-
-	dim in [1,2]
-
-	d1 = correct_ndims(data[1])
-
-	out = zeros(fillvals(dims, length.(internal_allparams), size(d1))...)
-
-
-
-#	out[i] = correct_ndims(d) 
-
-#	n = length(s) 
+#
+#
+#
+#function setobs!(Z, inds, obs)
 #	
-#	n in [1,2] && return zeros(s...)
+#	if isempty(external_param) 
+#	
+#		Z[inds...] = obs[1]
 #
-#	n==3 && return [zeros(s[1], s[2]) for i=1:s[3]]
+#	else 
 #
-#	n==4 && return [zeros(s[1], s[2]) for i=1:s[3], j=1:s[4]]
-end 
+#		I = fillvals(dims, inds, :)
+#		
+#		Z[I...] = obs[axes.(external_param, 1)...] 
+#
+##		reshape(obs, :)
+#
+#	end 
+#
+#
+#end
 
-#	n-2 
 
-println() 
-
+#function result(data)
+#
+##	dim in [1,2]
+##
+##	d1 = correct_ndims(data[1])
+##
+##	out = zeros(fillvals(dims, length.(internal_allparams), size(d1))...)
+##
+##	setval!(out, ?, d1)
+##
+##	---- 
+#
+#
+#for I in allinds  
+#
+#
+#I[1:dim-2]
+#
+#canvas, pixels = Utils.zipmap(zip(all_inds,data)) do (i,d)
+#
+#	s = fillvals(dims, length.(internal_allparams), size(d))
+#
+#	I = fillvals(dims, i, axes(d))
+#
+#
+#	return (s[1:dim-2],s[dim-1:dim])
+#
+#end 
+#
+#
+#@assert length(unique(canvas))==1 
+#
+#
+#
+#
+##	n-2 
+#
+#println() 
+#
 
 #
 #end 
