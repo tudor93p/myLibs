@@ -42,7 +42,7 @@ MDs = map(enumerate([QQ,RR,SS])) do (l,M)
 
 	for k in M.usedkeys 
 
-		allparams[k] = 10l .+ sort(Utils.Random_Items(1:10, l + rand(1:5)))
+		allparams[k] = 10l .+ sort(Utils.Random_Items(1:20, l + rand(10:10)))
 
 		digits[k] = (2,0)
 
@@ -54,11 +54,11 @@ end
 
 
 
-function Compute(args...; get_fname::Function)
+function Compute(args...; get_fname::Function, kwargs...)
 
-	@show get_fname(args...)()
+#	get_fname(args...)() |> println
 
-	return sum(sum.(values.(args))) .+  rand(20)
+	return sum(sum.(values.(args))) .+  rand(100)
 
 end 
 
@@ -71,26 +71,31 @@ C = Parameters.Calculation("test_multitask",
 													 Parameters.ParamFlow("Data", MDs...),
 													 Compute) 
 
+for (internal, external) in (
+#													 ([:Q1=>1], [1]),
+#													 ([:Q1=>1, :R1=>2], [2]),
+#													 ([:Q1=>1, :R1=>2], [3]),
+													 ([:Q1=>1, :Q2=>1,:R1=>2], [1]),
+#													 ([:Q1=>1, :Q2=>1,:R1=>2], [4]),
+													 )
 
-out = ComputeTasks.init_multitask(C,
-																	[:Q1=>1], #internal key => x
-#																	[:Q1=>1, :R1=>2], # x and z 
-																	[2]; # external param =>y
-																	)
+	@info string("---- ",internal," ------ ", external)
+	
+	local out = ComputeTasks.init_multitask(C, internal, external)
+	
+	local task, out_dict, construct_Z, = out 
+	
+	println()
+	
+	
+	for (k,v) in pairs(out_dict)
+	
+		println(k,"\t",v)
+	
+	end 
 
-
-task, out_dict, construct_Z, = out 
-
-println()
-
-
-for (k,v) in pairs(out_dict)
-
-	println(k,"\t",v)
-
+	println()
 end 
-
-
 
 
 #@show Utils.RescaledInds(1:5, 1:10)

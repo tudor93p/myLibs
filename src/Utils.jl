@@ -715,7 +715,18 @@ end
 
 
 
+function isListLen(X, L::Int)::Bool 
 
+	isList(X) && length(X)==L
+
+end 
+
+
+function isListLen(X, T, L::Int)::Bool 
+
+	isList(X, T) && length(X)==L
+
+end 
 
 
 

@@ -263,8 +263,7 @@ function rmv_add_summarize(; rmv_internal_key = nothing,
 														 constrained_params = nothing,
 														 kwargs...)
 
-	if isnothing(constrained_params) || (
-							Utils.isList(constrained_params) && isempty(constrained_params))
+	if isnothing(constrained_params) || Utils.isListLen(constrained_params, 0)
 
 		return ( combine_functions_addrem(rmv_internal_key),
 						 combine_functions_addrem(add_internal_param)
@@ -597,7 +596,7 @@ tostr(x::Symbol)::String = string(x)
 
 function tostr(x::Utils.List)::String  
 
-	s = Utils.mapif(!isempty, x) do xi 
+	s = Utils.mapif(!isempty, collect(x)) do xi 
 
 			Utils.isList(xi) ? tostr(xi...) : tostr(xi) 
 
@@ -665,7 +664,7 @@ function params_to_string(args...;
 	
 	params, usedkeys, digits = params_digits_(args...)
 
-	K = intersect(keys(digits), intersect(keys(params), usedkeys))
+	K = collect(intersect(keys(digits), intersect(keys(params), usedkeys)))
 
 	isempty(K) && return ""
 

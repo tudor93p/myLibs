@@ -170,11 +170,11 @@ function CompTask(M;
 											fromPlot::Bool=false,
 											get_good_P::Bool=false, 
 											apply_rightaway::Function=(d,p)->d)
-	
+
 			good_P = fill_internal(
-									fromPlot ? Parameters.convertParams_fromPlot(M,P...) : P
+									fromPlot ? Parameters.convertParams_fromPlot(M, P...) : P
 									)
-	
+
 			data = if target=="None" nothing else 
 	
 					apply_rightaway(calc_or_read(good_P, force_comp, mute;
@@ -579,36 +579,84 @@ end
 #---------------------------------------------------------------------------#
 
 
-function getf_setval(dims::AbstractVector{<:AbstractVector{Int}})::Function
+function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
+										 )::Tuple{Function,Function}
 
 	dim = maximum(maximum, dims)
 
-	dim<=2 && return function sv!(Z::AbstractArray, i::Tuple,
-																A::Union{Number, AbstractArray{<:Number}}
-																)::Nothing
+	if dim<=2 
+		
+		function gi1(i::NTuple{N, Int} where N,
+								A::Union{Number, AbstractArray{<:Number}}
+								)::Vector{Union{Int,AbstractVector{Int}}}
 
-		Z[fillvals(dims, i, :)] = A 
+			fillvals(dims, i, axes(A))
+
+		end 
+	
+
+		function sv1!(Z::AbstractArray, i::Tuple{Vararg{Int}}, 
+								A::Union{Number, AbstractArray{<:Number}}
+									)::Nothing 
+
+			Z[gi1(i, A)...] = A 
+
+			return 
+
+		end 
+
+
+		return gi1,sv1! 
 
 	end 
 
 
-	function setval!(Z::AbstractArray, I::Tuple, a::Number)::Nothing 
 
-		Z[I[1:dim-2]...][I[dim-1:dim]...] = a
+
+	function gi2(I::NTuple{N, Int} where N, a::Number
+							)::Tuple{Tuple{Tuple{Vararg{Int}}}, 
+											 Tuple{Vararg{Int}}}
+
+		(I[1:dim-2],), I[dim-1:dim]
+
+	end 
+
+
+	function sv2!(Z::AbstractArray, I::NTuple{N, Int} where N, a::Number
+									 )::Nothing 
+
+		i1,i2 = gi2(I, a)
+
+		Z[i1[1]...][i2...] = a
 
 		return 
 
 	end 
 
 
-	function setval!(Z::AbstractArray, i::Tuple,
-									 A::AbstractArray{<:Number})::Nothing 
 
+
+	function gi2(i::NTuple{N, Int} where N, A::AbstractArray{<:Number}
+							)::Tuple{Base.Iterators.ProductIterator,
+											 Vector{Union{Int, AbstractVector{Int}}}}
+		
 		I1, I2 = getindex.([fillvals(dims, i, axes(A))], [1:dim-2, dim-1:dim])
 
-		for i1 in Base.product(I1...)
-	
-			Z[i1...][I2...] = A[get.([i1], dims[2], [:])...]
+		return Base.product(I1...), I2
+
+	end 
+
+
+	function sv2!(Z::AbstractArray, i::NTuple{N, Int} where N,
+									 A::AbstractArray{<:Number})::Nothing 
+
+		I1, i2 = gi2(i, A)
+
+		for i1 in I1 
+
+#			Z[i1...][i2...] = A[get.([i1], dims[2], [:])...] 
+
+			Z[i1...][i2...] = A[(ed<dim-1 ? i1[ed] : Colon() for ed in dims[2])...]
 		
 		end 
 
@@ -616,7 +664,7 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}})::Function
 
 	end 
 
-	return setval!
+	return gi2,sv2!
 
 end  
 
@@ -625,39 +673,106 @@ end
 #
 #
 #---------------------------------------------------------------------------#
-#
-#
-#function getf_getinds(dims::AbstractVector{<:AbstractVector{Int}})::Function
-#
-#	dim = maximum(maximum, dims)
-#
-#	dim<=2 && return function gi(i::Tuple, 
-#															 A::Union{Number, AbstractArray{<:Number}}
-#															 )
-#
-##		fillvals(dims, i, axes(A))
-#
-#	end 
-#
-#
-#	function gi(I::Tuple, a::Number)
-#
-#		I[1:dim-2] => I[dim-1:dim]
-#
-#	end 
-#
-#
-#	function gi(i::Tuple, A::AbstractArray{<:Number})
-#
-#		I1, I2 = getindex.([fillvals(dims, i, axes(A))], [1:dim-2, dim-1:dim])
-#
-#		return [i1 => I2 for i1 in Base.product(I1...)]
-#
-#	end 
-#
-#	return gi 
-#
-#end  
+
+function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
+													inds::AbstractVector{<:Tuple{Vararg{Int}}}, 
+													data::AbstractVector
+													)::Array
+
+	geti = getf_setval(dims)[1]
+
+	dim = maximum(maximum, dims)
+
+	function update_max!(S::AbstractVector{Int}, 
+											 vals::Union{AbstractVector{Int}, Tuple{Vararg{Int}}})
+
+#		S .= max.(S,vals) 
+#		return 
+
+		for (i, (s,v)) in enumerate(zip(S, vals))
+
+			v>s && setindex!(S, v, i)
+
+		end  
+
+	end 
+
+
+	if dim<=2 
+
+		shape = zeros(Int, dim) 
+	
+		for iA in zip(inds, data)
+
+			update_max!(shape, maximum.(geti(iA...)))
+
+		end 
+	
+		return zeros(shape...)
+
+	end 
+
+
+	shape = Dict{Tuple{Vararg{Int}}, Vector{Int}}()
+
+
+	for iA in zip(inds, data)
+
+		I1,I2 = geti(iA...) 
+
+		i2 = [maximum(i2_) for i2_ in I2]
+
+		for i1 in I1 
+
+			if haskey(shape, i1) 
+
+				update_max!(shape[i1], i2) 
+
+			else 
+
+				shape[i1] = i2
+
+			end 
+
+		end 
+
+	end 
+
+
+	panels = zeros(Int, dim-2)
+
+	for k in keys(shape) 
+
+		update_max!(panels, k) 
+
+	end  
+	
+	return [zeros(shape[ci.I]...) for ci in CartesianIndices(Tuple(panels))]
+	
+end 
+
+
+
+function fill_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
+													inds::AbstractVector{<:Tuple{Vararg{Int}}}, 
+													data::AbstractVector
+													)::Array
+
+	setval! = getf_setval(dims)[2]
+
+	Z = initialize_dataZ(dims, inds, data)  
+
+	for item in zip(inds, data) 
+
+		setval!(Z, item...)
+		
+	end 
+
+	return Z 
+
+end 
+
+ 
 
 
 
@@ -676,7 +791,6 @@ function init_multitask(M,
 												kwargs...) 
 	#::AbstractVector{Pair{Int,<:AbstractVector{<:Number}}}=[]; kwargs...)
 
-
 	rmv, add = Parameters.rmv_add_summarize(; kwargs...)
 
 	rmv_ikey = Parameters.combine_functions_addrem(rmv,
@@ -690,17 +804,19 @@ function init_multitask(M,
 
 	function add_ip(intpar::Utils.List)::Function 
 
-		Parameters.combine_functions_addrem(add) do (level, P...)#::Int, P::Vararg)
-
+		function add_(level::Int, P...)
+		
 			newp  = map(zip(internal_keys, intpar)) do ((k,ls),v)
 
 				minimum(ls)==level ? k=>v : nothing
 
 			end 
 
-			return Utils.adapt_merge(P[l], filter(!isnothing, newp))
+			return Utils.adapt_merge(P[level], filter(!isnothing, newp))
 
 		end 
+		
+		return Parameters.combine_functions_addrem(add, add_)
 
 	end 
 
@@ -796,14 +912,46 @@ function init_multitask_(M,
 	task0 = CompTask(M; rmv_internal_key=rmv_internal_key)
 
 	@show dim 
-@show dims
+#@show dims
 	@show all_names
-	@show zname internal_labels internal_allparams internal_params_inds 
+	@show zname 
+	internal_labels 
+	@show length.(internal_allparams )
+	@show length(internal_params_inds )
 
 
 				# ----------------- #
+	
+				println() 
 				#
-	setval! = getf_setval(dims)
+
+	P = rand(task0.get_paramcombs())
+
+
+	println() 
+
+
+	println("Get data:")
+	data = [t.get_data(P...) for t in tasks]
+	@time data= [t.get_data(P...) for t in tasks]
+
+
+	println("Zeros:")
+	Z = initialize_dataZ(dims, internal_params_inds, data) 
+	@time Z = initialize_dataZ(dims, internal_params_inds, data) 
+	@time Z = initialize_dataZ(dims, internal_params_inds, data) 
+	@time Z = initialize_dataZ(dims, internal_params_inds, data) 
+
+	@show size(Z) size(Z[1])
+
+
+	println("Fill data:") 
+
+	Z = fill_dataZ(dims, internal_params_inds, data)
+	@time Z = fill_dataZ(dims, internal_params_inds, data)
+
+
+	@show size(Z) size(Z[1])
 #=
 
 					#-----------------#
