@@ -58,7 +58,7 @@ function Compute(args...; get_fname::Function, kwargs...)
 
 #	get_fname(args...)() |> println
 
-	return sum(sum.(values.(args))) .+  rand(10)
+return sum(sum.(values.(args))) .+  rand(11,7)
 
 end 
 
@@ -72,14 +72,16 @@ C = Parameters.Calculation("test_multitask",
 													 Compute) 
 
 for (internal, external) in (
-													 ([:Q1=>1], [1]),
-													 ([:Q1=>1, :R1=>2], [2]),
-#													 ([:Q1=>1, :R1=>2], [3]),
+#													 ([:Q1=>1], [1,2]),
+#													 ([:Q1=>1, :R1=>2], [1,3]),
+#													 ([:Q1=>1, :R1=>2], [2,3]),
+													 ([:Q1=>1, :R1=>2], [3,4]),
 #													 ([:Q1=>1, :Q2=>1,:R1=>2], [1]),
 #													 ([:Q1=>1, :Q2=>1,:R1=>2], [4]),
 													 )
 
-for e in [(30:40,), ((D::AbstractDict)->40:50,)] 
+#for e in [(30:40,), external, ((D::AbstractVector{<:Number})->axes(D,1),)] 
+for e in [(rand(11),rand(7)), (1,2), [(D::AbstractArray{<:Number})->axes(D,i) for i=1:2]]
 	
 
 
@@ -94,10 +96,11 @@ for e in [(30:40,), ((D::AbstractDict)->40:50,)]
 #	end 
 
 
-	@info string("---- ",internal," ------ ", external)
+@info string("---- ",internal," ------ ", external, " ------ ",typeof.(e))
 	
 	local out = ComputeTasks.init_multitask(C, internal,
-																					[k=>v for (k,v) in zip(external,e)]
+																					[k=>v for (k,v) in zip(external,e)],
+																					["Energy", "Atom"]
 																					)
 
 	local task, out_dict, construct_Z, = out 
@@ -107,8 +110,10 @@ for e in [(30:40,), ((D::AbstractDict)->40:50,)]
 	
 	for (k,v) in pairs(out_dict)
 	
-		println(k,"\t",v)
+		print(k,"\t",typeof(v),"\t")
 	
+		v isa AbstractString ? println(v) : println()
+
 	end 
 
 #	println() 
@@ -121,9 +126,9 @@ for e in [(30:40,), ((D::AbstractDict)->40:50,)]
 
 for construct_Z_args in [
 												 (P,),
-#												 (P,"some_label"),
-#												 (identity, P),
-#												 (identity, P,"some_label"),
+												 (P,"some_label"),
+												 (identity, P),
+												 (identity, P,"some_label"),
 												 ]
 #	println()
 #	@show typeof.(construct_Z_args)
@@ -132,17 +137,19 @@ for construct_Z_args in [
 
 		print(k,"\t",typeof(v),"\t")
 
-		if v isa AbstractArray
+		if v isa AbstractArray 
 			
-			print(size(v), "\t", size(v[1]),"\t")
+#			print(size(v), "\t", size(v[1]),"\t")
+#
+#			v[1] isa AbstractArray && print(v[1][1])
+#
+#			v isa AbstractVector{<:Number} && print(v)
 
-			v[1] isa AbstractMatrix && print(v[1][1])
-
-			println()
+#			println()
 
 		end 
 
-		v isa AbstractString && println(v)
+		v isa AbstractString ? println(v) : println()
 
 	end 
 

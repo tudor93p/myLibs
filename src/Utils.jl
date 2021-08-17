@@ -289,34 +289,41 @@ end
 #---------------------------------------------------------------------------#
 
 
+function valofkey_dictorJLDAW(data::AbstractDict, k)
+
+	get(data, k, nothing)
+
+end 
 
 
-function gk_gv_vk_dictorJLDAW(data::AbstractDict)::NTuple{3,Function}
+function valofkey_dictorJLDAW(JLDAW_object, k)
 
-	(keys, values, (d,k)->get(d,k,nothing))
+	for (i,ki) in enumerate(JLDAW_object.keys)
+
+		k==ki && return JLDAW_object.values[i]
+		
+	end 
+	
+	return nothing 
 
 end  
 
 
 
+
+
+function gk_gv_vk_dictorJLDAW(data::AbstractDict)::NTuple{3,Function}
+
+	(keys, values, valofkey_dictorJLDAW)
+
+end  
+
+
+
+
 function gk_gv_vk_dictorJLDAW(data)::NTuple{3,Function}
 	
-	(d->d.keys, 
-	 d->d.values, 
-	 
-	function valofkey(d,k)
-
-		for (i,ki) in enumerate(d.keys)
-
-			k==ki && return d.values[i]
-			
-		end 
-		
-		return nothing 
-
-	end  
-
-	)
+	(d->d.keys, d->d.values, valofkey_dictorJLDAW) 
 
 end  
 
