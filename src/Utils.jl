@@ -1415,12 +1415,21 @@ function dict_like(source::Union{<:AbstractDict, <:NamedTuple}, dest::Pair)
 end 
 
 
+function dict_like(source::Union{<:AbstractDict, <:NamedTuple}, 
+									 dest::Base.Iterators.Zip)
+
+	dict_like(source, (k=>v for (k,v) in dest))
+
+end 
+
+
 
 function adapt_merge(D0::Union{<:AbstractDict, <:NamedTuple}, dicts...)
 
 	merge(D0, (dict_like(D0, d) for d in dicts)...) 
 
 end 
+
 
 
 getkeys(a::AbstractVector) = a

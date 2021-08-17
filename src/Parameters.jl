@@ -199,54 +199,48 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function replace_parameter_fs(getP, Keys, level::Int=1)::Tuple{Function,Function}
 
-	replace_parameter_fs(getP, Keys, [level])
+function replace_parameter_fs(getP, Keys, levels)::Tuple{Function,Function}
 
-end 
+	replace_parameter_fs_(getP, Utils.flat(Keys), in(Utils.flat(levels)))
 
-
-
-
-function replace_parameter_fs(getP::Function, Keys, 
-															levels::AbstractVector{Int}
-														 )::Tuple{Function,Function}
-
-	K = Utils.flat(Keys) 
-
-	rmv,aux = replace_parameter_fs(nothing, Keys, levels)
+end
 
 
-	m(p::UODict, q) = merge(p, Dict(zip(K, q))) 
 
-	m(p::Utils.List, q) = m.(p,q)
+function replace_parameter_fs_(getP::Function, Keys::AbstractVector, 
+															 act::Function 
+															 )::Tuple{Function,Function}
 
+	rmv,aux = replace_parameter_fs_(nothing, Keys, act) 
 
-	add(l::Int, P...) = !in(l, levels) ? P[l] : m(P[l], getP(l, P...))
+	m(p::UODict, q::Utils.List) = Utils.adapt_merge(p, zip(Keys,q))
 
+	m(p::Utils.List, q) = m.(p, q)
 
+	add(l::Int, P...) = act(l) ? m(P[l], getP(l, P...)) : P[l]
+	
 	return rmv,add
 
 end 
 
 
 
+function replace_parameter_fs_(getP::Nothing,
+															 Keys::AbstractVector, 
+															 act::Function
+															)::Tuple{Function,Function}
 
-function replace_parameter_fs(getP, Keys, 
-															levels::AbstractVector{Int}
-														 )::Tuple{Function,Function}
-
-	K = Utils.flat(Keys)
-	
-	f(p::UODict) = filter(kv->!in(kv.first, K), p)
+	f(p::UODict) = Utils.dict_diff(p, Keys)
 
 	f(P::Utils.List) = f.(P)
 
 
-	rmv(l::Int, P...) = !in(l,levels) ? P[l] : f(P[l])
+	rmv(l::Int, P...) = act(l) ? f(P[l]) : P[l]
 
+	add(l::Int, P...) = P[l]
 
-	return rmv, (l,P...)->P[l]
+	return rmv,add
 
 end 
 

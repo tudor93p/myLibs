@@ -340,9 +340,10 @@ end
 
 
 
-function get_plot_one(task, pick=Utils.DictFirstVals)
+function get_plot_one(task::CompTask, pick::Function=Utils.DictFirstVals)
 
 	good_P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
+
 
 	plot_P = task.get_plotparams(good_P...)
 
@@ -1009,9 +1010,9 @@ function init_multitask(C::Parameters.Calculation,
 
 	rmv_ikey = Parameters.combine_functions_addrem(rmv,
 
-							 map(collect(internal_keys)) do ik 
+			 			map(collect(internal_keys)) do (key,level)
 
-									Parameters.replace_parameter_fs(0, ik...)[1]
+									Parameters.replace_parameter_fs(nothing, key, level)[1]
 
 								end 
 								)
