@@ -783,11 +783,66 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function parse_external_params(
+												ext_par::AbstractVector{<:Pair{Int,<:Any}}
+												)::Union{AbstractVector{<:Function},
+																 AbstractVector{<:AbstractVector{<:Number}},
+																 }
+
+	make_function(f::Function)::Function = f
+
+	function make_function(ext_par_method::AbstractString)::Function
+
+		function get_plotaxis_(D)::AbstractVector{<:Real}
+			
+			Utils.gk_gv_vk_dictorJLDAW(D)[3](D, ext_par_method)
+		
+		end 
+
+	end 
+
+
+	function make_function(ext_par_method::AbstractVector{<:Real})
+
+		D -> ext_par_method
+
+	end 
+
+	s_or_f = map(ext_par) do (k,v)
+
+		v isa AbstractString || v isa Function
+
+	end 
+
+	vs = map(ext_par) do (k,v)
+
+		v isa AbstractVector{<:Number}
+
+	end 
+
+
+	@assert sum(count, (s_or_f, vs))==length(ext_par) "Unsupported type"
+
+
+	any(s_or_f) && return make_function.(getindex.(ext_par, 2))
+
+	return getindex.(ext_par, 2)
+
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 
 function init_multitask(M, 
 												internal_keys::AbstractVector, 
-												ext_dim::AbstractVector=[]; 
+												ext_par::AbstractVector{<:Pair{Int,<:Any}}; 
 												kwargs...) 
 	#::AbstractVector{Pair{Int,<:AbstractVector{<:Number}}}=[]; kwargs...)
 
@@ -822,28 +877,26 @@ function init_multitask(M,
 
 
 
-	if any(ext_dim.<2) && any(ext_dim.>=2) 
-		
-		@warn "Might have trouble constructing Z"
-
-	end 
+	sort!(ext_par, by=first)
 
 
-#	external_dims = [k for (k,v) in ext_par]
+	ext_dim = first.(ext_par) 
+
 
 #	external_param = map(ext_par) do (k,v)
 #
 #		v
-#		restrict_number_subplots(k, collect(v); kwargs...)
+##		restrict_number_subplots(k, collect(v); kwargs...)
 #		
 #	end 
-
+#
 
 
 	return init_multitask_(M,
 												 OrderedDict(internal_keys),
 #												 [k for (k,v) in ext_par],
-												ext_dim,												 
+												ext_dim,
+												parse_external_params(ext_par),
 												 rmv_ikey,
 												 add_ip,
 													)
@@ -858,6 +911,7 @@ end
 function init_multitask_(M, 
 												 internal_keys::OrderedDict,#{Symbol,Int},
 												 external_dims::AbstractVector{Int},
+												 get_plotaxes::AbstractVector{<:Union{Function, <:AbstractVector{<:Number}}},
 												 rmv_internal_key::Function,
 												 init_add_internal_param::Function,
 												 )
@@ -909,87 +963,28 @@ function init_multitask_(M,
 					 end	
 					 
 
-	task0 = CompTask(M; rmv_internal_key=rmv_internal_key)
 
-	@show dim 
-#@show dims
-	@show all_names
-	@show zname 
-	internal_labels 
-	@show length.(internal_allparams )
-	@show length(internal_params_inds )
 
+	multitask = CompTask(getproperty.([CompTask(M; rmv_internal_key=rmv_internal_key)], [:name, :get_plotparams, :get_paramcombs])...,
+									 combine_files_exist(tasks),
+									 combine_get_data(tasks)
+									 )
 
 				# ----------------- #
-	
-				println() 
-				#
-
-	P = rand(task0.get_paramcombs())
 
 
-	println() 
+#	P = rand(task0.get_paramcombs())
 
+#	println() 
 
-	println("Get data:")
-	data = [t.get_data(P...) for t in tasks]
-	@time data= [t.get_data(P...) for t in tasks]
+#	data = [t.get_data(P...) for t in tasks]
 
+#	Z = initialize_dataZ(dims, internal_params_inds, data) 
 
-	println("Zeros:")
-	Z = initialize_dataZ(dims, internal_params_inds, data) 
-	@time Z = initialize_dataZ(dims, internal_params_inds, data) 
-	@time Z = initialize_dataZ(dims, internal_params_inds, data) 
-	@time Z = initialize_dataZ(dims, internal_params_inds, data) 
+#	Z = fill_dataZ(dims, internal_params_inds, data)
 
-	@show size(Z) size(Z[1])
-
-
-	println("Fill data:") 
-
-	Z = fill_dataZ(dims, internal_params_inds, data)
-	@time Z = fill_dataZ(dims, internal_params_inds, data)
-
-
-	@show size(Z) size(Z[1])
 #=
 
-					#-----------------#
-
-
-	function construct_Z(obs::AbstractString, P...; 
-											 kwargs...)::Dict{String,Any}
-		
-		Data = get_data(P...; fromPlot=true, kwargs..., target=obs)
-
-		d1 = Data[1][obs]
-
-		if !Utils.is_dict_or_JLDAW(d1) 
-			
-			return merge!(construct_Z(D->D[obs], Data),
-																			 Dict(zname*"label" => obs))
-		end
-
-
-		sub_obs = choose_obs_i(d1; P=P, f="first")[1]
-
-		return merge!(construct_Z(D->choose_obs_i(D[obs]; k=sub_obs)[2], Data),
-									Dict(zname*"label" => "$obs $sub_obs"),)
-
-	end 
-
-
-	
-	function construct_Z(get_obs::Function, P...;
-											 label=nothing,
-											 kwargs...)::Dict{String,Any}
-		
-		construct_Z(get_obs, get_data(P...; fromPlot=true, kwargs...), label)
-
-	end 
-
-
-=#	 
 
 #get_obs 
 
@@ -1001,128 +996,109 @@ function init_multitask_(M,
 #	dim==2 => return one matrix 
 # dim==3 => return a vector of matrices 
 # dim==4 => return a matrix of matrices 
+					#-----------------#
 
 
-
-#
-#
-#
-#function setobs!(Z, inds, obs)
-#	
-#	if isempty(external_param) 
-#	
-#		Z[inds...] = obs[1]
-#
-#	else 
-#
-#		I = fillvals(dims, inds, :)
-#		
-#		Z[I...] = obs[axes.(external_param, 1)...] 
-#
-##		reshape(obs, :)
-#
-#	end 
-#
-#
-#end
-
-
-#function result(data)
-#
-##	dim in [1,2]
-##
-##	d1 = correct_ndims(data[1])
-##
-##	out = zeros(fillvals(dims, length.(internal_allparams), size(d1))...)
-##
-##	setval!(out, ?, d1)
-##
-##	---- 
-#
-#
-#for I in allinds  
-#
-#
-#I[1:dim-2]
-#
-#canvas, pixels = Utils.zipmap(zip(all_inds,data)) do (i,d)
-#
-#	s = fillvals(dims, length.(internal_allparams), size(d))
-#
-#	I = fillvals(dims, i, axes(d))
-#
-#
-#	return (s[1:dim-2],s[dim-1:dim])
-#
-#end 
-#
-#
-#@assert length(unique(canvas))==1 
-#
-#
-#
-#
-##	n-2 
-#
-#println() 
-#
-
-#
-#end 
-#
-#L = fillvals(dims, length.(internal_allparams),
-#						 									length.(external_param))
-
-#
-#dim in [1,2] 
-
-
-# d: one instance of the data 
-#
-# d = correct_ndims(d)  size-corrected data
-
-#	s = fillvals(dims, length.(internal_allparams), size(d))) 
-#
-
-	println(fillvals(dims, length.(internal_allparams), 20))
-
-
-
-
-	function construct_Z(get_obs::Function, Data::AbstractVector,
-											 label::Nothing=nothing)::Dict{String,Any}
-											 
-		out = Dict{String,Any}(
-							zname => zeros(fillvals(dims,
-																			length.(internal_allparams),
-																			length.(external_param))...))
-
-		for (inds,D) in zip(internal_params_inds, Data)
-			
-			setobs!(out[zname], inds, get_obs(D))
-
-		end 
-
-		return out 
-
-	end
-
-#=
-	function construct_Z(get_obs::Function, Data::AbstractVector,
-											 label::AbstractString)::Dict{String,Any}
-
-		out = construct_Z(get_obs, Data)
 	
-		if !isempty(label)
 
-			out[zname*"label"] = label
 
-		end 
+=#	 
 
-		return out 
+	zname_label(label::Nothing=nothing)::Vector{Pair{String,String}} = []
+
+	function zname_label(label::AbstractString)::Vector{Pair{String,String}}
+		
+		isempty(label) ? [] : [zname*"label"=>label]
 
 	end 
 
+
+
+	function construct_Z(Data::AbstractVector{<:Union{Number,
+																							<:AbstractArray{<:Number}}},
+											 label...
+											 )::Dict{String,Any}
+
+		Dict{String,Any}(zname=>fill_dataZ(dims, internal_params_inds, Data),
+										 zname_label(label...)...)
+
+
+		#		out = Dict{String,Any}(
+		#							zname => zeros(fillvals(dims,
+		#																			length.(internal_allparams),
+		#																			length.(external_param))...)) 
+		#																	***** if lengths are known *****
+	end 
+
+
+	function construct_Z(obs::AbstractString, Data::AbstractVector
+											 )::Dict{String,Any}
+
+		
+		#Dict(zip(external_names,external_param)),
+
+
+		construct_Z(getindex.(Data, obs), obs)
+
+	end 
+
+
+	function construct_Z(get_obs::Function, Data::AbstractVector,
+											 label...)::Dict{String,Any}
+											 
+		construct_Z(get_obs.(Data), label...)
+
+	end
+
+
+
+
+	function construct_Z(P::UODict, label...; kwargs...)::Dict{String,Any}
+
+		construct_Z(multitask.get_data(P; fromPlot=true, kwargs...), label...)
+
+	end 
+
+
+
+	# ----- called by the plot functions ---- #
+
+	function construct_Z(get_obs::Function, P::UODict, label...;
+											 kwargs...)::Dict{String,Any}
+		
+		construct_Z(get_obs.(multitask.get_data(P; fromPlot=true, kwargs...)), label...)
+
+	end 
+
+#Function get_external_param(D::Dict)
+#Vector
+#AbstractString
+
+	function construct_Z(obs::AbstractString, P::UODict; 
+											 kwargs...)::Dict{String,Any}
+		
+		Data = multitask.get_data(P; fromPlot=true, kwargs..., target=obs)
+		
+
+		d1 = Data[1][obs]
+
+
+		# if it's an array or number, not dictionary-like object
+
+		Utils.is_dict_or_JLDAW(d1) || return construct_Z(obs, Data)
+	
+
+		sub_obs = choose_obs_i(d1; P=P, f="first")[1] 
+
+
+		return construct_Z(D->choose_obs_i(D[obs]; k=sub_obs)[2], 
+											 Data, "$obs $sub_obs")
+
+	end 
+
+#external_names 
+
+	#=
 
 
 
@@ -1139,11 +1115,12 @@ function init_multitask_(M,
 
 =#
 
-#construct_Z = nothing
+						
 
 	out_dict = merge(
-
+ 
 #			Dict(zip(external_names,external_param)),
+			Dict(collect(zip(external_names, get_plotaxes))[isa.(get_plotaxes, AbstractVector{<:Number})]),
 			
 			Dict(zip(internal_names,internal_allparams)),
 
@@ -1152,14 +1129,7 @@ function init_multitask_(M,
 									)
 
 
-
-
-	return (CompTask(task0.name,
-									 task0.get_plotparams, 
-									 task0.get_paramcombs, 
-									 combine_files_exist(tasks),
-									 combine_get_data(tasks)
-									 ),
+	return (multitask,
 					out_dict, 
 					construct_Z,
 #					nrowcol,
