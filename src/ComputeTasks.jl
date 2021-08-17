@@ -340,7 +340,7 @@ end
 
 
 
-function get_plot_one(task::CompTask, pick::Function=Utils.DictFirstVals)
+function get_plot_one(task, pick::Function=Utils.DictFirstVals)
 
 	good_P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
 
