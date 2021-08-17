@@ -344,7 +344,6 @@ function get_plot_one(task, pick::Function=Utils.DictFirstVals)
 
 	good_P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
 
-
 	plot_P = task.get_plotparams(good_P...)
 
 	return task.plot(plot_P)
@@ -1017,17 +1016,17 @@ function init_multitask(C::Parameters.Calculation,
 								end 
 								)
 
+
 	function add_ip(intpar::Utils.List)::Function 
 
 		function add_(level::Int, P...)
-		
-			newp  = map(zip(internal_keys, intpar)) do ((k,ls),v)
+	
+			inds = [minimum(ls)==level for (k,ls) in internal_keys]
 
-				minimum(ls)==level ? k=>v : nothing
+			any(inds) || return P[level]
 
-			end 
-
-			return Utils.adapt_merge(P[level], filter(!isnothing, newp))
+			return Utils.adapt_merge(P[level], zip(first.(internal_keys[inds]),
+																						 intpar[inds]))
 
 		end 
 		
@@ -1037,6 +1036,13 @@ function init_multitask(C::Parameters.Calculation,
 
 
 
+#
+#
+#	intpar[inds]
+#
+#	replace_parameter_fs((args...)->intpar[inds],
+#											 first.(internal_keys[inds]),
+#											 level)[2](l, P...)
 
 
 

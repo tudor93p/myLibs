@@ -14,6 +14,7 @@ module QQ
 
 usedkeys = [:Q1, :Q2]
 
+
 end 
 
 
