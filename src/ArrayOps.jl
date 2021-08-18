@@ -174,7 +174,7 @@ function ApplyF_IndsSets(f::Function,
 												 keepdims=false,
 												 )::AbstractVector{AbstractArray}
 
-	isempty(intersect(slice_dim,f_dim)) || error("Axes must be disjunct")
+	isempty(intersect(slice_dim, f_dim)) || error("Axes must be disjunct")
 
 	a = selectdim(A, slice_dim, vcat(inds...))
 
@@ -193,6 +193,8 @@ function ApplyF_IndsSets(f::Function,
 												 )
 
 end
+
+
 
 function ApplyF_IndsSets_(
 													f::Function, 
@@ -588,7 +590,8 @@ end
 
 
 
-function Slice_IndsSets(inds, X, dim=1)
+function Slice_IndsSets(inds::AbstractVector{<:AbstractVector{Int}}, 
+												X::AbstractArray, dim::Int=1)::Vector
 
 	Slice_LikeArraysInList(inds, selectdim(X, dim, vcat(inds...)), dim)
 
@@ -599,9 +602,10 @@ end
 
 
 
-function Slice_LikeArraysInList(arrays, X, dim=1)
+function Slice_LikeArraysInList(arrays, X::AbstractArray, dim::Int=1
+																)::Vector{<:Array}
 
-	[collect(selectdim(X, dim, m)) for m in sepLengths_cumulRanges(arrays)]
+	[collect(selectdim(X, dim, m)) for m in Utils.sepLengths_cumulRanges(arrays)]
 
 end
 

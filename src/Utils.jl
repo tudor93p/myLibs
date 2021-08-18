@@ -56,7 +56,6 @@ function Backtracking(data,
 							)
 end 
 
-
 function Backtracking(data,
 											possible_extensions::Function, 
 											promising_candidate::Function, 
