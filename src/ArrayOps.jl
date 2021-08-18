@@ -79,10 +79,10 @@ function findLostDims(A::AbstractArray, B::AbstractArray, possible_dims=[])::Vec
 
 	solutions = Utils.Backtracking(
 							 (size(A),size(B),vcat(possible_dims...)), 
-#							 	root,
 							 	possible_extensions,
 							 	promising_candidate,
 							 	accept_sol,
+								x->Dict(),
 							 	)
 
 	out = [setdiff(1:ndims(A), values(s)) for s in solutions]
@@ -152,11 +152,11 @@ end
 
 
 function ApplyF_IndsSets(f::Function, 
-												 A::AbstractArray, 
+												 A::AbstractArray{<:Number},
 												 slice_dim::Int, 
 												 inds::AbstractVector{<:AbstractVector{Int}};
 												 kwargs...
-												 )::AbstractVector{AbstractArray}
+												 )::AbstractVector{<:AbstractArray{<:Number}}
 
 	ApplyF_IndsSets(f, A, slice_dim, inds, setdiff(1:ndims(A),slice_dim);
 									kwargs...)

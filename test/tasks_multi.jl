@@ -22,6 +22,18 @@ module RR
 
 usedkeys = [:R1, :R2]
 
+function adjust_paramcomb(l, P...)
+
+	@show "here"
+
+	l==2 || return P[l]
+
+
+
+	return P[l] 
+
+
+end 
 
 end 
 
@@ -43,7 +55,7 @@ MDs = map(enumerate([QQ,RR,SS])) do (l,M)
 
 	for k in M.usedkeys 
 
-		allparams[k] = 10l .+ sort(Utils.Random_Items(1:10, l + rand(1:5)))
+		allparams[k] = 10l .+ sort(Utils.Random_Items(1:10, 0l + rand(1:2)))
 
 		digits[k] = (2,0)
 
@@ -59,7 +71,7 @@ function Compute(args...; get_fname::Function, kwargs...)
 
 #	get_fname(args...)() |> println
 
-return sum(sum.(values.(args))) .+  rand(11,7)
+return sum(sum.(values.(args))) .+  rand(5)
 
 end 
 
@@ -69,14 +81,15 @@ end
 println()
 													
 C = Parameters.Calculation("test_multitask", 
-													 Parameters.ParamFlow("Data", MDs...),
+													 Parameters.ParamFlow("Data", MDs...; 
+																								adjust=RR.adjust_paramcomb),
 													 Compute) 
 
 for (internal, external) in (
 #													 ([:Q1=>1], [1,2]),
 #													 ([:Q1=>1, :R1=>2], [1,3]),
 #													 ([:Q1=>1, :R1=>2], [2,3]),
-													 ([:Q1=>1, :R1=>2], [3,4]),
+#													 ([:Q1=>1, :R1=>2], [3,4]),
 #													 ([:Q1=>1, :Q2=>1,:R1=>2], [1]),
 #													 ([:Q1=>1, :Q2=>1,:R1=>2], [4]),
 													 )
@@ -173,4 +186,13 @@ end end
 
 
 
+t = ComputeTasks.init_multitask(C, [:Q1=>1], [2=>1], ["Energy"])[1]
 
+
+for P in t.get_paramcombs()
+
+	println(P,"\n")
+end
+
+
+t.get_plotparams() |> println

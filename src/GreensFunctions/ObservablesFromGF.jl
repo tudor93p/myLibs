@@ -238,7 +238,11 @@ end
 
 
 
-function BondTij(Gi,W,Gj,Hji,f)
+function BondTij(Gi::AbstractMatrix{ComplexF64},
+								 W::AbstractMatrix{ComplexF64},
+								 Gj::AbstractMatrix{ComplexF64},
+								 Hji::AbstractMatrix{ComplexF64},
+								 f::Function)
 
 	-2imag(f(	Gi*W*Gj'*Hji - Gj*W*Gi'*Hji'	))
 
