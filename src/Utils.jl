@@ -1109,7 +1109,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-is_dict_or_JLDAW(D::AbstractDict)::Bool = true 
+is_dict_or_JLDAW(D::Union{NamedTuple,AbstractDict})::Bool = true 
 
 function is_dict_or_JLDAW(D)::Bool
 
