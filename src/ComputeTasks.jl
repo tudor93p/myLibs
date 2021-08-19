@@ -386,63 +386,59 @@ end
 
 
 
+parse_obs_i(::Nothing)::Nothing = nothing
+
+parse_obs_i(i::Number)::Int = Int(trunc(i))
+
+parse_obs_i(i::AbstractString)::Union{Nothing,Int} = parse_obs_i(tryparse(Float64,i))
+
+parse_obs_i(P::NamedTuple)::Union{Nothing,Int} = parse_obs_i(get(P,:obs_i,nothing))
+
+parse_obs_i(P::AbstractDict)::Union{Nothing,Int} = parse_obs_i(get(P, "obs_i", get(P, :obs_i, nothing)))
+
+parse_obs_i(P::Pair)::Union{Nothing,Int} = parse_obs_i(Dict(P))
 
 
 
 
+function choose_obs_i(data, k, v::Nothing; kwargs...)
 
-function choose_obs_i(data; P=nothing, k=nothing, f="last")
+	error("Key '$k' not found. Try ",getkeys(data))
+
+end 
+
+function choose_obs_i(data, k, v; kwargs...)::Tuple{Any,Any}
+
+	(v,k)
+
+end 
+
+function choose_obs_i(data, k::T; kwargs...)::Tuple{Any,T} where T
+
+	choose_obs_i(data, k, Utils.valofkey_dictorJLDAW(data, k))
+
+end 
+
+
+
+function choose_obs_i(data, k::Nothing=nothing; 
+											P=nothing, f=nothing, kwargs...)::Tuple{Any,Any}
+
 
 	getkeys,getvals,valofkey = Utils.gk_gv_vk_dictorJLDAW(data)
 
+	K,i = sort(collect(getkeys(data))),parse_obs_i(P)
 
-	if !isnothing(k) 
+	!isnothing(i) && in(i,axes(K,1)) && return choose_obs_i(data, K[i])
 
-		v = valofkey(data, k)
+	@assert f isa AbstractString "Provide a valid 'k' or 'f'"
 
-		!isnothing(v) && return (k, v)
+	f == "first" && return choose_obs_i(data, K[1])
 
-		error("Key '$k' not found. Try ",getkeys(data))
-
-	end 
-
-
-	K = sort(collect(getkeys(data)))
-
+	f == "last" && return choose_obs_i(data, K[end])
 	
-	i = if P isa Number 
+	f == "sum" && return choose_obs_i(data, join(K,"+"), sum(getvals(data))) 
 
-				P
-
-			elseif P isa AbstractString
-
-				tryparse(Float64, P)
-				
-			elseif P isa NamedTuple
-
-				get(P, :obs_i, nothing) 
-
-			elseif !isnothing(P)
-
-				Dict(P) |> function aux(p)
-
-										get(p, "obs_i", get(p, :obs_i, nothing))
-
-									end 
-			else 
-
-				nothing
-
-			end
-
-	isnothing(i) || return choose_obs_i(data;k=get(K,Int(trunc(i)),nothing),f=f)
-
-
-	f == "first" && return choose_obs_i(data; k=K[1])
-
-	f == "last" && return choose_obs_i(data; k=K[end])
-	
-	f == "sum" && return (join(K,"+"), sum(getvals(data)))
 
 	error("'f' must be 'last' or 'sum' or 'first'")
 
@@ -1259,11 +1255,10 @@ function init_multitask_(C::Parameters.Calculation,
 	
 
 
-		sub_obs = choose_obs_i(d1; P=P, f="first")[1] 
+		sub_obs = choose_obs_i(d1; P=P, kwargs...)[2] 
 
 
-
-		ch_ob(q) = choose_obs_i(q; k=sub_obs)[2] 
+		ch_ob(q) = choose_obs_i(q, sub_obs)[1]
 
 
 		return construct_Z(ch_ob ∘ dictJLDAW_getval(obs), Data, "$obs $sub_obs") 

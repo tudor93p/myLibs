@@ -288,11 +288,12 @@ end
 #---------------------------------------------------------------------------#
 
 
-function valofkey_dictorJLDAW(data::AbstractDict, k)
+function valofkey_dictorJLDAW(data::Union{AbstractDict,NamedTuple}, k)
 
 	get(data, k, nothing)
 
 end 
+
 
 
 function valofkey_dictorJLDAW(JLDAW_object, k)
@@ -311,7 +312,8 @@ end
 
 
 
-function gk_gv_vk_dictorJLDAW(data::AbstractDict)::NTuple{3,Function}
+function gk_gv_vk_dictorJLDAW(data::Union{AbstractDict,
+																					NamedTuple})::NTuple{3,Function}
 
 	(keys, values, valofkey_dictorJLDAW)
 
@@ -1107,9 +1109,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function is_dict_or_JLDAW(D)::Bool
+is_dict_or_JLDAW(D::AbstractDict)::Bool = true 
 
-	D isa AbstractDict && return true 
+function is_dict_or_JLDAW(D)::Bool
 
 	all(in(propertynames(D)), [:keys, :values]) && return true
 
