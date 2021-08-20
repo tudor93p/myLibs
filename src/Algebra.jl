@@ -21,6 +21,17 @@ import Dierckx,FFTW
 #---------------------------------------------------------------------------#
 
 
+#	dist = Utils.Unique(diff(sort(x)), tol=1e-6)
+#
+#	length(dist)>1 && return fourier_abs(interp(x, y; dim=dim)...; dim=dim)
+#
+#	return (
+#
+#				 FFTW.rfftfreq(length(x), 2pi/(x[2]-x[1])),
+#			
+#				 abs.(mapslices(FFTW.rfft, y, dims=dim))
+#
+
 
 #===========================================================================#
 #
@@ -28,26 +39,39 @@ import Dierckx,FFTW
 #
 #---------------------------------------------------------------------------#
 
-function fft(x::AbstractMatrix, w::Number=0; dim::Int=1, addup=true)
-	
-	E = exp.(-1im*w*(axes(x,dim).-1))
 
-	Y = ArrayOps.multiply_elementwise(E, x, dim)
 
-	!addup && return Y
+
+
+# 	!!! 'dim' here has the opposite meaning in Lattices !!!
+#like mapslices vs eachslice
+
+
+
+function fft(x::AbstractMatrix{<:Number}, w::Real=0; 
+						 dim::Int, addup=true)::Array{ComplexF64}
 	
-	return dropdims(sum(Y, dims=dim),dims=dim)
+	Y = ArrayOps.multiply_elementwise(exp.(-1im*w*(axes(x,dim).-1)), x, dim)
+
+	return addup ? dropdims(sum(Y, dims=dim), dims=dim) : Y
+	
+end 
+
+
+function fft(x::AbstractVector{<:Number}; kwargs...)::Array{ComplexF64}
+	
+	fft(x, 2pi*(axes(x,1).-1)/length(x); kwargs...)
 
 end 
 
 
-function fft(x::AbstractVector, w::Union{Number,AbstractVector}=2pi*(axes(x,1).-1)/length(x); addup=true, kwargs...)
+function fft(x::AbstractVector{<:Number}, 
+						 w::Union{Real,AbstractVector{<:Real}};
+						 addup::Bool=true, kwargs...)::Array{ComplexF64}
 
 	E = exp.(-1im*OuterBinary(w, axes(x,1).-1, *))
 
-	addup && return E*x
-
-	return E .* reshape(x,1,:)
+	return addup ? E*x : E .* reshape(x,1,:)
 
 end 
 
