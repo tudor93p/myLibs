@@ -427,15 +427,15 @@ function choose_obs_i(data, k::Nothing=nothing;
 
 	getkeys,getvals,valofkey = Utils.gk_gv_vk_dictorJLDAW(data)
 
-	K,i = sort(collect(getkeys(data))),parse_obs_i(P)
+	K,i = sort(collect(getkeys(data)),by=string), parse_obs_i(P)
 
 	!isnothing(i) && in(i,axes(K,1)) && return choose_obs_i(data, K[i])
 
 	@assert f isa AbstractString "Provide a valid 'k' or 'f'"
 
-	f == "first" && return choose_obs_i(data, K[1])
+	f == "first" && return choose_obs_i(data, K[1], valofkey(data, K[1]))
 
-	f == "last" && return choose_obs_i(data, K[end])
+	f == "last" && return choose_obs_i(data, K[end], valofkey(data, K[end]))
 	
 	f == "sum" && return choose_obs_i(data, join(K,"+"), sum(getvals(data))) 
 
