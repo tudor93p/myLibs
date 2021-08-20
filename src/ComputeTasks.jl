@@ -518,7 +518,7 @@ function fillvals(dims::AbstractVector{<:AbstractVector{Int}},
 		
 	@assert length(args)==length(dims) 
 
-	v = Vector{Any}(undef, maximum(maximum, dims))
+	v = Vector{Any}(undef, sum(length, dims))
 
 	for (dim, arg) in zip(dims, args)
 		
@@ -576,7 +576,8 @@ end
 function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 										 )::Tuple{Function,Function}
 
-	dim = maximum(maximum, dims)
+
+	dim = sum(length, dims)
 
 	if dim<=2 
 		
@@ -675,7 +676,7 @@ function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
 
 	geti = getf_setval(dims)[1]
 
-	dim = maximum(maximum, dims)
+	dim = sum(length, dims)
 
 	function update_max!(S::AbstractVector{Int}, 
 											 vals::Union{AbstractVector{Int}, Tuple{Vararg{Int}}})
@@ -803,12 +804,15 @@ dictJLDAW_getval(k)::Function = D -> Utils.valofkey_dictorJLDAW(D, k)
 #---------------------------------------------------------------------------#
 
 function parse_external_params(int_dim::Int,
-												ext_pairs_::AbstractVector{<:Pair{Int,<:Any}},
-												ext_lab_::AbstractVector{<:AbstractString}=fill("",length(ext_pairs_)),
+		 ext_pairs_::AbstractVector{<:Pair{Int,<:Any}}=Pair{Int,Int}[],
+			ext_lab_::AbstractVector{<:AbstractString}=fill("",length(ext_pairs_)),
 												)::Tuple{Vector{Int}, 
 																 Vector{Union{Function,
 																							<:AbstractVector{<:Number}}},
 																 Vector{String}}
+
+	isempty(ext_pairs_) && return (Int[], Function[], String[])
+
 
 	@assert length(ext_pairs_)==length(ext_lab_) 
 

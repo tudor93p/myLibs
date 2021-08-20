@@ -24,7 +24,7 @@ usedkeys = [:R1, :R2]
 
 function adjust_paramcomb(l, P...)
 
-	@show "here"
+#	@show "here"
 
 	l==2 || return P[l]
 
@@ -71,7 +71,7 @@ function Compute(args...; get_fname::Function, kwargs...)
 
 #	get_fname(args...)() |> println
 
-return sum(sum.(values.(args))) .+  rand(5)
+return sum(sum.(values.(args))) .+  rand()
 
 end 
 
@@ -86,6 +86,7 @@ C = Parameters.Calculation("test_multitask",
 													 Compute) 
 
 for (internal, external) in (
+														([:Q1=>1], Int[]),
 #													 ([:Q1=>1], [1,2]),
 #													 ([:Q1=>1, :R1=>2], [1,3]),
 #													 ([:Q1=>1, :R1=>2], [2,3]),
@@ -95,9 +96,9 @@ for (internal, external) in (
 													 )
 
 #for e in [(30:40,), external, ((D::AbstractVector{<:Number})->axes(D,1),)] 
-for e in [(rand(11),rand(7)), (1,2), [(D::AbstractArray{<:Number})->axes(D,i) for i=1:2]]
+for e_ in [(rand(11),rand(7)), (1,2), [(D::AbstractArray{<:Number})->axes(D,i) for i=1:2]]
 	
-
+	e = e_[axes(external,1)]
 
 
 #	second: either vector or function 
