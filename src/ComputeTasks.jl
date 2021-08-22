@@ -1177,6 +1177,7 @@ function init_multitask_(C::Parameters.Calculation,
 					 
 
 
+					 # get_plotparams and get_paramcombs will not always work; some keys removed at lower levels might be needed at higher levels 
 
 	multitask = CompTask(getproperty.([CompTask(C; rmv_internal_key=rmv_internal_key)], [:name, :get_plotparams, :get_paramcombs])...,
 									 combine_files_exist(tasks),
