@@ -3,6 +3,8 @@ module ComputeTasks
 
 using Distributed
 
+import JLD 
+
 import ..Random, PyCall, ..OrderedDict 
 
 import ..Utils, ..Parameters
@@ -67,12 +69,6 @@ get_taskname(t) = t.name
 
 function CompTask(C::Parameters.Calculation;
 
-									found_files = C.FoundFiles,
-
-								  read_data = C.Read,
-
-					 			 	calc_data = C.Compute,
-
 									valid_pcomb = nothing,
 					
 									kwargs...
@@ -96,13 +92,13 @@ function CompTask(C::Parameters.Calculation;
 	function calc_or_read(p::Utils.List, force_comp::Bool, mute::Bool; 
 												kwargs...)
 
-		F,text = if !force_comp && found_files(p...; kwargs...)
+		F,text = if !force_comp && C.FoundFiles(p...; kwargs...)
 			
-					(read_data,"Reading files")
+					(C.Read,"Reading files")
 
 				else 
 
-					(calc_data,"Calculating")
+					(C.Compute,"Calculating")
 
 				end  
 
@@ -157,7 +153,7 @@ function CompTask(C::Parameters.Calculation;
 	
 		function files_exist(Ps...; target=nothing)
 
-				found_files(fill_internal(Ps)...; target=target) 
+				C.FoundFiles(fill_internal(Ps)...; target=target) 
 			
 		end,
 	

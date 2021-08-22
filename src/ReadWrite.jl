@@ -291,7 +291,7 @@ function good_data(D::AbstractDict)::Bool
 
 	for v in values(D)
 		
-		v isa Union{<:AbstractDict,<:AbstractArray} && continue 
+		v isa Union{<:Number, <:AbstractDict,<:AbstractArray} && continue 
 
 		@warn "JLD data is not read as a dict! 'import JLD' in the script using ReadWrite should solve the problem"
 
