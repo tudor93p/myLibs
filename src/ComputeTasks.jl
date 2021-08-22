@@ -363,7 +363,7 @@ function get_data_random(task; seed=nothing, check_data=true, mute=true)
 #		println(string(gethostname(),"\t",Utils.get_arg(1,2,Int64),"\t",i,"\n"))
 		!mute && println(string(gethostname(),"\t",i,"\n"))
 	
-		Tasks.Generic.get_data_one(task, Utils.DictRandVals;
+		get_data_one(task, Utils.DictRandVals;
 																			 force_comp=!check_data, mute=mute)
 	
 	end
@@ -1311,10 +1311,7 @@ function init_multitask_(C::Parameters.Calculation,
 
 		sub_obs = choose_obs_i(d1; P=P, kwargs...)[2] 
 
-
-		ch_ob(D) = choose_obs_i(D[k], sub_obs)[1]
-
-		return construct_Z(ch_ob, Data, "$obs $sub_obs") 
+		return construct_Z(D->D[obs][sub_obs], Data, "$obs $sub_obs") 
 
 	end 
 
