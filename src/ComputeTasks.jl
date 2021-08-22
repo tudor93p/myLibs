@@ -386,61 +386,109 @@ end
 
 
 
-parse_obs_i(::Nothing)::Nothing = nothing
+parse_obs_i(::Nothing, ::AbstractVector, f::Nothing=nothing)::Nothing = nothing 
 
-parse_obs_i(i::Number)::Int = Int(trunc(i))
+function parse_obs_i(::Nothing, K::AbstractVector, f::AbstractString
+										)::Union{Nothing,Int} 
 
-parse_obs_i(i::AbstractString)::Union{Nothing,Int} = parse_obs_i(tryparse(Float64,i))
-
-parse_obs_i(P::NamedTuple)::Union{Nothing,Int} = parse_obs_i(get(P,:obs_i,nothing))
-
-parse_obs_i(P::AbstractDict)::Union{Nothing,Int} = parse_obs_i(get(P, "obs_i", get(P, :obs_i, nothing)))
-
-parse_obs_i(P::Pair)::Union{Nothing,Int} = parse_obs_i(Dict(P))
-
-
-
-
-function choose_obs_i(data, k, v::Nothing; kwargs...)
-
-	error("Key '$k' not found. Try ",getkeys(data))
+	get(Dict("first"=>1, "last"=>length(K)), f, nothing)
 
 end 
 
-function choose_obs_i(data, k, v; kwargs...)::Tuple{Any,Any}
+function parse_obs_i(i::Int, K::AbstractVector, args...)::Union{Nothing,Int}
 
-	(v,k)
-
-end 
-
-function choose_obs_i(data, k::T; kwargs...)::Tuple{Any,T} where T
-
-	choose_obs_i(data, k, Utils.valofkey_dictorJLDAW(data, k))
+	in(i,axes(K,1)) ? i : parse_obs_i(nothing, K, args...)
 
 end 
 
 
-
-function choose_obs_i(data, k::Nothing=nothing; 
-											P=nothing, f=nothing, kwargs...)::Tuple{Any,Any}
-
-
-	getkeys,getvals,valofkey = Utils.gk_gv_vk_dictorJLDAW(data)
-
-	K,i = sort(collect(getkeys(data)),by=string), parse_obs_i(P)
-
-	!isnothing(i) && in(i,axes(K,1)) && return choose_obs_i(data, K[i])
-
-	@assert f isa AbstractString "Provide a valid 'k' or 'f'"
-
-	f == "first" && return choose_obs_i(data, K[1], valofkey(data, K[1]))
-
-	f == "last" && return choose_obs_i(data, K[end], valofkey(data, K[end]))
+function parse_obs_i(x::Float64, args...)::Union{Nothing,Int}
 	
-	f == "sum" && return choose_obs_i(data, join(K,"+"), sum(getvals(data))) 
+	parse_obs_i(Int(trunc(x)), args...)
+
+end 
+	
 
 
-	error("'f' must be 'last' or 'sum' or 'first'")
+function parse_obs_i(s::AbstractString, args...)::Union{Nothing,Int} 
+	
+	parse_obs_i(tryparse(Float64,s), args...)
+
+end 
+
+
+function parse_obs_i(P::NamedTuple, args...)::Union{Nothing,Int} 
+	
+	parse_obs_i(get(P,:obs_i,nothing), args...)
+
+end 
+
+
+function parse_obs_i(P::AbstractDict, args...)::Union{Nothing,Int} 
+	
+	parse_obs_i(get(P, "obs_i", get(P, :obs_i, nothing)), args...)
+
+end 
+
+function parse_obs_i(P::Pair, args...)::Union{Nothing,Int}
+	
+	parse_obs_i(Dict(P), args...)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+#function choose_obs_i(data::AbstractDict, k, v::Nothing; kwargs...)
+#
+#	error("Key '$k' not found. Try ",getkeys(data))
+#
+#end 
+
+#function choose_obs_i(data, k, v; kwargs...)::Tuple{Any,Any}
+#
+#	(v,k)
+#
+#end 
+
+function choose_obs_i(data::AbstractDict{Tk,Tv}, k::Tk; 
+											kwargs...)::Tuple{Tv, Tk} where {Tk,Tv}
+
+	(data[k], k)
+#	choose_obs_i(data, k, Utils.valofkey_dictorJLDAW(data, k))
+
+end 
+
+
+
+function choose_obs_i(data::AbstractDict{Tk,Tv},
+											k::Nothing=nothing; 
+											P=nothing, f=nothing, kwargs...
+											)::Tuple{Tv,<:Any} where {Tk,Tv}
+
+
+#	getkeys,getvals,valofkey = Utils.gk_gv_vk_dictorJLDAW(data)
+
+#	K,i = sort(collect(getkeys(data)),by=string), parse_obs_i(P)
+	K = sort(collect(keys(data)), by=string)
+	i = parse_obs_i(P, K, f) 
+
+
+
+	#	!isnothing(i) && in(i,axes(K,1)) && return choose_obs_i(data, K[i])
+
+	isnothing(i) || return choose_obs_i(data, K[i])
+	
+	isa(f,AbstractString) && f=="sum" && return sum(values(data)), join(K,"+")
+		
+	error("Provide a valid 'k' or 'f'. 'f' must be 'last' or 'sum' or 'first'")
 
 end
 

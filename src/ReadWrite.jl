@@ -2,7 +2,7 @@ module ReadWrite
 #############################################################################
 
 import ..DlmF
-import FileIO#,JLD
+import FileIO, JLD
 
 import ..Utils, ..ArrayOps
 
@@ -89,7 +89,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Extension_Storemethod(storemethod)
+function Extension_Storemethod(storemethod::AbstractString)::String
 
 	storemethod in ["dat","jld"] && return ".$storemethod"
 
@@ -98,7 +98,7 @@ function Extension_Storemethod(storemethod)
 end
 
 
-function isLegendFile(storemethod)
+function isLegendFile(storemethod::AbstractString)::Function
 
 	storemethod == "dat" && return x->occursin("_Legend",x)
 
@@ -108,7 +108,7 @@ function isLegendFile(storemethod)
 
 end 
 
-function Name_fromLegend(storemethod)
+function Name_fromLegend(storemethod::AbstractString)::Function
 
 	storemethod == "dat" && return x->split(x,"_Legend")[1]
 	
@@ -118,7 +118,7 @@ function Name_fromLegend(storemethod)
 
 end 
 
-function LegendFile_fromName(storemethod)
+function LegendFile_fromName(storemethod::AbstractString)::Function
 
 	storemethod == "dat" && return x->x*"_Legend"
 
@@ -287,27 +287,41 @@ function Read_NamesVals(filename::Function, Names::AbstractString, storemethod::
 end 
 
 
-function Read_NamesVals(filename::Function, Names::AbstractVector{<:AbstractString}, storemethod::AbstractString)::Dict
+function good_data(D::AbstractDict)::Bool 
+
+	for v in values(D)
+		
+		v isa Union{<:AbstractDict,<:AbstractArray} && continue 
+
+		@warn "JLD data is not read as a dict! 'import JLD' in the script using ReadWrite should solve the problem"
+
+		return false 
+
+	end 
+
+	return true 
+end 
+
+
+
+function Read_NamesVals(filename::Function, Names::AbstractVector{<:AbstractString}, storemethod::AbstractString)::Dict{String,Any}
 
 	fileNames = unique(filename.(Names).*Extension_Storemethod(storemethod))
 
 
 	if storemethod=="jld"
 
-		FNs = filter(isfile, fileNames)
+		out = Dict{String,Any}()
+		
+		merge!(out, JLD.load.(filter(isfile, fileNames))...)
 
-		isempty(FNs) && return Dict()
+		@assert good_data(out)
 
-		return merge(map(FNs) do fn 
-
-#				FileIO.load(FileIO.File(FileIO.format"JLD",fn))
-				FileIO.load(FileIO.File{FileIO.format"JLD"}(fn))
-
-		end...) 
+		return out 
 
 	elseif storemethod=="dat"
 
-	  outdict = Dict()
+		out = Dict{String,Any}()
 	
 		for (n,fn) in zip(Names,fileNames)
 
