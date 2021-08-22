@@ -287,53 +287,58 @@ function Read_NamesVals(filename::Function, Names::AbstractString, storemethod::
 end 
 
 
-function good_data(D::AbstractDict)::Bool 
+function good_data(D::T)::T where T<:AbstractDict 
 
 	for v in values(D)
 		
 		v isa Union{<:Number, <:AbstractDict,<:AbstractArray} && continue 
 
-		@warn "JLD data is not read as a dict! 'import JLD' in the script using ReadWrite should solve the problem"
-
-		return false 
+		error("JLD data is not read as a dict! 'import JLD' in the script using ReadWrite should solve the problem")
 
 	end 
 
-	return true 
+	return D 
+
+end 
+
+
+function unique_existent_fileNames(filename::Function, Names::AbstractVector{<:AbstractString}, storemethod::AbstractString)::Tuple{Vector{String},Vector{String}}
+
+	ufn,iufn = Utils.Unique(
+							filename.(Names) .* Extension_Storemethod(storemethod);
+													inds=:first)
+
+	exist = isfile.(ufn) 
+	
+	return (Names[iufn[exist]], ufn[exist])
+
 end 
 
 
 
 function Read_NamesVals(filename::Function, Names::AbstractVector{<:AbstractString}, storemethod::AbstractString)::Dict{String,Any}
+	
+	n,fn = unique_existent_fileNames(filename, Names, storemethod)
 
-	fileNames = unique(filename.(Names).*Extension_Storemethod(storemethod))
+	isempty(n) && return Dict{String,Any}()
+
+	return good_data(Read_NamesVals_(n, fn, storemethod))
+
+end 
 
 
-	if storemethod=="jld"
 
-		out = Dict{String,Any}()
+function Read_NamesVals_(Names::T, fileNames::T, 
+												 storemethod::AbstractString
+												 )::Dict{String,Any} where T<:AbstractVector{<:AbstractString}
+
+	if storemethod=="jld" 
 		
-		merge!(out, JLD.load.(filter(isfile, fileNames))...)
+		merge!(Dict{String,Any}(), JLD.load.(fileNames)...)
 
-		@assert good_data(out)
-
-		return out 
-
-	elseif storemethod=="dat"
-
-		out = Dict{String,Any}()
-	
-		for (n,fn) in zip(Names,fileNames)
-
-			if isfile(fn)
-
-				outdict[n] =DlmF.readdlm(fn)
-
-			end 
-	
-	  end
-	
-	  return outdict
+	elseif storemethod=="dat" 
+		
+		Dict{String,Any}(zip(Names, DlmF.readdlm.(fileNames)))
 
 	end 
 

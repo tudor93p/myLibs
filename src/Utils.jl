@@ -250,7 +250,7 @@ is_exact(S) = any(Ti -> S<:Ti, [Integer, Rational, AbstractString, AbstractChar,
 
 
 
-function Unique!(V::AbstractArray{T}; sorted=false, kwargs...) where T
+function Unique!(V::AbstractArray; sorted=false, kwargs...)
 
 	i = Unique(V; kwargs..., sorted=false, inds=:first)[2]
 
@@ -288,46 +288,46 @@ end
 #---------------------------------------------------------------------------#
 
 
-function valofkey_dictorJLDAW(data::Union{AbstractDict,NamedTuple}, k)
-
-	get(data, k, nothing)
-
-end 
-
-
-
-function valofkey_dictorJLDAW(JLDAW_object, k)
-
-	for (i,ki) in enumerate(JLDAW_object.keys)
-
-		k==ki && return JLDAW_object.values[i]
-		
-	end 
-	
-	return nothing 
-
-end  
-
-
-
-
-
-function gk_gv_vk_dictorJLDAW(data::Union{AbstractDict,
-																					NamedTuple})::NTuple{3,Function}
-
-	(keys, values, valofkey_dictorJLDAW)
-
-end  
+#function valofkey_dictorJLDAW(data::Union{AbstractDict,NamedTuple}, k)
+#
+#	get(data, k, nothing)
+#
+#end 
+#
+#
+#
+#function valofkey_dictorJLDAW(JLDAW_object, k)
+#
+#	for (i,ki) in enumerate(JLDAW_object.keys)
+#
+#		k==ki && return JLDAW_object.values[i]
+#		
+#	end 
+#	
+#	return nothing 
+#
+#end  
 
 
 
 
-function gk_gv_vk_dictorJLDAW(data)::NTuple{3,Function}
-	
-	(d->d.keys, d->d.values, valofkey_dictorJLDAW) 
 
-end  
-
+#function gk_gv_vk_dictorJLDAW(data::Union{AbstractDict,
+#																					NamedTuple})::NTuple{3,Function}
+#
+#	(keys, values, valofkey_dictorJLDAW)
+#
+#end  
+#
+#
+#
+#
+#function gk_gv_vk_dictorJLDAW(data)::NTuple{3,Function}
+#	
+#	(d->d.keys, d->d.values, valofkey_dictorJLDAW) 
+#
+#end  
+#
 
 
 
@@ -369,7 +369,7 @@ function Unique(V::AbstractArray{T};
 
 		f = [findfirst, findall, findlast][i_f]
 
-		iter = collect(eachslice(V,dims=dim))
+		iter = collect(eachslice(V, dims=dim))
 
 		return U, [f(isequal(u), iter) for u in eachslice(U,dims=dim)]
 
@@ -1109,15 +1109,15 @@ end
 #
 #---------------------------------------------------------------------------#
 
-is_dict_or_JLDAW(D::Union{NamedTuple,AbstractDict})::Bool = true 
-
-function is_dict_or_JLDAW(D)::Bool
-
-	all(in(propertynames(D)), [:keys, :values]) && return true
-
-	return false 
-
-end
+#is_dict_or_JLDAW(D::Union{NamedTuple,AbstractDict})::Bool = true 
+#
+#function is_dict_or_JLDAW(D)::Bool
+#
+#	all(in(propertynames(D)), [:keys, :values]) && return true
+#
+#	return false 
+#
+#end
 
 
 

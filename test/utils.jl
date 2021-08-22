@@ -260,7 +260,7 @@ for x in [(5,), (rand(5,3),1), (1:5,), ([1,2,3,4,5],)]
 #		println("First: ", typeof.(x)...)
 #		println("Second: ", typeof.(y)...)
 		
-		@assert result==Utils.RescaledInds(x..., y...) 
+		@assert result==Utils.RescaleInds(x..., y...) 
 	
 #		println() 
 	end 

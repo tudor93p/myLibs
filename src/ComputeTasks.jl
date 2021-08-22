@@ -3,7 +3,6 @@ module ComputeTasks
 
 using Distributed
 
-import JLD 
 
 import ..Random, PyCall, ..OrderedDict 
 
@@ -836,9 +835,17 @@ end
 #---------------------------------------------------------------------------#
 
 
-dictJLDAW_getval(k)::Function = D -> Utils.valofkey_dictorJLDAW(D, k) 
+#dictJLDAW_getval(k)::Function = D -> Utils.valofkey_dictorJLDAW(D, k) 
 
+function getval(k)::Function
 
+	function getval_(D::AbstractDict{TK,TV})::TV where {TK,TV}
+		
+		D[k]
+
+	end 
+
+end 
 
 
 #===========================================================================#
@@ -885,12 +892,8 @@ function parse_external_params(int_dim::Int,
 
 
 
-	function make_function(obs::AbstractString)::Function
-
-		dictJLDAW_getval(obs)
+	make_function(obs::AbstractString)::Function = getval(obs)
 			
-	end 
-
 
 	function make_function(i::Int)::Function
 
@@ -901,6 +904,7 @@ function parse_external_params(int_dim::Int,
 		end 
 		
 	end 
+
 
 
 	return (ext_dim,
@@ -1007,7 +1011,7 @@ end
 
 function get_Z_and_axes(obs::AbstractString, args...)::Dict{String,Any}
 
-	get_Z_and_axes(dictJLDAW_getval(obs), args...)
+	get_Z_and_axes(getval(obs), args...)
 
 end 
 
@@ -1300,17 +1304,17 @@ function init_multitask_(C::Parameters.Calculation,
 
 		# if it's an array or number, not dictionary-like object
 
-		Utils.is_dict_or_JLDAW(d1) || return construct_Z(obs, Data)
+#		Utils.is_dict_or_JLDAW(d1) || return construct_Z(obs, Data)
+		isa(d1, AbstractDict) || return construct_Z(obs, Data)
 	
 
 
 		sub_obs = choose_obs_i(d1; P=P, kwargs...)[2] 
 
 
-		ch_ob(q) = choose_obs_i(q, sub_obs)[1]
+		ch_ob(D) = choose_obs_i(D[k], sub_obs)[1]
 
-
-		return construct_Z(ch_ob ∘ dictJLDAW_getval(obs), Data, "$obs $sub_obs") 
+		return construct_Z(ch_ob, Data, "$obs $sub_obs") 
 
 	end 
 
