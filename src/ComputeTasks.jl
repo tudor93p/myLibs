@@ -453,6 +453,13 @@ end
 #
 #end 
 
+function choose_obs_i(data::T, args...; kwargs...
+											)::Tuple{T, Nothing} where T<:Union{<:Number,<:AbstractArray{<:Number}}
+
+	(data, nothing)
+
+end 
+
 function choose_obs_i(data::AbstractDict{Tk,Tv}, k::Tk; 
 											kwargs...)::Tuple{Tv, Tk} where {Tk,Tv}
 
