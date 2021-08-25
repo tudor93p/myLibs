@@ -537,28 +537,58 @@ end
 #[0,0,0,0,0,0,3,1,1,1] => [1:6,7:7,8:10]
 
 function IdentifySectors(f::Function, iter::AbstractVector, 
-												 args...; kwargs...)::Vector{UnitRange}
+												 args...; kwargs...)::Vector{UnitRange{Int}}
 
 	IdentifySectors(map(f, iter), args...; kwargs...)
 
 end 
 
-function IdentifySectors(list::AbstractVector, 
+function IdentifySectors(list::AbstractVector{T}; kwargs...
+												 )::Vector{UnitRange{Int}} where T<:Union{
+																	<:Int, <:AbstractSet, 
+																	<:Tuple{<:Vararg{<:Int}},
+																	<:AbstractVector{<:Int},
+																	}
+	IdentifySectors_(==, list)
+
+end 
+
+
+function IdentifySectors(list::AbstractVector{T}; tol=1e-8, kwargs...
+												 )::Vector{UnitRange{Int}} where T<:Union{
+														<:ComplexF64, <:Float64,
+														<:AbstractVector{<:Union{<:ComplexF64,<:Float64}},
+																	}
+
+	IdentifySectors_(list) do a,b
+
+		isapprox(a,b, atol=tol)
+
+	end 
+
+end 
+
+
+
+
+
+function IdentifySectors_(same::Function, list::AbstractVector, 
 												 sectors::Vector{UnitRange{Int}}=UnitRange{Int}[], 
-												 start::Int=0; 
-												 tol=1e-8)::Vector{UnitRange{Int}} 
+												 start::Int=0
+												 )::Vector{UnitRange{Int}} 
 
 	update(j) = vcat(sectors, UnitRange{Int}[1+start:j+start])
 
+
 	for i in axes(list,1)
 
-		if isapprox(list[i], list[1], atol=tol)		# still within the sector
+		if same(list[i], list[1])		# still within the sector
 		
 			i==length(list) && return update(i) # sector ended abruptly
 
 		else  # sector ended already at i-1
 
-			return IdentifySectors(list[i:end], update(i-1), start+i-1; tol=tol)
+			return IdentifySectors_(same, list[i:end], update(i-1), start+i-1)
 
 		end
 	end
