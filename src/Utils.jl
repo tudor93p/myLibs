@@ -546,7 +546,7 @@ end
 function IdentifySectors(list::AbstractVector{T}; kwargs...
 												 )::Vector{UnitRange{Int}} where T<:Union{
 																	<:Int, <:AbstractSet, 
-																	<:Tuple{<:Vararg{<:Int}},
+																	<:Tuple{Vararg{<:Int}},
 																	<:AbstractVector{<:Int},
 																	}
 	IdentifySectors_(==, list)
