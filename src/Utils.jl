@@ -2841,7 +2841,7 @@ end
 
 function split_in_tiers_(M::AbstractVector{<:Real},
 												 possible_machines::AbstractVector{<:AbstractDict},
-												 )::Vector{Vector{Tuple{Vector{String},UnitRange{Int}}}}
+												 )::Vector{Vector{Tuple{Vector{Pair{String,Int}},UnitRange{Int}}}}
 	
 	#Min/max workstations per level and in total
 #Tol_cost_gradient
@@ -2865,7 +2865,10 @@ function split_in_tiers_(M::AbstractVector{<:Real},
 
 		map(reverse(solutions[j])) do (i, sector, ws, c)
 
-			ws, UnitRange(extrema(1+length(M).-sector)...)
+			([w=>minimum(possible_machines[s][w] for s in sector) for w in ws],
+			 
+			 UnitRange(extrema(1+length(M).-sector)...)
+			 )
 
 		end 
 

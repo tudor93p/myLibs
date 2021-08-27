@@ -38,6 +38,11 @@ M = [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 2.38, 2.38
 
 s = SW.split_in_tiers(M, possible_machines) 
 
+for si in s 
+	println.(si)
+	println()
+end 
+error()
 
 x= Utils.flatmap(1:15) do k
 
