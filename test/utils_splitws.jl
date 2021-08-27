@@ -1,5 +1,6 @@
-import myLibs.Utils: SplitWorkstations
-const SW = SplitWorkstations
+import myLibs: Utils,Algebra
+import Random 
+const SW = Utils.SplitWorkstations
 
 using OrderedCollections 
 
@@ -28,26 +29,42 @@ end
 
 println()
 
-
-M = [1.4, 1.4, 2.8, 4.76, 7.279999999999999, 15.399999999999999, 30.799999999999997]
-possible_machines = [OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), 
-										 OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), 
-										 OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 11, "shu" => 5, "re" => 5, "sia" => 5, "neper" => 5, "hapi" => 5), 
-										 OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 6), 
-										 OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 8, "taranis" => 4), 
-										 OrderedDict("toad" => 48, "yoshi" => 22, "nut" => 4), 
-										 OrderedDict("toad" => 37, "yoshi" => 11)]
+possible_machines = [OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 16, "nut" => 12, "shu" => 11, "re" => 11, "sia" => 8, "neper" => 8, "hapi" => 8), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 13, "nut" => 12, "shu" => 6, "re" => 6, "sia" => 6, "neper" => 6, "hapi" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 13, "nut" => 12, "shu" => 6, "re" => 6, "sia" => 6, "neper" => 6, "hapi" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 13, "nut" => 12, "shu" => 6, "re" => 6, "sia" => 6, "neper" => 6, "hapi" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "taranis" => 13, "nut" => 12, "shu" => 6, "re" => 6, "sia" => 6, "neper" => 6, "hapi" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 11, "shu" => 5, "re" => 5, "sia" => 5, "neper" => 5, "hapi" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 11, "shu" => 5, "re" => 5, "sia" => 5, "neper" => 5, "hapi" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 11, "shu" => 5, "re" => 5, "sia" => 5, "neper" => 5, "hapi" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 11, "shu" => 5, "re" => 5, "sia" => 5, "neper" => 5, "hapi" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 12, "taranis" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 11, "taranis" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 11, "taranis" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 11, "taranis" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 11, "taranis" => 5), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 8, "taranis" => 4), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 8, "taranis" => 4), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 8, "taranis" => 4), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 8, "taranis" => 4), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 6), OrderedDict("toad" => 48, "yoshi" => 28, "nut" => 6), OrderedDict("toad" => 48, "yoshi" => 22, "nut" => 4), OrderedDict("toad" => 48, "yoshi" => 22, "nut" => 4), OrderedDict("toad" => 48, "yoshi" => 22, "nut" => 4), OrderedDict("toad" => 48, "yoshi" => 22, "nut" => 4), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11), OrderedDict("toad" => 37, "yoshi" => 11)]
+M = [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 2.38, 2.38, 2.38, 2.38, 2.8, 2.8, 2.8, 2.8, 4.76, 4.76, 4.76, 4.76, 5.319999999999999, 5.319999999999999, 5.319999999999999, 5.319999999999999, 7.279999999999999, 7.279999999999999, 7.279999999999999, 7.279999999999999, 10.08, 10.08, 10.08, 10.08, 15.399999999999999, 15.399999999999999, 15.399999999999999, 15.399999999999999, 30.799999999999997, 30.799999999999997, 30.799999999999997, 30.799999999999997, 30.799999999999997, 30.799999999999997, 30.799999999999997, 30.799999999999997]
 
 
-@time s = SW.split_in_tiers(M, possible_machines) 
-@time s = SW.split_in_tiers(M, possible_machines)  
+
+
+
+s = SW.split_in_tiers(M, possible_machines) 
+
+
+x= Utils.flatmap(1:15) do k
+
+	map(1:10) do  j
+
+	Random.seed!(100k+j)
+	i = sort(Utils.Random_Items(axes(M,1),k))
+
+#@show k i 
+s = SW.split_in_tiers(M[i], possible_machines[i])
+
+@assert !isempty(s) i
+
+return length(s)
+
+#println("************** $k $j ",length(s))
 
 for si in s 
-	println.(si)
-	println()
+#	println.(si)
+#	println()
 end 
 
+#println()
+end 
+end 
 
+@show Algebra.Mean(x.<3)
 
 
 

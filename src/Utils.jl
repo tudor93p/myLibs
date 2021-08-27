@@ -2483,7 +2483,7 @@ end
 
 function cost_constraint(C::Union{<:AbstractVector{<:Real},
 																	<:Tuple{Vararg{<:Real}}};
-												 at_most_from_prev::Real=1.2,
+												 at_most_from_prev::Real=1.25,
 												 kwargs...)::Bool 
 
 	# rough decreasing order  C[i+1] < factor*C[i]  , factor close to 1
@@ -2511,6 +2511,7 @@ function cost_constraint2(C::Union{<:AbstractVector{<:Real},
 
 
 end 
+
 cost_constraint2(C::Vararg{<:Real}; kwargs...)::Bool = cost_constraint2(vcat(C...); kwargs...)
 
 
@@ -2711,11 +2712,13 @@ function promising_candidate(data, candidate)
 
 	isempty(candidate) && return true 
 
-	for (i, sector, machines, cost) in candidate 
+	#sum(length,getindex.(candidate,3)) > 6 && return false  
 
-		length(machines)>length(sector) && return false 
-
-	end 
+#	for (i, sector, machines, cost) in candidate 
+#
+#		length(machines)>length(sector) && return false 
+#
+#	end 
 
 	C = getindex.(candidate,4)
 
@@ -2773,11 +2776,11 @@ function duplicate_solution(A, B)::Bool
 
 		length(ma)==length(mb) || return false 
 
-#		L = 0.9length(intersect(sa,sb))
-#
-#		(length(sa)>L && length(sb)>L) || return false 
-#
-(Set(ma)==Set(mb) || isapprox(ca,cb,rtol=0.2)) || return false 
+		L = 0.9length(intersect(sa,sb))
+
+		(length(sa)>L && length(sb)>L) || return false 
+
+		(Set(ma)==Set(mb) || isapprox(ca,cb,rtol=0.2)) || return false 
 
 	end 
 
@@ -2855,9 +2858,12 @@ function split_in_tiers_(M::AbstractVector{<:Real},
 													 output,
 													 data->[])
 
-	return map(solutions) do sol 
+	inds = sortperm(solutions, by=s->nr_procs_launched(possible_machines,s))
 
-		map(reverse(sol)) do (i, sector, ws, c)
+
+	return map(reverse(inds)) do j
+
+		map(reverse(solutions[j])) do (i, sector, ws, c)
 
 			ws, UnitRange(extrema(1+length(M).-sector)...)
 
