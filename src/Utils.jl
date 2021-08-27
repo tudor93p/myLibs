@@ -185,6 +185,14 @@ function EqualDistributeBallsToBoxes_cumulRanges(args...)
 end 
 
 
+function PropDistributeBallsToBoxes_cumulRanges(args...)
+
+	d = PropDistributeBallsToBoxes(args[1:2]...)
+
+	return sepLengths_cumulRanges(d, args[3:end]...)
+
+end 
+
 
 
 

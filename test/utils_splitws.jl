@@ -42,6 +42,18 @@ for si in s
 	println.(si)
 	println()
 end 
+
+Q = [4, 28, 48, 8]
+@show Q 
+@assert Utils.PropDistributeBallsToBoxes(div(sum(Q), minimum(Q)), Q)==[1, 7, 12, 2]
+
+
+@show Utils.PropDistributeBallsToBoxes_cumulRanges(div(sum(Q), minimum(Q)), Q)
+
+
+
+println()
+
 error()
 
 x= Utils.flatmap(1:15) do k
