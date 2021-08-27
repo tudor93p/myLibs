@@ -560,9 +560,11 @@ function IdentifySectors(list::AbstractVector{T}; tol=1e-8, kwargs...
 														<:AbstractVector{<:Union{<:ComplexF64,<:Float64}},
 																	}
 
-	IdentifySectors_(list) do a,b
+	ntol,ftol = tolNF(tol)
+	
+	return IdentifySectors_(list) do a,b
 
-		isapprox(a,b, atol=tol)
+		isapprox(a,b, atol=ftol)
 
 	end 
 
@@ -1463,11 +1465,10 @@ end
 
 
 
-getkeys(a::AbstractVector) = a
-getkeys(a::Union{<:AbstractDict, <:NamedTuple}) = collect(keys(a))
-getkeys(a::Pair) = [p.first]
-getkeys(a::Union{<:Int,<:Tuple,<:Symbol,<:AbstractString}) = [a]
-
+getkeys(a::AbstractVector)::Vector = a
+getkeys(a::Union{<:AbstractDict, <:NamedTuple})::Vector = collect(keys(a))
+getkeys(a::Pair)::Vector = [p.first]
+getkeys(a::Union{<:Int,<:Tuple,<:Symbol,<:AbstractString})::Vector = [a]
 
 
 function dict_diff(D::Union{<:AbstractDict, <:NamedTuple},
@@ -2445,6 +2446,436 @@ function Assign_Value(input_value, get_std_value, args...; kwargs...)
   return nothing
 
 end
+
+
+#===========================================================================#
+#
+# Split tasks on workstations according to difficulty (cost)
+#
+#---------------------------------------------------------------------------#
+
+
+#############################################################################
+module SplitWorkstations
+#############################################################################
+
+
+import ..Assign_Value, ..OrderedDict, ..IdentifySectors, ..Backtracking
+import Combinatorics
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function cost(M::AbstractVector{<:Real}, 
+							possible_machines::AbstractVector{<:AbstractDict},
+							inds::AbstractVector{Int},
+							machines::AbstractVector{<:AbstractString})::Float64
+
+	sum(M[i]/sum(possible_machines[i][m] for m in machines) for i in inds)
+
+end  
+
+
+function cost_constraint(C::Union{<:AbstractVector{<:Real},
+																	<:Tuple{Vararg{<:Real}}};
+												 at_most_from_prev::Real=1.2,
+												 kwargs...)::Bool 
+
+	# rough decreasing order  C[i+1] < factor*C[i]  , factor close to 1
+
+	length(C)<=1 && return true  
+
+	return all(diff(C)./C[1:end-1] .+ 1 .< at_most_from_prev)
+	
+end  
+
+cost_constraint(C::Vararg{<:Real}; kwargs...)::Bool = cost_constraint(vcat(C...); kwargs...)
+
+
+
+
+function cost_constraint2(C::Union{<:AbstractVector{<:Real},
+																	<:Tuple{Vararg{<:Real}}};
+													at_least_from_prev::Real=0.6,
+													kwargs...)::Bool 
+	
+
+	length(C)<=1 && return true 
+
+	return all(diff(C)./C[1:end-1] .+ 1 .>  at_least_from_prev)
+
+
+end 
+cost_constraint2(C::Vararg{<:Real}; kwargs...)::Bool = cost_constraint2(vcat(C...); kwargs...)
+
+
+
+
+struct IterSplitWS 
+
+	possible_machines::Vector{OrderedDict{String,Int}}
+
+	sectors::Vector{Vector{Int}}	
+
+	M::Vector{Float64}
+
+	m::Vector{String}  
+
+	min_ms::Int
+
+	start::Int
+
+	i::Int
+	
+	cconstraint::Function 
+
+end  
+
+function IterSplitWS(data::Tuple{<:Any,<:Any,<:Any},
+						 m::AbstractVector{<:AbstractString}, 
+						 min_ms::Int=length(m), 
+						 start::Int=1, 
+						 i::Int=1;
+						 kwargs...)
+
+	IterSplitWS(data..., m, min_ms, start, i, C->true)
+
+end 
+
+function IterSplitWS(data::Tuple{<:Any,<:Any,<:Any},
+						 m::AbstractVector{<:AbstractString}, 
+						 min_ms::Int, 
+						 start::Int, 
+						 i::Int,
+						 cconstraint::Real;
+						 kwargs...)
+
+
+	IterSplitWS(data...,
+			m, min_ms, start, i,
+			C->cost_constraint(cconstraint, C; kwargs...),
+			)
+
+end 
+
+
+
+
+#===========================================================================#
+#
+# Iterate to find possible extensions 
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function next_m(possible_machines, inds,
+								all_m::AbstractVector{<:AbstractString}, 
+								min_m::Int, outside_m::Int
+								)::Tuple{<:Any,<:Any}
+
+	A = [sum(getindex.(possible_machines[inds], [m])) for m in all_m]
+
+	a,b = extrema(A/length(inds))
+
+	state = (b<1.5a) ? 1 : nothing
+
+	return next_m(possible_machines, inds, all_m, min_m, outside_m, state)
+
+end 
+
+function next_m(possible_machines, inds,
+								all_m::AbstractVector{<:AbstractString}, 
+								min_m::Int, outside_m::Int,
+								state
+								)::Tuple{<:Any,<:Any}
+
+	next_m(all_m, length(all_m)-outside_m:-1:min_m, state)
+
+end 
+
+function next_m(all_m::AbstractVector{<:AbstractString}, 
+								ns::AbstractVector{Int}, i::Int,
+								)::Tuple{<:Any,<:Any}
+
+
+	i>length(ns) ? (nothing,nothing) : (all_m[1:ns[i]], i+1)
+
+end 
+
+
+function next_m(all_m::AbstractVector{<:AbstractString}, 
+								ns::AbstractVector{Int}, state::Union{Nothing,Tuple}
+								)::Tuple{<:Any,<:Any}
+
+	it = Iterators.flatten((Combinatorics.combinations(all_m, n) for n=ns))
+
+	S = isnothing(state) ? iterate(it) : iterate(it, state)
+
+	return isnothing(S) ? (nothing,nothing) : S
+
+end 
+
+
+
+function Base.iterate(q::IterSplitWS, state=(q.i, nothing))
+	
+	i, pos, = state 
+
+	i in q.i:length(q.sectors) || return nothing 
+
+	sector = q.sectors[i]
+
+	pos = Assign_Value(pos, i==q.i ? length(sector) : 1)
+	
+	pos in axes(sector,1) || return iterate(q,(i+1,1))
+
+	stop = sector[pos] 
+
+	stop<q.start && return iterate(q,(i+1,1))
+
+
+	leftout_ms = i==q.i ? length(sector)-pos : 0
+
+
+	m,state_comb = next_m(q.possible_machines, q.start:stop,
+												q.m, q.min_ms, leftout_ms, state[3:end]...)
+
+
+
+	isnothing(m) && return iterate(q, (i, pos + 1 - 2(i==q.i)))
+	
+	C = cost(q.M, q.possible_machines, q.start:stop, m)
+
+
+	if length(m)==length(q.m)-leftout_ms && !q.cconstraint(C)
+
+		return i>q.i ? nothing : iterate(q, (i,pos-1))
+
+	end  
+
+
+	return (i, q.start:stop, m, C), (i, pos, state_comb)
+
+end 
+
+
+
+function possible_extensions_(data::Tuple{<:Any,<:Any,<:Any}, 
+															candidate::AbstractVector)
+
+	isempty(candidate) && return IterSplitWS(data, 
+																	 available_machines(data, candidate, 1))
+
+	prev_i, prev_range, prev_m, costc = candidate[end]
+
+	start = prev_range[end] + 1 
+
+	start > data[2][end][end] && return []
+
+	return IterSplitWS(data,
+						 available_machines(data, candidate, start),
+						 1,
+						 start,
+						 prev_i + !in(start, data[2][prev_i]),
+						 costc,
+						 )
+end 
+
+
+function possible_extensions(data, candidate) 
+
+	(vcat(candidate, [x]) for x in possible_extensions_(data, candidate))
+
+end 
+
+
+
+#===========================================================================#
+#
+# filter candidates/solutions 
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+
+function promising_candidate(data, candidate)
+
+	isempty(candidate) && return true 
+
+	for (i, sector, machines, cost) in candidate 
+
+		length(machines)>length(sector) && return false 
+
+	end 
+
+	C = getindex.(candidate,4)
+
+	return cost_constraint(C) && cost_constraint2(C)
+
+end  
+
+
+
+function accept_sol((possible_machines, sectors, M), candidate)::Bool
+
+	isempty(candidate) && return false 
+
+	sectors[end][end]==candidate[end][2][end] || return false 
+
+
+	most_powerful = collect(keys(possible_machines[end]))[1:length(candidate)] 
+
+	used_machines = union(getindex.(candidate, 3)...)
+
+	return issubset(most_powerful, used_machines)
+
+end 
+
+
+
+function nr_procs_launched(possible_machines, candidate)::Int
+
+	#Vector{Tuple{Int,UnitRange,Vector{String},Float64}}
+
+	n = 0 
+
+	for (i, sector, machines, cost) in candidate 
+
+		for m in machines
+
+			n += minimum(possible_machines[s][m] for s in sector)
+
+		end 
+
+	end 
+
+	return n 
+
+end 
+
+
+function duplicate_solution(A, B)::Bool
+
+	length(A)==length(B) || return false 
+
+	for ((ia,sa,ma,ca),(ib,sb,mb,cb)) in zip(A,B)
+
+	#	ia==ib || return false 
+
+		length(ma)==length(mb) || return false 
+
+#		L = 0.9length(intersect(sa,sb))
+#
+#		(length(sa)>L && length(sb)>L) || return false 
+#
+(Set(ma)==Set(mb) || isapprox(ca,cb,rtol=0.2)) || return false 
+
+	end 
+
+	return true 
+
+end 
+
+
+function output((machines, s, M), solutions, candidate)
+
+	any(s->duplicate_solution(s, candidate), solutions) && return true
+
+#	return push!(solutions, candidate)
+
+	length(solutions)<10 && return push!(solutions, candidate)
+
+	n = nr_procs_launched(machines, candidate) 
+
+	for (i,s) in enumerate(solutions) 
+
+		nr_procs_launched(machines, s)<n || continue 
+
+		return setindex!(solutions, candidate, i)
+
+	end 
+
+
+end 
+
+function available_machines((possible_machines, sectors, M), candidate, start::Int)
+
+	setdiff(collect(keys(possible_machines[start])), getindex.(candidate,3)...)
+
+end 
+
+
+function split_in_tiers(M::AbstractVector{<:Real},
+												possible_machines::AbstractVector{<:AbstractDict},
+											 )#::Vector{Tuple{Vector{String},Vector{Int}}}
+
+	s1 = [issorted(M,rev=rev) for rev=[true,false]]
+	
+	s2 = [issorted(possible_machines, by=length, rev=rev) for rev=[true,false]]
+
+	@assert any(s1) & any(s2)
+
+	#	difficulty: M descending and and nr machines increasing 
+	
+
+
+	split_in_tiers_(s1[2] ? reverse(M) : M,
+									s2[1] ? reverse(possible_machines) : possible_machines,
+									)
+
+
+end 
+
+
+function split_in_tiers_(M::AbstractVector{<:Real},
+												 possible_machines::AbstractVector{<:AbstractDict},
+												 )::Vector{Vector{Tuple{Vector{String},UnitRange{Int}}}}
+	
+	#Min/max workstations per level and in total
+#Tol_cost_gradient
+#Min max tiers
+#Strictness duplicate
+#Nr sols, index sol, sort sola by
+
+	solutions = Backtracking((possible_machines,
+														IdentifySectors(keys.(possible_machines)),
+														M),
+													 possible_extensions,
+													 promising_candidate,
+													 accept_sol,
+													 output,
+													 data->[])
+
+	return map(solutions) do sol 
+
+		map(reverse(sol)) do (i, sector, ws, c)
+
+			ws, UnitRange(extrema(1+length(M).-sector)...)
+
+		end 
+
+	end 
+
+
+end 
+
+
+
+
+#############################################################################
+end # split workstations 
+#############################################################################
+
+
 
 
 
