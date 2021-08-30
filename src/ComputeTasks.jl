@@ -1276,7 +1276,20 @@ function init_multitask_(C::Parameters.Calculation,
 	end 
 
 
+	function push_xylines!(P::UODict)
+												
+		function push_xylines_!(outdict::AbstractDict)
 
+			for (n,k) in zip(internal_names, string.(keys(internal_keys)))
+	
+				in(n,["x","y"]) && haskey(P, k) && setindex!(outdict, P[k], n*"line")
+	
+			end 
+	
+			return outdict
+		end 
+
+	end 
 
 
 	# ----- called by the plot functions ---- # 
@@ -1285,7 +1298,7 @@ function init_multitask_(C::Parameters.Calculation,
 	function construct_Z(P::UODict, label...; kwargs...)::Dict{String,Any}
 
 		construct_Z(multitask.get_data(P; fromPlot=true, kwargs...), 
-								label...)
+							 label...) |> push_xylines!(P)
 
 	end 
 
@@ -1295,7 +1308,7 @@ function init_multitask_(C::Parameters.Calculation,
 		
 		construct_Z(get_obs, 
 								multitask.get_data(P; fromPlot=true, kwargs...), 
-								label...)
+							 label...)|> push_xylines!(P)
 
 	end 
 
@@ -1304,6 +1317,7 @@ function init_multitask_(C::Parameters.Calculation,
 											 kwargs...)::Dict{String,Any}
 		
 		Data = multitask.get_data(P; fromPlot=true, kwargs..., target=obs)
+	
 
 
 		d1 = Data[1][obs]
@@ -1312,13 +1326,13 @@ function init_multitask_(C::Parameters.Calculation,
 		# if it's an array or number, not dictionary-like object
 
 #		Utils.is_dict_or_JLDAW(d1) || return construct_Z(obs, Data)
-		isa(d1, AbstractDict) || return construct_Z(obs, Data)
+isa(d1, AbstractDict) || return construct_Z(obs, Data)|> push_xylines!(P)
 	
 
 
 		sub_obs = choose_obs_i(d1; P=P, kwargs...)[2] 
 
-		return construct_Z(D->D[obs][sub_obs], Data, "$obs $sub_obs") 
+		return construct_Z(D->D[obs][sub_obs], Data, "$obs $sub_obs") |> push_xylines!(P)
 
 	end 
 
@@ -1331,7 +1345,10 @@ function init_multitask_(C::Parameters.Calculation,
 	for (n,(k,v)) in zip(internal_names, internal_keys)
 	
 		out_dict[n*"label"] = replace(string(k),"_"=>" ")
-	
+
+
+
+
 	end 
 		
 
@@ -1342,7 +1359,6 @@ function init_multitask_(C::Parameters.Calculation,
 		out_dict[n*"label"] = replace(string(k), "_"=>" ") 
 
 	end 
-
 
 	return (multitask,
 					out_dict, 

@@ -138,6 +138,7 @@ for e_ in [(rand(11),rand(7)), (1,2), [(D::AbstractArray{<:Number})->axes(D,i) f
 
 #	@show P; 	println()
 
+	P["Q1"]=10
 
 for construct_Z_args in [
 												 (P,),
@@ -148,9 +149,12 @@ for construct_Z_args in [
 #	println()
 #	@show typeof.(construct_Z_args)
 
+	
 	for (k,v) in pairs(construct_Z(construct_Z_args...))
 
 		print(k,"\t",typeof(v),"\t")
+
+#		occursin("line",string(k)) && @show v 
 
 		if v isa AbstractArray 
 			
