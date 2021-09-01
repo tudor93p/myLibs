@@ -1016,6 +1016,7 @@ end
 
 
 
+
 function get_Z_and_axes(obs::AbstractString, args...)::Dict{String,Any}
 
 	get_Z_and_axes(getval(obs), args...)
@@ -1260,7 +1261,6 @@ function init_multitask_(C::Parameters.Calculation,
 
 	end 
 
-
 	function construct_Z(obs::Union{AbstractString, Function}, 
 											 Data::AbstractVector, label...)::Dict{String,Any}
 		
@@ -1276,29 +1276,32 @@ function init_multitask_(C::Parameters.Calculation,
 	end 
 
 
-	function push_xylines!(P::UODict)
-												
-		function push_xylines_!(outdict::AbstractDict)
+	# --------- # 
 
-			for (n,k) in zip(internal_names, string.(keys(internal_keys)))
+	function data_and_startdict(P::UODict; kwargs...)
+
+		sd = Dict{String,Any}()
+		
+		for (n,k) in zip(internal_names, string.(keys(internal_keys)))
 	
-				in(n,["x","y"]) && haskey(P, k) && setindex!(outdict, P[k], n*"line")
+				in(n,["x","y"]) && haskey(P, k) && setindex!(sd, P[k], n*"line")
 	
-			end 
-	
-			return outdict
 		end 
 
-	end 
+		return multitask.get_data(P; fromPlot=true, kwargs...), sd
 
+	end 
 
 	# ----- called by the plot functions ---- # 
 
 
+
+
 	function construct_Z(P::UODict, label...; kwargs...)::Dict{String,Any}
 
-		construct_Z(multitask.get_data(P; fromPlot=true, kwargs...), 
-							 label...) |> push_xylines!(P)
+		Data, startdict = data_and_startdict(P; kwargs...)
+
+		return merge!(construct_Z(Data, label...), startdict)
 
 	end 
 
@@ -1306,33 +1309,46 @@ function init_multitask_(C::Parameters.Calculation,
 	function construct_Z(get_obs::Function, P::UODict, label...;
 											 kwargs...)::Dict{String,Any}
 		
-		construct_Z(get_obs, 
-								multitask.get_data(P; fromPlot=true, kwargs...), 
-							 label...)|> push_xylines!(P)
+		Data, startdict = data_and_startdict(P; kwargs...)
+
+		return merge!(construct_Z(get_obs, Data, label...), startdict)
 
 	end 
 
+	function construct_Z(get_obs::Function, obs::AbstractString, P::UODict; 
+											 kwargs...)::Dict{String,Any}
+		
+		Data, startdict = data_and_startdict(P; kwargs..., target=obs)
+
+		if !isa(Data[1][obs], AbstractDict) 
+			
+			return merge!(construct_Z(get_obs ∘ getval(obs), Data, obs), startdict)
+
+		else 
+
+			sub_obs = choose_obs_i(Data[1][obs]; P=P, kwargs...)[2] 
+
+			return merge!(construct_Z(get_obs ∘ getval(sub_obs) ∘ getval(obs),
+																Data, "$obs $sub_obs"), startdict)
+
+		end 
+
+	end 
 
 	function construct_Z(obs::AbstractString, P::UODict; 
 											 kwargs...)::Dict{String,Any}
 		
-		Data = multitask.get_data(P; fromPlot=true, kwargs..., target=obs)
-	
+		Data, startdict = data_and_startdict(P; kwargs..., target=obs)
 
 
 		d1 = Data[1][obs]
 
-
-		# if it's an array or number, not dictionary-like object
-
-#		Utils.is_dict_or_JLDAW(d1) || return construct_Z(obs, Data)
-isa(d1, AbstractDict) || return construct_Z(obs, Data)|> push_xylines!(P)
-	
+		isa(d1, AbstractDict) || return merge!(construct_Z(obs, Data), startdict)
 
 
 		sub_obs = choose_obs_i(d1; P=P, kwargs...)[2] 
 
-		return construct_Z(D->D[obs][sub_obs], Data, "$obs $sub_obs") |> push_xylines!(P)
+		return merge!(construct_Z(D->D[obs][sub_obs], Data, "$obs $sub_obs"), startdict)
 
 	end 
 

@@ -53,7 +53,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Write_NamesVals(filename,  storemethod, Names, result, bounds; tol=1e-7, filemethod="new")
+function Write_NamesVals(filename::Function,  storemethod::AbstractString, Names, result, bounds; tol=1e-7, filemethod="new")
 
 
 	Write!, outdict = Write_NamesVals(filename, storemethod;
@@ -142,8 +142,10 @@ end
 
 
 
-function Write_NamesVals(filename, storemethod="jld"; 
-												 tol=1e-7, filemethod="new")
+function Write_NamesVals(filename::Function, 
+												 storemethod::AbstractString="jld"; 
+												 tol=1e-7, 
+												 filemethod::AbstractString="new")::Dict
 
 
 	function writable(matrix::AbstractArray{<:Number}, name)
@@ -354,7 +356,8 @@ end
 #---------------------------------------------------------------------------#
 
 
-function FoundFiles_NamesVals(filename, Names, storemethod)
+function FoundFiles_NamesVals(filename::Function, Names, 
+															storemethod::AbstractString)::Bool
 	
 	fn = filename.(vcat(Names)).*Extension_Storemethod(storemethod)
 
@@ -614,7 +617,7 @@ end
 FoundFiles_PhysObs = FoundFiles_NamesVals
 
 
-function Read_PhysObs(filename, Names, storemethod::AbstractString)
+function Read_PhysObs(filename::Function, Names, storemethod::AbstractString)
 
 	if storemethod=="jld"
 

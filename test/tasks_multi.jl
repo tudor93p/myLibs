@@ -71,7 +71,7 @@ function Compute(args...; get_fname::Function, kwargs...)
 
 #	get_fname(args...)() |> println
 
-return sum(sum.(values.(args))) .+  rand()
+return Dict("a"=>sum(sum.(values.(args))) .+  rand())
 
 end 
 
@@ -141,10 +141,12 @@ for e_ in [(rand(11),rand(7)), (1,2), [(D::AbstractArray{<:Number})->axes(D,i) f
 	P["Q1"]=10
 
 for construct_Z_args in [
-												 (P,),
-												 (P,"some_label"),
-												 (identity, P),
-												 (identity, P,"some_label"),
+												 #(P,),
+												 #(P,"some_label"),
+												 #(identity, P),
+												 (identity, "a", P),
+												 ("a", P),
+												 #(identity, P,"some_label"),
 												 ]
 #	println()
 #	@show typeof.(construct_Z_args)
