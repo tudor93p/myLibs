@@ -202,4 +202,5 @@ for P in t.get_paramcombs()
 end
 
 
-t.get_plotparams() |> println
+t.get_plotparams() |> println 
+

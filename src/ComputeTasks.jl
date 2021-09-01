@@ -1292,8 +1292,68 @@ function init_multitask_(C::Parameters.Calculation,
 
 	end 
 
+
+
+
+	function getval1(obs::AbstractString)::Function 
+
+		getval_(data::AbstractDict) = data[obs]
+
+		getval_((data, good_P)::Tuple{AbstractDict,AbstractVector}) = (data[obs], good_P)
+
+		return getval_ 
+
+	end 
+
+
+	function getval2((data, good_P)::Tuple{T,AbstractVector}
+									 )::T where T<:Union{AbstractDict, AbstractArray, Number}
+		data 
+
+	end 
+
+	function getval2(data::T
+									 )::T where T<:Union{AbstractDict, AbstractArray, Number}
+		data 
+
+	end  
+
+
+
+	function extract_obs(d, obs::AbstractString; kwargs...)::Tuple{Function,String}
+
+		extract_obs_(getval1(obs)(getval2(d)), obs; kwargs...)
+
+	end 
+
+	function extract_obs_(d::Union{Number, <:AbstractArray{<:Number}}, 
+											 obs::AbstractString; kwargs...
+											 )::Tuple{Function,String}
+	
+		getval1(obs), obs
+	
+	end 
+	
+	
+	function extract_obs_(d::AbstractDict, obs::AbstractString; kwargs...
+											 )::Tuple{Function,String}
+	
+		sub_obs = choose_obs_i(d; kwargs...)[2] 
+	
+		return getval1(sub_obs) ∘ getval1(obs), "$obs/$sub_obs"
+	
+	end 
+	
+	
+
 	# ----- called by the plot functions ---- # 
 
+
+	function construct_Z_(startdict::AbstractDict, args...)::Dict{String,Any}
+
+		merge!(construct_Z(args...), startdict)
+
+	end 
 
 
 
@@ -1301,7 +1361,7 @@ function init_multitask_(C::Parameters.Calculation,
 
 		Data, startdict = data_and_startdict(P; kwargs...)
 
-		return merge!(construct_Z(Data, label...), startdict)
+		return construct_Z_(startdict, Data, label...) 
 
 	end 
 
@@ -1311,44 +1371,27 @@ function init_multitask_(C::Parameters.Calculation,
 		
 		Data, startdict = data_and_startdict(P; kwargs...)
 
-		return merge!(construct_Z(get_obs, Data, label...), startdict)
+		return construct_Z_(startdict, get_obs, Data, label...)
 
 	end 
+
+
 
 	function construct_Z(get_obs::Function, obs::AbstractString, P::UODict; 
 											 kwargs...)::Dict{String,Any}
 		
 		Data, startdict = data_and_startdict(P; kwargs..., target=obs)
 
-		if !isa(Data[1][obs], AbstractDict) 
-			
-			return merge!(construct_Z(get_obs ∘ getval(obs), Data, obs), startdict)
+		f,lab = extract_obs(Data[1], obs; P=P, kwargs...)
 
-		else 
-
-			sub_obs = choose_obs_i(Data[1][obs]; P=P, kwargs...)[2] 
-
-			return merge!(construct_Z(get_obs ∘ getval(sub_obs) ∘ getval(obs),
-																Data, "$obs $sub_obs"), startdict)
-
-		end 
+		return construct_Z_(startdict, get_obs∘f, Data, lab)
 
 	end 
 
 	function construct_Z(obs::AbstractString, P::UODict; 
 											 kwargs...)::Dict{String,Any}
-		
-		Data, startdict = data_and_startdict(P; kwargs..., target=obs)
-
-
-		d1 = Data[1][obs]
-
-		isa(d1, AbstractDict) || return merge!(construct_Z(obs, Data), startdict)
-
-
-		sub_obs = choose_obs_i(d1; P=P, kwargs...)[2] 
-
-		return merge!(construct_Z(D->D[obs][sub_obs], Data, "$obs $sub_obs"), startdict)
+	
+		construct_Z(identity, obs, P; kwargs...) 
 
 	end 
 
