@@ -126,7 +126,72 @@ function CompTask(C::Parameters.Calculation;
 	  return out
 	
 	end
-	
+
+
+
+	function prep_out(data, good_P::AbstractVector, get_good_P::Bool, f::Nothing=nothing)
+
+		get_good_P ? (data, good_P) : data 
+
+	end 
+
+
+	function prep_out(data, good_P::AbstractVector, 
+										get_good_P::Bool, f::Function) 
+		
+		prep_out(f(data, good_P), good_P, get_good_P)
+
+	end 
+
+
+
+
+
+	function get_data(P::Union{Tuple,AbstractVector}; 
+										fromPlot::Bool=false,
+										target=nothing, 
+										force_comp::Bool=false,
+										mute::Bool=true, 
+										get_good_P::Bool=false, 
+										apply_rightaway=nothing,
+										kwargs...)
+
+		@assert !fromPlot  
+
+		good_P = fill_internal(P)  
+
+		target=="None" && return prep_out(nothing, good_P, get_good_P)
+
+		data = calc_or_read(good_P, force_comp, mute; target=target)
+
+		return prep_out(data, good_P, get_good_P, apply_rightaway)
+
+	end 
+
+
+	function get_data(P::AbstractDict; fromPlot::Bool=false, kwargs...)
+
+		!fromPlot && return get_data([P]; fromPlot=false, kwargs...)
+
+		return get_data(Parameters.convertParams_fromPlot(C, P); 
+										fromPlot=false, kwargs...) 
+
+	end  
+
+	function get_data(P...; fromPlot::Bool=false, kwargs...)
+
+		@assert !fromPlot 
+
+		return get_data(P; fromPlot=false, kwargs...)
+
+	end 
+
+
+
+
+
+
+
 
 
 
@@ -157,31 +222,7 @@ function CompTask(C::Parameters.Calculation;
 		end,
 	
 	
-	
-		function get_data(P...; target=nothing, 
-											force_comp::Bool=false,
-											mute::Bool=true, 
-											shuffle::Bool=false, 
-											fromPlot::Bool=false,
-											get_good_P::Bool=false, 
-											apply_rightaway::Function=(d,p)->d)
-
-			good_P = fill_internal(
-									fromPlot ? Parameters.convertParams_fromPlot(C, P...) : P
-									)
-
-			data = if target=="None" nothing else 
-	
-					apply_rightaway(calc_or_read(good_P, force_comp, mute;
-																			 target=target),
-													good_P)
-	
-			end
-	
-	
-			return get_good_P ? (data, good_P) : data 
-	
-		end, 
+		get_data, 	
 
 
 	
