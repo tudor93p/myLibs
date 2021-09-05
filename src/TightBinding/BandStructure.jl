@@ -93,16 +93,18 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Diagonalize(H, kPoints, filename=nothing; 
+function Diagonalize(H::Function, 
+										 kPoints::AbstractMatrix{Float64}, 
+										 filename=nothing; 
 										 kLabels=nothing,
 										 kTicks=[0],
-										 filemethod="new", 
-										 parallel=false, operators=[[],[]],
-										 storemethod="dat",
-										 dim=1,
+										 filemethod::AbstractString="new", 
+										 parallel::Bool=false, operators=[[],[]],
+										 storemethod::AbstractString="dat",
+										 dim::Int=1,
 										 tol=1e-8,  
 										 nr_bands=nothing, 
-										 sigma=tol/10, kwargs...)
+										 sigma::Float64=tol/10, kwargs...)
 
 	k1 = selectdim(kPoints, dim, 1)
 

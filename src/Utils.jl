@@ -2333,7 +2333,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function vectors_of_integers(D::Int64, stop, start=-stop; dim=1, sortby=nothing)
+function vectors_of_integers(D::Int64, stop, start=-stop; dim::Int=1, sortby=nothing)
 
 	dim2 = [2,1][dim]
 
@@ -2372,10 +2372,6 @@ function vectors_of_integers(D::Int64, stop, start=-stop; dim=1, sortby=nothing)
 	!isa(sortby, Function) && return out
 
 	return sortslices(out, dims=dim, by=sortby)
-
-
-
-
 
 end
 

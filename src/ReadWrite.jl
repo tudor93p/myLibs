@@ -145,7 +145,7 @@ end
 function Write_NamesVals(filename::Function, 
 												 storemethod::AbstractString="jld"; 
 												 tol=1e-7, 
-												 filemethod::AbstractString="new")::Dict
+												 filemethod::AbstractString="new")::Tuple{Function,Dict}
 
 
 	function writable(matrix::AbstractArray{<:Number}, name)
