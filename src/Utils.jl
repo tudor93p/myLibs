@@ -111,13 +111,54 @@ end
 #---------------------------------------------------------------------------#
 
 
-function DistributeBallsToBoxes(balls::Int, boxes::Int)
 
-	balls<0 && return -DistributeBallsToBoxes(-balls, boxes)
 
-	map(Combinatorics.combinations(1:(balls+boxes-1), boxes-1)) do d
 
-		diff(vcat(0, d, balls+boxes)) .- 1
+
+function DistributeBallsToBoxes(balls::Int, boxes::Int, 
+																expand::Function,
+															 )::Vector{Vector{Int}}
+	
+	# 'expand' is the inverse of 'effval' 
+	# effval(xi)==0 for xi in expand(x) 
+	#	effval: many to one, expand: one to many 
+
+	boxes==0 && return [Int[]]
+
+	return Utils.flatmap(DistributeBallsToBoxes_(UInt(balls), boxes)) do X
+
+		iter = Base.product((unique(vcat(expand(x)...)) for x in X)...)
+
+		return collect(Iterators.partition(Iterators.flatten(iter),boxes))
+
+	end 
+
+end 
+
+
+
+
+
+
+function DistributeBallsToBoxes(balls::Int, boxes::Int)::Vector{Vector{Int}}
+
+	DistributeBallsToBoxes_(UInt(balls), boxes)
+
+end 
+
+
+
+
+
+
+function DistributeBallsToBoxes_(balls::UInt, boxes::Int
+															 )::Vector{Vector{Int}}
+
+	boxes==0 && return [Int[]]
+
+	return map(Combinatorics.combinations(1:(balls+boxes-1), boxes-1)) do d
+
+		convert(Vector{Int}, diff(vcat(0, d, balls+boxes)) .- 1)
 
 	end
 

@@ -1,4 +1,5 @@
-using myLibs: Utils, ReadWrite
+using myLibs: Utils
+
 
 using BenchmarkTools
 
@@ -50,63 +51,6 @@ println.(Utils.PathConnect([-1.2,-0.6,0,0.6,1.2],10,v))
 
 @show Utils.PathConnect(Float64[],100)
 @show Utils.PathConnect(Float64[],100,v)
-
-
-
-println() 
-
-d = Utils.RecursiveMerge(1:10, dim=2) do i 
-
-		Dict(	
-			 "x"=>rand(1:10)+i,
-			 "y"=>rand(1:10,3).+i,
-			 "z"=>Dict("z1"=>rand(1:10),"z2"=>rand(1:10,2)), 	
-#			 "t"=>OrderedDict("t1"=>Dict(1=>rand()), "t2"=>3,"t3"=>rand(5))
-			 )
-
-end 
-
-
-@show d["x"] |> size  
-println()
-@show d["y"] |> size 
-println()
-@show d["z"]["z1"] |> size 
-@show d["z"]["z2"] |> size 
-#@show d["t"] |> typeof
-#@show d["t"]["t1"] |> typeof
-#
-
-println()
-println()
-
-FSM = "dat"
-
-fname = x->string("test/savefile/",x)
-
-Write!,outdict = ReadWrite.Write_PhysObs(fname, FSM)
-
-for k in keys(d) 
-
-@show k 
-
-#foreach(println∘typeof,values(d[k]))
-
-
-
-
-
-Write!(k, d[k], outdict)
-
-z = ReadWrite.Read_PhysObs(fname, k, FSM)[k] 
-
-println(d[k])
-println(z) 
-
-
-println()
-
-end 
 
 
 
@@ -265,5 +209,53 @@ for x in [(5,), (rand(5,3),1), (1:5,), ([1,2,3,4,5],)]
 #		println() 
 	end 
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+println()
+println()
+println()
+
+
+
+
+
+
+for item in Utils.DistributeBallsToBoxes(1,3)
+
+	println(item,"\n")
+
+end 
+
+g(x) = [x,-x]
+f = g
+#Utils.inv_abs 
+
+
+@time Utils.DistributeBallsToBoxes(2,3,f)
+@time Utils.DistributeBallsToBoxes(2,3,f)
+
+@time Utils.DistributeBallsToBoxes(2,3,g)
+@time Utils.DistributeBallsToBoxes(2,3,g) 
+
+for item in Utils.DistributeBallsToBoxes(2,3,f)
+
+	println(item," ",sum(abs,item),"\n")
+
+
+end 
+
+
+
+
+
+
 
 
