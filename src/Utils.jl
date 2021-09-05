@@ -752,14 +752,14 @@ function isList(arg::T, Ti=Any)::Bool where T
 	end 
 
 
-	return isTuple((typeof(arg) <: Base.Generator) ? Tuple(arg) : arg, Ti)
+	return isTuple(isa(arg,Base.Generator) ? Tuple(arg) : arg, Ti)
 
 end
 
 
 function isList(;T=Any)::Function 
 	
-	(arg)::Bool -> isList(arg, T)
+	islist(arg)::Bool = isList(arg, T)
 	
 end 
 

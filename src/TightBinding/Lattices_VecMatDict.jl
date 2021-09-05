@@ -17,7 +17,20 @@ const VECTOR_AXIS = [2,1][VECTOR_STORE_DIM]
 Cat = [vcat,hcat][VECTOR_STORE_DIM]
 
 eachvec = [eachrow,eachcol][VECTOR_STORE_DIM]
-	
+
+
+function VecsOnDim(vecs::T; dim::Int)::T where T<:AbstractMatrix{<:Number}
+
+	dim==VECTOR_STORE_DIM && return vecs 
+
+	return transpose(vecs)
+
+end 
+
+
+
+
+
 sortvecs(A::AbstractMatrix{<:Number}; kwargs...) = sortslices(A; dims=VECTOR_STORE_DIM, kwargs...)
 
 VecsToMat(args...; kwargs...) = Utils.VecsToMat(args...; dim=VECTOR_STORE_DIM, kwargs...)
