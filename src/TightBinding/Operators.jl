@@ -1,10 +1,221 @@
 module Operators
+#############################################################################
+
+
+
 
 import ..LA, ..SpA 
 
 import ..Utils, ..TBmodel, ..Algebra
 
 
+
+#===========================================================================#
+#
+# Basic sturcture
+#
+#---------------------------------------------------------------------------#
+
+
+
+struct Operator 
+
+	data::Union{<:VecOrMat{Float64}, <:VecOrMat{ComplexF64}, Function} 
+
+	diag::Symbol  
+
+	nr_at::Int
+	
+	nr_orb::Int
+	
+	size_H::Int
+	
+	
+	function Operator(A::AbstractVecOrMat{<:Number}, diag...; kwargs...)
+	
+		data = prep_data(A)
+	
+		numbers,enough_data = get_nratorbH(; kwargs...)
+	
+		@assert enough_data "Provide more size-related kwargs"
+	
+		return new(data, prep_diag(data, numbers, diag...), numbers...) 
+
+	end  
+
+end 
+
+
+#===========================================================================#
+#
+# Understand how the operator can be simplified and provide the information
+# 
+#---------------------------------------------------------------------------#
+
+function prep_data(A::AbstractMatrix{T})::VecOrMat{T} where T<:Number 
+
+	size(A,1) != size(A,2) && return prep_data(reshape(A,:))
+
+	dA = LA.diag(A)
+
+	isapprox(A, LA.diagm(0=>dA), atol=1e-6) && return prep_data(dA)
+
+	return A 
+
+end  
+
+function prep_data(A::AbstractVector{T})::Vector{T} where T<:Number 
+
+	length(Utils.Unique(A; tol=1e-6))==1 && return A[1:1]
+	
+	return A 
+
+end 
+
+
+
+function prep_diag(A::AbstractVecOrMat{<:Number},
+									 numbers::NTuple{3,Int})::Symbol
+
+	possib_diag = which_diag(A, numbers)
+
+	if :atoms in possib_diag && :orbitals in possib_diag 
+
+		@assert nr_at==nr_orb==1 "Confusing sizes. Provide 'diag' arg."
+
+	end  
+
+	return first(possib_diag)
+
+end 
+
+
+function prep_diag(A::AbstractVecOrMat{<:Number},
+									 numbers::NTuple{3,Int}, diag::Symbol)::Symbol
+
+	possib_diag = which_diag(A, numbers) 
+
+	@assert diag in possib_diag "The 'diag' given is not consistent with sizes"
+
+	return diag 
+
+end 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function get_nratorbH(nr_at::Integer, nr_orb::Integer, size_H::Integer
+											)::Tuple{NTuple{3,Int},Bool}
+
+	(nr_at, nr_orb, size_H), nr_at*nr_orb==size_H
+
+end
+
+
+function get_nratorbH(nr_at::Nothing, nr_orb::Integer, size_H::Integer
+											)::Tuple{NTuple{3,Int},Bool}
+
+	get_nratorbH(div(size_H,nr_orb), nr_orb, size_H)
+
+end
+
+function get_nratorbH(nr_at::Integer, nr_orb::Nothing, size_H::Integer
+											)::Tuple{NTuple{3,Int},Bool}
+
+	get_nratorbH(nr_at, div(size_H,nr_at), size_H)
+
+end
+
+function get_nratorbH(nr_at::Integer, nr_orb::Integer, size_H::Nothing
+											)::Tuple{NTuple{3,Int},Bool}
+
+	get_nratorbH(nr_at, nr_orb, nr_at*nr_orb)
+
+end
+
+
+function get_nratorbH(;nr_at=nothing, nr_orb=nothing, size_H=nothing, 
+											kwargs...)::Tuple{NTuple{3,Int},Bool}
+
+	args = (nr_at,nr_orb,size_H) 
+
+	count(a->isa(a,Int),args)>=2 && return get_nratorbH(args...)
+
+	return Tuple(isa(a,Int) ? a : 0 for a in args), false 
+
+end
+
+
+#function get_nratorbH(wildcard::Int; kwargs...)::Tuple{NTuple{3,Int},Bool}
+#
+#	nrs,enough_data = get_nratorbH(; kwargs...)
+#
+#	enough_data && return nrs, true 
+#	
+#	possib_nrs, good_sols = Utils.zipmap([:nr_at, :nr_orb, :size_H]) do k 
+#
+#		get(kwargs, k, nothing) isa Int && return nrs, false 
+#		
+#		return get_nratorbH(;Utils.adapt_merge(kwargs, k=>wildcard)...)
+#
+#	end 
+#
+#	i = findall(good_sols)
+#
+#	length(i)==1 && return possib_nrs[only(i)], true 
+#
+#	length(i)>1 && @warn "Wildcard ambiguous, use it as the appropriate kwarg instead"
+#
+#	return nrs,false 
+#
+#end
+#
+#
+
+function which_diag(A::AbstractVecOrMat, nrs::NTuple{3,Int})::Vector{Symbol}
+
+	out = Symbol[]
+
+	prod(size(A))==1 && push!(out, :all) 
+	
+	# these are worse solutions and come after ':all'
+	# the better sols come in front  
+
+
+	for k in [:orbitals, :atoms, :none][reverse(findall(nrs.==size(A,1)))]
+
+		push!(out, k) 
+
+	end  
+
+
+	@assert !isempty(out) "Wrong operators size" 
+
+	return out 
+
+end 
+
+
+#===========================================================================#
+#
+# Basicc constructor 
+#
+#---------------------------------------------------------------------------#
+
+
+#=
 
 
 #===========================================================================#
@@ -237,7 +448,7 @@ end
 
 
 function Position_Expectation(axis::Int64, Rs::AbstractMatrix{Float64};
-															fpos::Function=identity,dim=2,
+															fpos::Function=identity,dim::Int,
 															nr_at=size(Rs,dim), kwargs...)
 
 
@@ -564,7 +775,7 @@ end
 
 
 function ExpectationValues_DiagOp(P::AbstractMatrix, M::AbstractVector,
-																	inds=:; dim=2, iterate=false) 
+																	inds=:; dim::Int, iterate=false) 
 
 	if !iterate 
 		A = abs2.(selectdim(P, [2,1][dim], inds))
@@ -585,7 +796,7 @@ end
 
 
 function MatrixElements_DiagOp(Pl::AbstractMatrix, Pr::AbstractMatrix,
-															 M::AbstractVector, inds=:; dim=2)
+															 M::AbstractVector, inds=:; dim::Int)
 	@warn "vectors on columns might not work "
 
 	dim==2 && return Pl[:,inds]'*(reshape(M,1,:).*Pr[:,inds])
@@ -595,7 +806,7 @@ function MatrixElements_DiagOp(Pl::AbstractMatrix, Pr::AbstractMatrix,
 
 end
 
-function MatrixElements_FullOp(Pl::AbstractMatrix,Pr::AbstractMatrix,M::AbstractMatrix,inds=:; dim=2)
+function MatrixElements_FullOp(Pl::AbstractMatrix,Pr::AbstractMatrix,M::AbstractMatrix,inds=:; dim::Int)
 
 #	selectdim(Pl, dim, inds)
 
@@ -664,117 +875,6 @@ function Repeat_Operator_ManyOrbitals(Op,nr_at,nr_orb)
   return TBmodel.indsvals_to_Tm(vcat(indsvals.(1:nr_orb)...),nr_at*nr_orb)
 
 end
-
-#===========================================================================#
-#
-# Understand how the operator can be simplified and provide the information
-# 
-#---------------------------------------------------------------------------#
-
-
-
-function Understand_OperatorInput(A::AbstractVecOrMat; 
-																	diag=nothing, kwargs...) 
- 
-  if ndims(A)==2 
-
-    if size(A,1) != size(A,2)
-
-      A = reshape(A,:)
-
-		elseif isapprox(A, LA.diagm(0=>LA.diag(A)), atol=1e-6)
-
-      A = LA.diag(A)
-
-    end
-  
-  end
-
-
-  dim = size(A,1)
-
-  numbers, enough_data = get_nratorbH(;kwargs...)
-
-
-
-  conditions = [prod(size(A))==1;
-      		(n->!isnothing(n) && n==dim).(numbers)...]
-
-
-  if any(conditions)
-
-    meaning = ["all","orbitals","atoms","no"][argmax(conditions)]
-
-    if meaning != Utils.Assign_Value(diag,meaning)
-
-      error("Strange operator input.")
-
-    end
-   
-    return A,numbers,meaning
-
-  end
-
-  return A,numbers,diag
- 
-
-
-
-#  conditions = (n->!isnothing(n) && n==dim).(numbers)
-#  conditions = [conditions;[all(isnothing.(numbers)),prod(size(A))==1]]
-#  meanings = ["orbitals","atoms","no","no","all"][conditions]
-
-
-#  length(meanings) == 0 && error("Strange operator input.")
-
-
-#  (isnothing(diag) || diag==meanings[1]) && return A,numbers,meanings[1]
-
-
-end
-
-
-function get_nratorbH(nr_at::Integer, nr_orb::Integer, size_H::Integer)
-
-	nr_at*nr_orb==size_H && return (nr_at, nr_orb, size_H), true
-
-	error("Wrong number of atoms/orbitals")
-
-end
-
-
-function get_nratorbH(nr_at::Nothing, nr_orb::Integer, size_H::Integer)
-
-	get_nratorbH(div(size_H,nr_orb), nr_orb, size_H)
-
-end
-
-function get_nratorbH(nr_at::Integer, nr_orb::Nothing, size_H::Integer)
-
-	get_nratorbH(nr_at, div(size_H,nr_at), size_H)
-
-end
-
-function get_nratorbH(nr_at::Integer, nr_orb::Integer, size_H::Nothing)
-
-	get_nratorbH(nr_at, nr_orb, nr_at*nr_orb)
-
-end
-
-
-function get_nratorbH(;nr_at=nothing,nr_orb=nothing,size_H=nothing,kwargs...)
-
-	(nr_at,nr_orb,size_H) |> function (args)
-		
-		count(!isnothing, args)<2 && return args, false
-
-		return get_nratorbH(args...)
-
-	end
-
-end
-
-
 
 #===========================================================================#
 #
@@ -882,7 +982,7 @@ end
 
 
 
-
+=#
 
 
 
@@ -890,13 +990,4 @@ end
 
 
 #############################################################################
-
-
-
-
-
-
-
-
-
 end
