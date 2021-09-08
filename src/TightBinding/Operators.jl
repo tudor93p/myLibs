@@ -20,30 +20,85 @@ import ..Utils, ..TBmodel, ..Algebra
 
 struct Operator 
 
-	data::Union{<:VecOrMat{Float64}, <:VecOrMat{ComplexF64}, Function} 
+	data::Union{Number, <:VecOrMat{Float64}, <:VecOrMat{ComplexF64}, Function} 
 
-	diag::Symbol  
+#	diag::Symbol  
 
-	nr_at::Int
-	
-	nr_orb::Int
-	
-	size_H::Int
-	
-	
-	function Operator(A::AbstractVecOrMat{<:Number}, diag...; kwargs...)
-	
-		data = prep_data(A)
-	
+
+#	nr_at::Int # remove, eventually
+#	
+#	nr_orb::Int # remove 
+#	
+#	size_H::Int # remove 
+
+
+	vsdim::Int 
+
+	csdim::Int
+
+#	selvect::Function 
+#
+#	selcomp::Function
+
+
+
+	sums::NTuple{2,Bool}
+
+
+#	acts_on_atoms::Vector{Int}
+
+#	acts_on_orbs::Vector{Int}
+
+
+	inds::Union{Vector{Int}, Vector{Vector{Int}}, Colon}
+
+
+	function Operator(; kwargs...)
+
+		Operator(1; kwargs...)
+
+	end
+
+	function Operator(diag::Symbol; kwargs...)
+
+		Operator(1, diag; kwargs...)
+
+	end
+
+
+	function Operator(A::Union{Number, AbstractVecOrMat{<:Number}}, 
+										args...; kwargs...)
+
 		numbers,enough_data = get_nratorbH(; kwargs...)
-	
+
 		@assert enough_data "Provide more size-related kwargs"
 	
-		return new(data, prep_diag(data, numbers, diag...), numbers...) 
+		return Operator(reduce_data(A), numbers, args...; kwargs...)
+
+	end   
+
+	function Operator(data_::Union{Number, AbstractVecOrMat{<:Number}},
+										numbers::NTuple{3,Int},
+										diag...;
+										kwargs...)
+
+		diag = prep_diag(data_, numbers, diag...)
+
+		ws = which_sum(;kwargs...)
+
+		ao = get_acts_on(diag, numbers...; kwargs...)
+	
+		dim = get_vc_dims(;kwargs...)
+
+		data = extend_data(data_, Val(diag), get_nratorbH(length.(ao)...)[1], ws) 
+
+		return new(data, dim..., ws, get_iter_inds(ws, ao, numbers))
 
 	end  
 
 end 
+
+
 
 
 #===========================================================================#
@@ -52,29 +107,34 @@ end
 # 
 #---------------------------------------------------------------------------#
 
-function prep_data(A::AbstractMatrix{T})::VecOrMat{T} where T<:Number 
+function reduce_data(A::AbstractMatrix{T})::Union{T,VecOrMat{T}} where T<:Number 
 
-	size(A,1) != size(A,2) && return prep_data(reshape(A,:))
+	size(A,1) != size(A,2) && return reduce_data(reshape(A,:))
 
 	dA = LA.diag(A)
 
-	isapprox(A, LA.diagm(0=>dA), atol=1e-6) && return prep_data(dA)
+	isapprox(A, LA.diagm(0=>dA), atol=1e-6) && return reduce_data(dA)
 
 	return A 
 
 end  
 
-function prep_data(A::AbstractVector{T})::Vector{T} where T<:Number 
+function reduce_data(A::AbstractVector{T})::Union{T,Vector{T}} where T<:Number 
 
-	length(Utils.Unique(A; tol=1e-6))==1 && return A[1:1]
+	length(Utils.Unique(A; tol=1e-6))==1 && return A[1]
 	
-	return A 
+	return Vector{T}(A)
 
 end 
 
+function reduce_data(A::T)::T where T<:Number 
+
+	A
+
+end
 
 
-function prep_diag(A::AbstractVecOrMat{<:Number},
+function prep_diag(A::Union{Number,<:AbstractVecOrMat{<:Number}},
 									 numbers::NTuple{3,Int})::Symbol
 
 	possib_diag = which_diag(A, numbers)
@@ -90,7 +150,7 @@ function prep_diag(A::AbstractVecOrMat{<:Number},
 end 
 
 
-function prep_diag(A::AbstractVecOrMat{<:Number},
+function prep_diag(A::Union{Number,<:AbstractVecOrMat{<:Number}},
 									 numbers::NTuple{3,Int}, diag::Symbol)::Symbol
 
 	possib_diag = which_diag(A, numbers) 
@@ -138,7 +198,7 @@ function get_nratorbH(nr_at::Integer, nr_orb::Nothing, size_H::Integer
 
 end
 
-function get_nratorbH(nr_at::Integer, nr_orb::Integer, size_H::Nothing
+function get_nratorbH(nr_at::Integer, nr_orb::Integer, size_H::Nothing=nothing
 											)::Tuple{NTuple{3,Int},Bool}
 
 	get_nratorbH(nr_at, nr_orb, nr_at*nr_orb)
@@ -184,13 +244,15 @@ end
 #
 #
 
+which_diag(A::Number, args...)::Vector{Symbol} = which_diag([A], args...)
+
 function which_diag(A::AbstractVecOrMat, nrs::NTuple{3,Int})::Vector{Symbol}
 
 	out = Symbol[]
 
 	prod(size(A))==1 && push!(out, :all) 
 	
-	# these are worse solutions and come after ':all'
+	# these are worse (more expensive) solutions and come after ':all'
 	# the better sols come in front  
 
 
@@ -208,14 +270,504 @@ function which_diag(A::AbstractVecOrMat, nrs::NTuple{3,Int})::Vector{Symbol}
 end 
 
 
+function which_sum(trace::Vector{Symbol})::NTuple{2,Bool}
+
+	K = [:atoms, :orbitals]
+
+	@assert isempty(setdiff(trace, K))
+
+	return Tuple(in.(K,[trace]))
+
+end 
+
+function which_sum(trace::Symbol)::NTuple{2,Bool} 
+	
+	trace==:none && return (false, false)
+	trace==:all && return (true, true)
+	
+	return which_sum([trace])
+
+end
+
+
+
+function which_sum(;dim::Int, kwargs...)::Tuple{Bool,Bool}
+
+	K = [:sum_atoms, :sum_orbitals]
+
+	atorb = haskey.([kwargs], K) 
+
+	D = (dim,[2,1][dim])
+
+	if haskey(kwargs, :trace) 
+	
+		any(atorb) && error()
+
+		return which_sum(kwargs[:trace])
+
+	end 
+
+	return Tuple((hk ? kwargs[k] : true) for (hk,k) in zip(atorb,K))
+
+end
+
+function get_vc_dims(;dim::Int, kwargs...)::Tuple{Int,Int}#,Function,Function}
+
+	(dim, [2,1][dim])#, Utils.sel(dim), Utils.sel([2,1][dim]))
+
+end 
+
+
 #===========================================================================#
 #
-# Basicc constructor 
+#
 #
 #---------------------------------------------------------------------------#
 
 
-#=
+function get_acts_on(diag::Symbol, nr_at::Int, nr_orb::Int, size_H::Int;
+										 kwargs...
+#										 acts_on_atoms::AbstractVector{Int}=1:nr_at,
+#										 acts_on_orbs::AbstractVector{Int}=1:nr_orb,
+)::NTuple{2,Vector{Int}}
+
+	(get(kwargs, :acts_on_atoms, 1:nr_at), 
+	 get(kwargs, :acts_on_orbs, 1:nr_orb)
+	 )
+
+#  diag==:atoms && return 1:nr_at 
+#
+#	diag==:orbitals && return 1:nr_orb 
+#
+#
+#  error("It's unclear on what the operator acts")
+
+end
+#===========================================================================#
+#
+# Compute expectation value
+#
+#---------------------------------------------------------------------------#
+
+
+function get_iter_inds(sums::NTuple{2,Bool}, args...
+											 )::Union{Colon, Vector{Int}, Vector{Vector{Int}}}
+
+	get_iter_inds(Val.(sums), args...)
+
+end 
+
+
+function get_iter_inds(::Tuple{Val{true}, Val{false}},
+											 (atoms,orbs)::NTuple{2,<:AbstractVector{Int}},
+											 (nr_at,nr_orb,size_H)::NTuple{3,Int}
+											 )::Vector{Vector{Int}}
+
+	TBmodel.Hamilt_indices_all(orbs, atoms, nr_orb; iter="orbitals")
+
+end 
+
+
+function get_iter_inds(::Tuple{Val{false}, Val{true}},
+											 (atoms, orbs)::NTuple{2,<:AbstractVector{Int}},
+											 (nr_at,nr_orb,size_H)::NTuple{3,Int}
+											 )::Vector{Vector{Int}}
+
+	TBmodel.Hamilt_indices_all(orbs, atoms, nr_orb; iter="atoms") 
+
+end  
+
+
+function get_iter_inds(::NTuple{2,T},
+											 acts_on::NTuple{2,<:AbstractVector{Int}},
+											 numbers::NTuple{3,Int}
+											 )::Union{Colon, Vector{Int}
+																} where T<:Union{Val{true}, Val{false}}
+
+	L = length.(acts_on)
+
+	all(L.==length.(numbers[1:2])) && return Colon()
+
+	return sort!(vcat(get_iter_inds(argmax(L).==(1,2), acts_on, numbers)...))
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Number,
+									 sums::NTuple{2,Val{false}},
+									 csdim::Int,
+									 I::AbstractVector{Int},
+									 args...)::Matrix{<:Number}
+
+	ExpectVal(selectdim(P, csdim, I), Op, sums, csdim, Colon(), args...) 
+
+end 
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Number,
+									 ::NTuple{2,Val{false}},
+									 csdim::Int,
+									 I::Colon,
+									 args...)::Matrix{<:Number}
+
+	abs2.(P)*Op 
+
+end 
+
+
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::AbstractVector{<:Number},
+									 sums::NTuple{2,Val{false}},
+									 csdim::Int,
+									 args...)::Matrix{<:Number}
+
+	aP = ExpectVal(P, 1, sums, csdim, args...)
+
+	csdim==1 && return Op .* aP 
+	
+	csdim==2 && return aP .* Op 
+
+end 
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Union{Number,<:AbstractVector{<:Number}},
+									 csdim::Int,
+									 args...)
+
+	ExpectVal(P, Op, (false,false), csdim, args...)
+
+end 
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Union{Number,<:AbstractVector{<:Number}},
+									 sums::NTuple{2,Val{true}},
+									 csdim::Int,
+									 args...)::Vector{<:Number}
+
+	dropdims(sum(ExpectVal(P, Op, csdim, args...), dims=csdim), dims=csdim)
+
+end 
+
+
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Number,
+									 ::Tuple{Val{true}, Val{false}},
+									 csdim::Int,
+									 I::AbstractVector{<:AbstractVector{Int}},
+									 args...)::Matrix{<:Number}
+
+	ExpectVal_(P, (Op for i in I), csdim, I)
+
+end  
+
+function ExpectVal_(P::AbstractMatrix{<:Number},
+										iter_Op::Union{Base.Generator, AbstractVector},
+										csdim::Int,
+										I::AbstractVector{<:AbstractVector{Int}}
+										)::Matrix{<:Number}
+
+	mapreduce([vcat,hcat][csdim], zip(iter_Op, I)) do (Op, inds)
+
+		sum(ExpectVal(P, Op, csdim, inds), dims=csdim)
+
+	end   
+
+end 
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::AbstractVector{<:Number},
+									 ::Tuple{Val{true}, Val{false}},
+									 csdim::Int,
+									 I::AbstractVector{<:AbstractVector{Int}},
+									 args...)::Matrix{<:Number}
+
+	L, L1, L2 = length(Op), length(I), only(unique(length.(I)))
+
+	L==L1 && return ExpectVal_(P, Op, csdim, I)
+
+	L==L2 && return ExpectVal_(P, (Op for i in I), csdim, I)
+
+	L==L1*L2 && return ExpectVal_(P, (Op[i] for i in I), csdim, I)
+
+end 
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Union{Number, <:AbstractVector{<:Number}},
+									 sums::Tuple{Val{false}, Val{true}},
+									 args...)::Matrix{<:Number}
+
+	ExpectVal(P, Op, reverse(sums), args...)
+
+end 
+
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::AbstractMatrix{<:Number},
+									 ::NTuple{2,Val{true}},
+									 csdim::Int,
+									 I::AbstractVector{Int},
+									 args...)::Vector{<:Number}
+
+	p = selectdim(P, csdim, I)
+
+	return LA.diag(p' * Op * p)
+
+end 
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Union{Number, <:AbstractVecOrMat{<:Number}},
+									 sums::NTuple{2,Bool},
+									 args...)
+
+	ExpectVal(P, Op, Val.(sums), args...)
+
+end 
+	
+
+
+function (H::Operator)(P::AbstractMatrix)
+
+	ExpectVal(P, H.data, H.sums, H.csdim, H.inds)
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+extend_data(A::Number, args...) = A
+
+
+function extend_data(A::AbstractVecOrMat{<:Number},
+										 diag::Val{:none},
+										 (nr_at,nr_orb,size_H)::NTuple{3,Int},
+										 args...
+										 )
+
+	@assert all(isequal(size_H), size(A))
+
+	return A
+
+end
+
+
+function extend_data(A::AbstractVecOrMat{<:Number},
+										 diag::Val{:atoms},
+										 (nr_at,nr_orb,size_H)::NTuple{3,Int},
+										 ws::NTuple{2,Bool}
+										 ) 
+
+	@assert all(isequal(nr_orb), size(A))
+
+	xor(ws...) && return A # no need to extend if we anyway iterate
+
+#	xor(ws)	 means only one of the sums is performed, in which case we'll need to iterate over the other. Therefore there's no need to extend the data 
+	
+	return repeatOperator_manyAtoms(A, nr_at, nr_orb, size_H)
+
+end
+
+function extend_data(A::AbstractVecOrMat{<:Number},
+										 diag::Val{:orbitals},
+										 (nr_at,nr_orb,size_H)::NTuple{3,Int},
+										 ws::NTuple{2,Bool}
+										 ) 
+
+	@assert all(isequal(nr_at), size(A))
+
+	xor(ws...) && return A # no need to extend if we anyway iterate
+
+	return repeatOperator_manyOrbitals(A, nr_at, nr_orb, size_H)
+
+end
+
+
+
+#
+#  inds = TBmodel.Hamilt_indices_all(argsinds(acts_on,diag,nr_at,nr_orb)..., nr_orb; iter=diag)
+#	# for each item in iter: gives the indices of wf components
+#	#		on which the operator acts
+#
+#  all_inds = sort(vcat(inds...))
+#		# indices for all the wf components on which the operator acts
+#
+#
+#
+#  if (diag=="atoms" && sum_atoms) | (diag=="orbitals" && sum_orbitals)
+##  if sum_action
+#
+#    FullOp = ndims(Op)==1 ? LA.diag(Repeat_Many(LA.diagm(0=>Op))) : Repeat_Many(Op)
+#
+#
+#
+#
+#    return [(P;kwargs...) -> ExpectationValues(P, FullOp, all_inds), 
+#
+#	(Pl,Pr=Pl;kwargs...) -> MatrixElements(Pl, Pr, FullOp, all_inds)]
+#
+#  end
+#
+#
+#  return [(P;kwargs...) -> ExpectationValues(P,Op,inds,iterate=true),
+#	[(Pl,Pr=Pl;kwargs...) -> MatrixElements_DiagonalOp(Pl,Pr,Op,i) for i in inds]
+#			]
+#
+#end
+#
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function repeatOperator_manyAtoms(Op::AbstractVector{T}, 
+																	nr_at::Int, nr_orb::Int, size_H::Int
+																	)::Vector{T} where T<:Number
+
+	# Op simulates a Hamiltonian with nr_orb orbitals and one atom
+	# 	will be reproduced for nr_at atoms
+
+	@assert length(Op)==nr_orb 
+
+	FullOp = similar(Op, size_H)
+
+	for a in 1:nr_at 
+
+		FullOp[TBmodel.Hamilt_indices(1:nr_orb, a, nr_orb)] = Op 
+
+	end 
+
+	return FullOp
+
+end
+
+
+function repeatOperator_manyAtoms(Op::AbstractMatrix{T},
+																	nr_at::Int, nr_orb::Int, size_H::Int
+																	)::Matrix{T} where T<:Number
+
+	# Op simulates a Hamiltonian with nr_orb orbitals and one atom
+	# 	will be reproduced for nr_at atoms
+
+	@assert all(isequal(nr_orb), size(Op))
+	
+	FullOp = zeros(T, size_H, size_H)
+
+	for a in 1:nr_at 
+
+		i = TBmodel.Hamilt_indices(1:nr_orb, a, nr_orb) 
+
+		FullOp[i,i] = Op 
+
+	end 
+
+	return FullOp
+
+end
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function repeatOperator_manyOrbitals(Op::AbstractVector{T}, 
+																	nr_at::Int, nr_orb::Int, size_H::Int
+																	)::Vector{T} where T<:Number
+
+	# Op simulates a Hamiltonian with nr_at atoms and one orbital
+	# 	will be reproduced for nr_orb orbitals
+
+	@assert length(Op)==nr_at 
+
+	FullOp = similar(Op, size_H)
+
+	for orb in 1:nr_orb 
+
+		FullOp[TBmodel.Hamilt_indices(orb, 1:nr_at, nr_orb)] = Op 
+
+	end 
+
+	return FullOp
+
+end
+
+
+function repeatOperator_manyOrbitals(Op::AbstractMatrix{T},
+																	nr_at::Int, nr_orb::Int, size_H::Int
+																	)::Matrix{T} where T<:Number
+
+	# Op simulates a Hamiltonian with nr_at atoms and one orbital
+	# 	will be reproduced for nr_orb orbitals
+
+	@assert all(isequal(nr_at), size(Op))
+	
+	FullOp = zeros(T, size_H, size_H)
+
+	for orb in 1:nr_orb
+
+		i = TBmodel.Hamilt_indices(orb, 1:nr_at, nr_orb)
+
+		FullOp[i,i] = Op 
+
+	end 
+
+	return FullOp
+
+end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 
 #===========================================================================#
@@ -226,35 +778,76 @@ end
 
 
 
-function Velocity(BlochH, dir=1; dk=pi/100)
+# ----- probability of localization on individual atoms ----- #
 
-	isnothing(dir) | isnothing(BlochH) && return (P;k) -> zeros(size(P,2),1)
 
-	function v(k) 
-		
-		k1, k2 = copy(k), copy(k)
+function LDOS(Op...; kwargs...)::Operator
+	
+	Operator(Op...; trace=:orbitals, kwargs...)
 
-		k1[dir] -= dk/2
+end 
 
-		k2[dir] += dk/2
+function Position(ax::Int, Rs::AbstractMatrix{<:Real}; 
+									fpos::Function=identity,
+									dim::Int, nr_at::Int=size(Rs,dim),
+									kwargs...)
 
-		return (BlochH(k2) - BlochH(k1))/dk
+	a = selectdim(Rs, [2,1][dim], ax)
 
-	end
+	Op = applicable(fpos, a) ? fpos(a) : fpos.(a)
 
-#	(BlochH(k .+ dk*(axes(k,1).==dir)) - BlochH(k))/dk
+	return Operator(Op, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
 
-  return (P;k,kwargs...) -> reshape(LA.diag(P'*v(k)*P),:,1)
+end 
+
+
+
+
+
+
+
+
+#=
+function Position_Expectation(axis::Int64, Rs::AbstractMatrix{Float64};
+															fpos::Function=identity,dim::Int,
+															nr_at=size(Rs,dim), kwargs...)
+
+
+  Operator(map(fpos, selectdim(Rs, [2,1][dim], axis)),
+					 diag="orbitals", nr_at=nr_at; kwargs...)
 
 end
 
 
-	# ----- probability of localization on individual atoms ----- #
 
-function LDOS(Op=[1];kwargs...)
+	# ----- local charge operator ----- #
 
-  Operator(Op,sum_atoms=false;kwargs...)
 
+function Charge(Op_UC,atom;kwargs...)
+
+  Operator(Op_UC,nr_orb=size(Op_UC,1),purpose="matrixelement",acts_on_atoms=vcat(atom);kwargs...)
+
+end
+
+function Velocity(BlochH, dir=1; dk=pi/100)
+
+isnothing(dir) | isnothing(BlochH) && return (P;k) -> zeros(size(P,2),1)
+
+function v(k) 
+
+k1, k2 = copy(k), copy(k)
+
+k1[dir] -= dk/2
+
+k2[dir] += dk/2
+
+return (BlochH(k2) - BlochH(k1))/dk
+
+end
+
+#	(BlochH(k .+ dk*(axes(k,1).==dir)) - BlochH(k))/dk
+
+return (P;k,kwargs...) -> reshape(LA.diag(P'*v(k)*P),:,1)
 
 end
 
@@ -447,26 +1040,6 @@ end
 
 
 
-function Position_Expectation(axis::Int64, Rs::AbstractMatrix{Float64};
-															fpos::Function=identity,dim::Int,
-															nr_at=size(Rs,dim), kwargs...)
-
-
-  Operator(map(fpos, selectdim(Rs, [2,1][dim], axis)),
-					 diag="orbitals", nr_at=nr_at; kwargs...)
-
-end
-
-
-
-	# ----- local charge operator ----- #
-
-
-function Charge(Op_UC,atom;kwargs...)
-
-  Operator(Op_UC,nr_orb=size(Op_UC,1),purpose="matrixelement",acts_on_atoms=vcat(atom);kwargs...)
-
-end
 
 
 
@@ -846,35 +1419,6 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Repeat_Operator_ManyAtoms(Op,nr_at,nr_orb)
-	# Op simulates a Hamiltonian with nr_orb orbitals and one atom
-	# 	will be reproduced for nr_at atoms
-
-  i,j,v = SpA.findnz(SpA.sparse(Op))
-
-  indsvals(a) = hcat(TBmodel.Hamilt_indices.([i,j],a,nr_orb)...,v)
-
-  return TBmodel.indsvals_to_Tm(vcat(indsvals.(1:nr_at)...),nr_at*nr_orb)
-
-end
-
-
-function Repeat_Operator_ManyOrbitals(Op,nr_at,nr_orb)
-	# Op simulates a Hamiltonian with nr_at atoms and one orbital
-	# 	will be reproduced for nr_orb orbitals
-
-
-
-
-  ai,aj,v = SpA.findnz(SpA.sparse(Op))
-
-
-  indsvals(o) = hcat(TBmodel.Hamilt_indices.(o,[ai,aj],nr_orb)...,v)
-
-
-  return TBmodel.indsvals_to_Tm(vcat(indsvals.(1:nr_orb)...),nr_at*nr_orb)
-
-end
 
 #===========================================================================#
 #

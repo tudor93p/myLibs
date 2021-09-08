@@ -108,10 +108,144 @@ for k in [:nr_orb,:nr_at,:size_H]
 
 end 
 
+println()
+println()
+
+function po(Op)
+
+	for k in propertynames(Op)
+
+		k in [:data, :diag, :acts_on_atoms, :acts_on_orbs, :inds] || continue 
+
+		v = getproperty(Op, k)
 
 
+		print(k," => ") 
+		
+		if k == :data 
+			
+			println(typeof(v)," ",size(v))
+
+		else 
+
+			println(v) 
+
+		end 
+	
+	end
+	
+	println()
+
+end 
 
 
+#
+#println("\n------------ LDOS ---------------\n")
+#
+#Op = Operators.LDOS(;kwargs...)
+#
+#po(Op)
+#
+#
+#@time v = Operators.DEF(P, Op)
+#@time v = Operators.DEF(P, Op)
+#
+#@show size(v)
+#
+#
+#
+#println("\n------------- Position 1 --------------\n")
+#
+#
+#Op = Operators.Position(1, atoms; kwargs...)
+#
+#po(Op)
+#
+#@time v = Operators.DEF(P, Op)
+#@time v = Operators.DEF(P, Op)
+#
+#@show size(v)
+#
+#@show v[5] v[9]
+#
+#println("\n------------ Position 1 no sum_atoms ---------------\n")
+#
+#Op = Operators.Position(1, atoms; sum_atoms=false, kwargs...)
+#
+#po(Op)
+#@time v = Operators.DEF(P, Op)
+#@time v = Operators.DEF(P, Op)
+#
+#@show size(v)
+#
+#
+#
+#@show sum(v[:,5]) sum(v[:,9])
+#
+#
+#
+#println("\n------------ Position 1 no sum_orbs ---------------\n")
+#
+#Op = Operators.Position(1, atoms; sum_orbitals=false, kwargs...)
+#
+#po(Op)
+#@time v = Operators.DEF(P, Op)
+#@time v = Operators.DEF(P, Op)
+#
+#@show size(v)
+#
+#
+#
+#@show sum(v[:,5]) sum(v[:,9])
+
+
+for n in [1,nr_at,nr_orb,size_H] 
+	
+for N in [(n,),]#(n,n)]
+
+#for n in [1,nr_at], N in [(n,),(n,n)]
+		
+	R = round.(rand(N...), digits=2) 
+
+	X = [] 
+
+	for (sum_atoms,sum_orbitals) in [(true,true),
+																	 (true,false),
+																	 (false,true),
+																	 (false,false)
+																	 ]
+		println("\n---------------------------")
+
+		@show N sum_atoms sum_orbitals
+
+		println("---------------------------\n")
+
+
+		local Op  = Operators.Operator(R; sum_atoms=sum_atoms, sum_orbitals=sum_orbitals, kwargs...)
+
+
+		po(Op)
+
+		v = Op(P) 
+
+		@show size(v)
+
+		@assert size(v)[end]==nr_wf 
+
+		ndims(v)==1 ? push!(X,v) : push!(X,sum(v,dims=1)[:])
+
+	end 
+
+	if length(X)>1  
+		
+		@assert all(isapprox.(X[1:1],X[2:end]))
+
+		println("\n*************** Test passed\n")
+
+	end 
+
+end 
+end 
 
 
 
