@@ -30,10 +30,10 @@ include("ReadWrite.jl")
 
 
 
-include("TightBinding/BandStructure.jl")
 include("TightBinding/Lattices.jl")
-include("TightBinding/TBmodel.jl")
+include("TightBinding/TBmodel.jl") 
 include("TightBinding/Operators.jl")
+include("TightBinding/BandStructure.jl")
 
 include("GreensFunctions/ResposeFunctions.jl")
 

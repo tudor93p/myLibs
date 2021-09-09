@@ -15,7 +15,8 @@ using OrderedCollections:OrderedDict
 import Random
 
 
-const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator}
+const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator, 
+									 Base.Iterators.Zip}
 
 
 
@@ -2102,7 +2103,9 @@ function catNewAx(dim::Int, arrays::Vararg{<:AbstractArray})::Array{<:Number}
 
 	end 
 
-	return mapreduce(prep, [vcat,hcat][d], arrays)
+	C(x...) = cat(x...; dims=d) 
+
+	return mapreduce(prep, C, arrays)
 
 end  
 
@@ -2110,21 +2113,23 @@ end
 
 function VecsToMat(vecs::Vararg{AbstractArray}; dim::Int)::Matrix 
 
-	mapreduce([vcat,hcat][dim], vecs) do v
+	C(x...) = cat(x...; dims=dim)
 
-		VecAsMat(v, dim)
-
-	end 
+	return mapreduce(VecAsMat(dim), C, vecs)
 
 end 
 
 function VecsToMat(f::Function, iter...; dim::Int)::Matrix 
 
-	mapreduce([vcat,hcat][dim], iter...) do obj...
+	C(x...) = cat(x...; dims=dim) 
 
-		VecAsMat(f(obj...), dim)
+	return mapreduce(VecAsMat(dim) ∘ f, C, iter...)
 
-	end 
+#	mapreduce(C, iter...) do obj...
+#
+#		VecAsMat(f(obj...), dim)
+#
+#	end 
 
 end 
 
@@ -2141,7 +2146,11 @@ end
 
 function RecursiveMerge_(;kwargs...)::Function  
 
-	(args...) -> RecursiveMerge_(args...; kwargs...)
+	function auxRM(args...) 
+		
+		RecursiveMerge_(args...; kwargs...)
+
+	end
 
 end 
 
@@ -2170,9 +2179,9 @@ end
 function RecursiveMerge_(u::AbstractArray{<:Number,N},
 												 v::AbstractArray{<:Number,M}; 
 												 dim::Int, kwargs...
-												 )::Array{<:Number, N} where {N,M}
+												 )::Array{<:Number, max(N,M)} where {N,M}
 
-	@assert N==M+1 
+	@assert N==M+1 || M==N+1
 	
 	N>3 && @warn "Strange array"
 
@@ -2206,7 +2215,11 @@ end
 
 function RecursiveMerge(; kwargs...)::Function 
 
-	(args...) -> RecursiveMerge(args...; kwargs...)
+	function auxRM(args...) 
+		
+		RecursiveMerge(args...; kwargs...)
+
+	end 
 
 end  
 
@@ -2227,7 +2240,9 @@ end
 
 	
 
-function RecursiveMerge(f::Function, iter::List; parallel=false, kwargs...)::AbstractDict{<:Any, Any}
+function RecursiveMerge(f::Function, iter::List; 
+												parallel::Bool=false, kwargs...
+												)::AbstractDict{<:Any, Any}
 
 	RecursiveMerge((parallel ? pmap : map)(f, iter); kwargs...)
 

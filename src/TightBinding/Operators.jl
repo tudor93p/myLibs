@@ -20,7 +20,9 @@ import ..Utils, ..TBmodel, ..Algebra
 
 struct Operator 
 
-	data::Union{Number, <:VecOrMat{Float64}, <:VecOrMat{ComplexF64}, Function} 
+	data::Union{Number, 
+							<:VecOrMat{<:Number},
+							<:Vector{<:VecOrMat{<:Number}}}
 
 	diag::Symbol  
 
@@ -52,6 +54,11 @@ struct Operator
 
 	inds::Union{Vector{Int}, Vector{Vector{Int}}, Colon}
 
+#	iter_Op::Any
+
+
+
+
 
 	function Operator(; kwargs...)
 
@@ -77,6 +84,7 @@ struct Operator
 
 	end   
 
+
 	function Operator(data_::Union{Number, AbstractVecOrMat{<:Number}},
 										numbers::NTuple{3,Int},
 										diag...;
@@ -90,9 +98,14 @@ struct Operator
 	
 		dim = get_vc_dims(;kwargs...)
 
+
 		data = extend_data(data_, Val(diag), get_nratorbH(length.(ao)...)[1], Val.(ws))
 
-		return new(data, diag, dim..., ws, get_iter_inds(ws, ao, numbers))
+		inds = get_iter_inds(ws, ao, numbers) 
+
+		iter_Op = get_iter_Op(data, Val.(ws), inds, Val(diag))
+
+		return new(iter_Op, diag, dim..., ws, inds)
 
 	end  
 
@@ -296,6 +309,8 @@ end
 
 function get_vc_dims(;dim::Int, kwargs...)::Tuple{Int,Int}#,Function,Function}
 
+	dim==1 && @warn "'dim=1' will most likely not work well!"
+
 	(dim, [2,1][dim])#, Utils.sel(dim), Utils.sel([2,1][dim]))
 
 end 
@@ -308,24 +323,16 @@ end
 #---------------------------------------------------------------------------#
 
 
-function get_acts_on(diag::Symbol, nr_at::Int, nr_orb::Int, size_H::Int;
-										 kwargs...
-#										 acts_on_atoms::AbstractVector{Int}=1:nr_at,
-#										 acts_on_orbs::AbstractVector{Int}=1:nr_orb,
-)::NTuple{2,Vector{Int}}
+function get_acts_on(diag::Symbol, 
+										 nr_at::Int, nr_orb::Int, size_H::Int;
+										 kwargs...)::NTuple{2,Vector{Int}}
 
-	(get(kwargs, :acts_on_atoms, 1:nr_at), 
-	 get(kwargs, :acts_on_orbs, 1:nr_orb)
-	 )
+	(vcat(get(kwargs, :acts_on_atoms, 1:nr_at)...),
+	 vcat(get(kwargs, :acts_on_orbs, 1:nr_orb)...))
 
-#  diag==:atoms && return 1:nr_at 
-#
-#	diag==:orbitals && return 1:nr_orb 
-#
-#
-#  error("It's unclear on what the operator acts")
 
 end
+
 #===========================================================================#
 #
 # Compute expectation value
@@ -398,14 +405,17 @@ end
 function check_size(A::AbstractVecOrMat{<:Number},
 										::Tuple{Val{true}, Val{false}},
 										(L1,L2,L12)::NTuple{3,Int},
-										::Val{:orbitals}
+										diag::Val{:orbitals}
 										)
+
+#	println("\n***\n")
+#	@show size(A) L1 L2 diag 
 
 	@assert only(unique(size(A)))==L2
 
 end 
 
-function check_size(A::AbstractVecOrMat{<:Number},
+function check_size(A::AbstractVector{<:Number},
 										::Tuple{Val{true}, Val{false}},
 									 (L1,L2,L12)::NTuple{3,Int},
 										::Val{:atoms}
@@ -416,6 +426,16 @@ function check_size(A::AbstractVecOrMat{<:Number},
 end 
 
 
+function check_size(A::AbstractMatrix{<:Number},
+										sums::Tuple{Val{true}, Val{false}},
+										numbers::NTuple{3,Int},
+										diag::Val{:atoms}
+										)
+	@show size(A) sums diag 
+
+	error("Op::Matrix => only '(false,true)+atoms' and '(true,false)+orbitals are allowed.")
+
+end 
 
 function check_size(A::AbstractVecOrMat{<:Number},
 										sums::Tuple{Val{false},Val{true}},
@@ -438,13 +458,33 @@ function check_size(A::AbstractVecOrMat{<:Number},
 
 end 
 
-function check_size(A::Number,
-										::NTuple{2,Val},
-										arg,
-										::Val{:all}
-										)
+function check_size(A::Number, ::NTuple{2,Val}, arg, ::Val{:all})
 
 end
+
+
+function check_size(A::AbstractVecOrMat{<:Number},
+										::NTuple{2,S} where S<:Union{Val{true},Val{false}},
+										I::AbstractVector{Int},
+										args...)
+
+	@assert only(unique(size(A)))==length(I)
+
+end 
+
+#function check_size(A::AbstractVecOrMat,
+#										sums::NTuple{2,S} where S<:Union{Val{true},Val{false}},
+#										 (L1,L2,L12)::NTuple{3,Int},
+#										 diag::Union{Val{:orbitals},Val{:atoms}}
+#										) 
+#	println("\n***\n")
+#
+#	@show size(A) sums L1 L2 L12  diag 
+#
+#	@assert only(unique(size(A)))==L12 
+
+#end 
+
 
 #===========================================================================#
 #
@@ -523,6 +563,13 @@ function get_iter_Op(Op::T,
 end 
 
 
+function get_iter_Op_(Op::T,
+											sums::NTuple{2,S},
+											args...)::T where {T,S<:Union{Val{true},Val{false}}}
+	Op 
+
+end 
+
 
 #===========================================================================#
 #
@@ -543,13 +590,14 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 end 
 
 
+
+
 function ExpectVal(P::AbstractMatrix{<:Number}, 
 									 Op::AbstractMatrix{<:Number},
 									 sums::NTuple{2,Val{true}},
 									 csdim::Int,
 									 I::AbstractVector{Int},
-									 args...)::Vector{<:Number}
-
+									 args...)::Matrix{<:Number}
 
 	ExpectVal(selectdim(P, csdim, I), Op, sums, csdim, :, args...)
 
@@ -595,11 +643,9 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 Op::Union{Number,<:AbstractVector{<:Number}},
 									 sums::NTuple{2,Val{true}},
 									 csdim::Int,
-									 args...)::Vector{<:Number}
+									 args...)::Matrix{<:Number}
 
-	v = ExpectVal(P, Op, (Val(false),Val(false)), csdim, args...) 
-
-	return dropdims(sum(v, dims=csdim), dims=csdim)
+	sum(ExpectVal(P, Op, (Val(false),Val(false)), csdim, args...), dims=csdim)
 
 end  
 
@@ -609,9 +655,9 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 ::NTuple{2,Val{true}},
 									 csdim::Int,
 									 I::Colon,
-									 args...)::Vector{<:Number}
+									 args...)::Matrix
 
-	LA.diag(P' * Op * P)
+	Utils.VecAsMat(LA.diag(P' * Op * P), csdim)
 
 end 
 
@@ -627,8 +673,11 @@ end
 
 function ExpectVal(P::AbstractMatrix{<:Number},
 										iter_Op::Union{T, <:AbstractVector{T}},
+										::Union{Tuple{Val{true},Val{false}},
+														Tuple{Val{false},Val{true}}},
 									 csdim::Int,
-									 I::AbstractVector{<:AbstractVector{Int}}
+									 I::AbstractVector{<:AbstractVector{Int}},
+									 args...
 									 )::Matrix{<:Number} where T<:AbstractVecOrMat{<:Number}
 
 	Utils.VecsToMat(iter_Op, I; dim=csdim) do Op,inds
@@ -639,52 +688,34 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 
 end   
 
+function Trace(A::AbstractVector{<:Number},
+							 iter_Op::Union{T,<:AbstractVector{T}},
+							I::AbstractVector{<:AbstractVector{Int}},
+									 )::Vector{<:Number} where T<:AbstractVector{<:Number}
 
-
-function ExpectVal(P::AbstractMatrix{<:Number}, 
-									 Op::Union{Number, <:AbstractVector{<:Number}},
-									 sums::Union{Tuple{Val{true},Val{false}},
-															 Tuple{Val{false}, Val{true}}},
-									 csdim::Int,
-									 I::AbstractVector{<:AbstractVector{Int}},
-									 diag::Val,
-									 args...)::Matrix{<:Number}
-
-	ExpectVal(P, get_iter_Op(Op, sums, I, diag), csdim, I)
-
-end  
-
-
-function ExpectVal(P::AbstractMatrix{<:Number}, 
-									 Op::AbstractMatrix{<:Number},
-									 sums::Tuple{Val{true},Val{false}},
-									 csdim::Int,
-									 I::AbstractVector{<:AbstractVector{Int}},
-									 diag::Val{:orbitals},
-									 args...)::Matrix{<:Number}
-
-	ExpectVal(P, get_iter_Op(Op, sums, I, diag), csdim, I)
+	[Trace(A[inds], Op) for (Op,inds) in zip(iter_Op, I)]
 
 end 
 
 
 
-function ExpectVal(P::AbstractMatrix{<:Number}, 
-									 Op::AbstractMatrix{<:Number},
-									 sums::Tuple{Val{false},Val{true}},
-									 csdim::Int,
-									 I::AbstractVector{<:AbstractVector{Int}},
-									 diag::Val{:atoms},
-									 args...)::Matrix{<:Number}
+function Trace(A::AbstractVector{<:Number},
+							 Op::Union{Number, <:AbstractVector{<:Number}}=1,
+							 I::Colon=Colon(),
+							 )::Number 
 
-	ExpectVal(P, get_iter_Op(Op,sums,I,diag), csdim, I)
-
+	sum(A.*Op)
 
 end 
 
+function Trace(A::AbstractVector{<:Number},
+							Op::Union{Number, <:AbstractVector{<:Number}},
+							I::AbstractVector{Int},
+							)::Number 
 
+	Trace((A.*Op)[I])
 
-
+end 
 
 
 #===========================================================================#
@@ -693,7 +724,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function (H::Operator)(P::AbstractMatrix)
+function (H::Operator)(P::AbstractMatrix{<:Number}; kwargs...
+											)::Matrix{<:Number}
 
 	ExpectVal(P, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag))
 
@@ -720,26 +752,30 @@ extend_data(A::Number, args...)::Number = A
 
 
 
-function extend_data(A::T,
-										 diag::Val,
-										 numbers::NTuple{3,Int},
-										 args...)::T where T<:AbstractVecOrMat{<:Number}
+#function extend_data(A::T,
+#										 diag::Val,
+#										 numbers::NTuple{3,Int},
+#										 sums::NTuple{2,Val}
+#										 )::T where T<:AbstractVecOrMat{<:Number}
+#
+#
+#	extend_data_(A, diag, numbers, sums)
+#
+##	check_size(data, sums, numbers, diag) 
+#
+##	return data 
+#
+#end
 
-	check_size(A, (Val(false),Val(true)), numbers, diag) 
-
-	return extend_data_(A, diag, numbers, args...)
-
-end
 
 
-
-function extend_data_(A::T, ::Val{:none}, args...
+function extend_data(A::T, ::Val{:none}, args...
 										 )::T where T<:AbstractVecOrMat{<:Number}
 	A
 
 end
 
-function extend_data_(A::T,
+function extend_data(A::T,
 										 ::Union{Val{:atoms},Val{:orbitals}},
 										 ::NTuple{3,Int},
 										 ::Union{Tuple{Val{true},Val{false}},
@@ -750,7 +786,7 @@ function extend_data_(A::T,
 end 
 
 
-function extend_data_(A::T,
+function extend_data(A::T,
 										 ::Val{:atoms},
 										 numbers::NTuple{3,Int},
 										 ::NTuple{2,V} where V<:Union{Val{true}, Val{false}}
@@ -763,7 +799,7 @@ end
 
 
 
-function extend_data_(A::T,
+function extend_data(A::T,
 										 ::Val{:orbitals},
 										 numbers::NTuple{3,Int},
 										 ::NTuple{2,V} where V<:Union{Val{true},Val{false}},
@@ -868,9 +904,6 @@ function repeatOperator_manyOrbitals(Op::AbstractMatrix{T},
 																	nr_at::Int, nr_orb::Int, size_H::Int
 																	)::Matrix{T} where T<:Number
 
-	# Op simulates a Hamiltonian with nr_at atoms and one orbital
-	# 	will be reproduced for nr_orb orbitals
-
 	@assert all(isequal(nr_at), size(Op))
 	
 	FullOp = zeros(T, size_H, size_H)
@@ -887,6 +920,50 @@ function repeatOperator_manyOrbitals(Op::AbstractMatrix{T},
 
 end
 
+
+
+#===========================================================================#
+#
+# Trace over orbitals/atoms with some projection operator
+# 
+#---------------------------------------------------------------------------#
+
+
+function Trace(what::AbstractString, args...; kwargs...)::Function 
+
+	Trace(Symbol(what), args...; kwargs...)
+
+end 
+
+function Trace(what::Symbol,
+								data::Union{Number,<:AbstractVecOrMat{<:Number}}=1;
+								sum_up::Bool=false, kwargs...)::Function
+
+	@assert what in [:orbitals, :atoms]
+
+	function get_diag(X::AbstractMatrix{T})::Vector{T} where T<:Number
+
+		LA.diag(X)
+
+	end 
+
+	function get_diag(X::T)::T where T<:Union{Number,AbstractVector{<:Number}}
+
+		X  
+
+	end 
+
+
+	Op = Operator(get_diag(data); 
+								kwargs..., trace=sum_up ? :all : what) 
+
+	function tr(A::AbstractVecOrMat{T})::Union{T,Vector{T}} where T<:Number 
+	
+		Trace(get_diag(A), Op.data, Op.inds)
+
+	end 
+
+end 
 
 
 #===========================================================================#
@@ -919,7 +996,7 @@ end
 function Position(ax::Int, Rs::AbstractMatrix{<:Real}; 
 									fpos::Function=identity,
 									dim::Int, nr_at::Int=size(Rs,dim),
-									kwargs...)
+									kwargs...)::Operator
 
 	a = selectdim(Rs, [2,1][dim], ax)
 
@@ -933,112 +1010,42 @@ end
 
 
 
-#===========================================================================#
-#
-# Trace over orbitals/atoms with some projection operator
-# 
-#---------------------------------------------------------------------------#
-
-
-
-function Trace(what::AbstractString, Op=[1]; 
-							 sum_up::Bool=false, kwargs...)::Function
-
-	oa = ["orbitals","atoms"]
-
-	what in oa || error("The first argument must be either of "*string(oa))
-
-
-	S = size(Op,1)
-
-	if sum_up && (S==1 || all(isapprox.(Op[1], Op[2:end], atol=1e-8))) 
-		
-		return A -> Op[1]*((typeof(A)<:AbstractMatrix) ? LA.tr : sum)(A)
-
-	end
-
-
-	(nr_at, nr_orb, size_H), enough_data = get_nratorbH(; kwargs...)
-
-
-	!enough_data && return function (A)
-
-								Trace(what, Op; sum_up=sum_up, size_H=size(A,1), kwargs...)(A)
-
-									end
-
-	Op = get_diag(Op)
-
-
-	function check(A) 
-		
-		@assert size(A,1)==size_H 
-
-		return A
-
-	end
-
-
-#	nr_at==1 && what=="atoms"
-
-
-
-
-
-	S==size_H && sum_up && return A -> sum(Op.*get_diag(check(A)))
-
-
-	what2 = oa[findfirst(!isequal(what), oa)]
-
-
-	inds = TBmodel.Hamilt_indices_all(1:nr_orb,1:nr_at; iter=what2)
-
-
-	iter(M) = get_diag(M) |> m -> (m[i] for i in inds)
-
-
-	S==1 && !sum_up && return A -> Op[1]* sum.(iter(check(A)))
-
-
-	S==size_H && return A -> [sum(oi.*ai) for (oi,ai) in zip(iter(Op),iter(check(A)))]
-
-
-
-
-
-	sum_up_ = sum_up ? sum : identity
-
-
-	nr = Dict("orbitals"=>nr_orb, "atoms"=>nr_at)
-
-
-
-	S==nr[what] && return A -> sum_up_([sum(Op.*ai) for ai in iter(check(A))])
-
-	S==nr[what2] && return A -> sum_up_(Op.*sum.(iter(check(A))))
-
-
-	error("Something went wrong")
-
-
-
-end
-
-
-
-
-#=
-
 
 
 	# ----- local charge operator ----- #
 
 
-function Charge(Op_UC,atom;kwargs...)
+function SingleAtomCharge(Op_UC::AbstractVecOrMat{<:Number}, atom::Int; 
+								kwargs...)::Operator
 
-  Operator(Op_UC,nr_orb=size(Op_UC,1),purpose="matrixelement",acts_on_atoms=vcat(atom);kwargs...)
+  Operator(Op_UC;
+					 nr_orb=size(Op_UC,1), 
+					 acts_on_atoms=atom,
+					 kwargs...)
 
 end
+
+# ----- inverse participation ratio ----- #
+
+
+function IPR(;kwargs...)::Function
+
+	ldos = LDOS(;kwargs...)
+
+	return function ipr(P::AbstractMatrix{<:Number}; kw...)::Matrix{Float64}
+
+		sum(abs2, ldos(P; kw...), dims=ldos.csdim) .|> inv 
+
+	end 
+
+	# special function, cannot be constructed directly from Operator(...)
+	# = 1 if psi localized on a single site, 
+	# = nr_atoms for psi spread on all atoms
+
+end 
+
+
+#=
 
 function Velocity(BlochH, dir=1; dk=pi/100)
 
@@ -1063,49 +1070,7 @@ return (P;k,kwargs...) -> reshape(LA.diag(P'*v(k)*P),:,1)
 end
 
 
-	# ----- inverse participation ratio ----- #
 
-
-function IPR(;kwargs...)
-
-  ldos = LDOS(;kwargs...)
-
-  return (P;kwargs...) -> 1 ./ sum(ldos(P).^2,dims=2)
-		# special function, cannot be constructed from Operator(...)
-		# = 1 if psi localized on a single site, 
-		# = nr_atoms for psi spread on all atoms
-end
-
-
-
-	# ----- expectation of the position operator ----- #
-
-
-function Decode_PositionExpVal(str;err=false)
-	
-	good(A...) = any(isequal(str), A)
-									 
-	for (d,A) in enumerate(["X","Y","Z"])
-	
-		good(A) && return d, identity
-	
-		good("|$A|") && return d, abs
-	
-		good(A*"2", "|$A|2") && return d, abs2 
-		
-		good(A*"3") && return d, x->x^3
-
-		good("|$A|3") && return d, x->abs(x)^3
-
-		good(A*"4", "|$A|4") && return d, x->x^4 
-	
-	end 
-
-	err && error("'$str' not understood")
-
-	return nothing,nothing
-
-end 
 
 
 

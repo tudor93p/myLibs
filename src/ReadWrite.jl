@@ -53,41 +53,6 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Write_NamesVals(filename::Function,  storemethod::AbstractString, Names, result, bounds; tol=1e-7, filemethod="new")
-
-
-	Write!, outdict = Write_NamesVals(filename, storemethod;
-																		filemethod=filemethod,
-																		tol=tol)
-
-
-  for (i,name) in enumerate(Names)
-
- 		Write!(name, result[:,bounds[i]+1:bounds[i+1]], outdict)
-
-  end
-
-  return Write!, outdict
-
-#  outdict = new_item("kLabels",reshape(repeat(kLabels,inner=div(size(result,1),length(kLabels))),:,1),outdict)
-
-#  outdict = new_item("kPoints",kPoints,outdict)
-
-#  return outdict
-
-
-end
-
-
-
-
-
-#===========================================================================#
-#
-#
-#
-#---------------------------------------------------------------------------#
-
 
 function Extension_Storemethod(storemethod::AbstractString)::String
 
@@ -144,8 +109,9 @@ end
 
 function Write_NamesVals(filename::Function, 
 												 storemethod::AbstractString="jld"; 
-												 tol=1e-7, 
-												 filemethod::AbstractString="new")::Tuple{Function,Dict}
+												 tol::Float64=1e-7, 
+												 filemethod::AbstractString="new"
+												 )::Tuple{Function,Dict}
 
 
 	function writable(matrix::AbstractArray{<:Number}, name)

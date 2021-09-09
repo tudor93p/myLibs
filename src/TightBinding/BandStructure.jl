@@ -5,7 +5,7 @@ using Distributed
 
 import ..DlmF, ..LA, ..SpA, Arpack
 
-import ..Algebra, ..Utils, ..ReadWrite
+import ..Algebra, ..Utils, ..ReadWrite, ..Operators
 
 
 
@@ -15,51 +15,129 @@ import ..Algebra, ..Utils, ..ReadWrite
 #
 #---------------------------------------------------------------------------#
 
-function get_eigen(H::Function, 
-									 evect::Bool=false; 
-									 tol::Float64=1e-8, 
-									 nr_bands=nothing, 
-									 sigma::Float64=tol/10)::Function 
+function restrict_energies_inds(e::AbstractVector{Float64},
+											 nr_bands::Int,
+											 sigma::Float64)::Vector{Int}
+
+	m,M = argmin(abs.(e .- sigma)) .+ [-1,1]*div(nr_bands,2)
+
+	return max(m-1,0) + min(length(e)-M,0) .+ (1:nr_bands)
+
+end  
 
 
-  if isnothing(nr_bands)
-
-    !evect && return k -> (LA.eigvals(LA.Hermitian(Array(H(k)))),nothing)
- 
-    
-    return k-> LA.eigen(LA.Hermitian(Array(H(k)))) |> e->(e.values,e.vectors)
- 
-  end
-
+function get_eigen(Hk::AbstractMatrix{<:Number},
+									 sparsediag::Val{false},
+									 evect::Val{false},
+									 nr_bands::Nothing=nothing;
+									 kwargs...
+									 )::Tuple{Vector{Float64},Nothing}
 	
+	(LA.eigvals(LA.Hermitian(Matrix(Hk))), nothing)
 
-  Areigs(k) = Arpack.eigs(H(k), nev=nr_bands, 
-																sigma=Utils.Assign_Value(sigma, tol/10),
-																tol=tol,
-																ritzvec=evect)
+end 
 
-
-	evect && return k -> Areigs(k) |> function (e)
-
-
-													order = sortperm(real(e[1]))
-
-#													println("\n",real(e[1])[order],"\n")
-														
-													return (e[1][order], e[2][:,order])
+function get_eigen(Hk::AbstractMatrix{<:Number},
+									 sparsediag::Val{false},
+									 evect::Val{false},
+									 nr_bands::Int;
+									 sigma::Float64,
+									 kwargs...
+									 )::Tuple{Vector{Float64},Nothing}
 
 
-												end
+	(e, p) = get_eigen(Hk, sparsediag, evect)
 
+	return (e[restrict_energies_inds(e, nr_bands, sigma)], p)
 
-
-	return k -> (sort(Areigs(k)[1],by=real),nothing)
-
-
-end
+end  
 
 
 
+function get_eigen(Hk::AbstractMatrix{<:Number},
+									 sparsediag::Val{false},
+									 evect::Val{true},
+									 nr_bands::Nothing=nothing;
+									 kwargs...
+									 )::Tuple{Vector{Float64},Matrix{ComplexF64}}
+	
+	eigen = LA.eigen(LA.Hermitian(Matrix(Hk)))
+
+	return (eigen.values, eigen.vectors)
+
+end 
+
+
+
+function get_eigen(Hk::AbstractMatrix{<:Number},
+									 sparsediag::Val{false},
+									 evect::Val{true},
+									 nr_bands::Int;
+									 sigma::Float64,
+									 )::Tuple{Vector{Float64},Matrix{ComplexF64}}
+
+	e,p = get_eigen(Hk, sparsediag, evect) 
+
+	nr_bands>=length(e) && return (e, p)
+
+	inds = restrict_energies_inds(e, nr_bands, sigma) 
+
+	return (e[inds], p[:,inds]) # vectors come on columns 
+
+end 
+
+
+
+
+function get_eigen(Hk::AbstractMatrix{<:Number},
+									 sparsediag::Val{true},
+									 evect::Val{false},
+									 nr_bands::Int;
+									 tol::Float64,
+									 sigma::Float64,
+									 )::Tuple{Vector{ComplexF64},Nothing}
+  
+	eigs = Arpack.eigs(Hk, nev=nr_bands, tol=tol, ritzvec=false,
+										 sigma=Utils.Assign_Value(sigma, tol/10))
+
+	return (sort(eigs[1], by=real), nothing)
+
+end 
+
+
+function get_eigen(Hk::AbstractMatrix{<:Number},
+									 sparsediag::Val{true},
+									 evect::Val{true},
+									 nr_bands::Int;
+									 tol::Float64,
+									 sigma::Float64,
+									 )::Tuple{Vector{ComplexF64}, Matrix{ComplexF64}}
+  
+	eigs = Arpack.eigs(Hk, nev=nr_bands, tol=tol, ritzvec=true, sigma=sigma)
+
+	order = sortperm(eigs[1], by=real)
+
+	return (eigs[1][order], eigs[2][:,order])
+
+end 
+
+
+function get_eigen(sparsediag::Val, args...; kw1...)::Function 
+
+	function get_eigen_(Hk::AbstractMatrix; kw2...)::Tuple{Vector,Any}
+
+		get_eigen(Hk, sparsediag, args...; kw1..., kw2...)
+
+	end 
+
+end 
+
+
+function get_eigen(H::Function, args...; kwargs...)::Function 
+
+	get_eigen(args...; kwargs...) ∘ H 
+
+end 
 
 
 #===========================================================================#
@@ -68,22 +146,95 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_nrbands(nr_bands::Nothing, args...)::Nothing
+function get_nrbands(H0::AbstractMatrix, lim::Float64=0.2;
+										nr_bands=nothing, kwargs...)::Union{Nothing, Int}
 
-	nothing 
-
-end 
-
-
-function get_nrbands(nr_bands::Int, H0::AbstractMatrix, lim::Float64=0.2)::Union{Nothing, Int}
-
-	nr_bands < size(H0,1)*lim && return nr_bands
+	isa(nr_bands,Int) && nr_bands<size(H0,1)*lim && return nr_bands
 
   return nothing
 
 end
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function prep_kLabels(kPoints::AbstractMatrix, dim::Int;
+											kLabels=nothing, kwargs...)::AbstractVector
+
+	if isnothing(kLabels)
+
+		size(kPoints,dim)==1 && return [0]
+
+		return range(0,1,length=size(kPoints,dim))
+
+	elseif kLabels isa AbstractVector 
+
+		@assert length(kLabels)==size(kPoints,dim)
+
+		return kLabels 
+
+	end 
+
+end 
+
+
+
+function prep_operators(;operators=nothing, kwargs...
+											 )::Tuple{Vector{String},
+																Vector{<:Union{Function,Operators.Operator}}
+																}
+
+	isnothing(operators) || isempty(operators) && return (String[],Function[])
+
+	@assert length(operators)==2 
+	
+	N,O = operators 
+	
+	@assert length(N)==length(O)
+
+	return (N,O)
+
+
+end  
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function Diagonalize_oneK(k::AbstractVector{Float64},
+													Hk::AbstractMatrix{<:Number},
+													lab,
+													operators::Tuple{Vector,Vector},
+													args...;
+													sparsediag::Bool=false,
+													kwargs...
+													)::Dict{String,Any}
+
+
+	e, p = get_eigen(Hk, Val(sparsediag), Val(!isempty(operators[1])), 
+									 args...; kwargs...)
+
+	return Dict{String,Any}("Energy"=>e,
+													"kLabels"=>fill(lab, length(e)),
+													(N=>Op(p;k=k) for (N,Op)=zip(operators...))...)
+
+end  
+
+
+function Diagonalize_oneK(k::AbstractVector{Float64}, H::Function,
+													args...; kwargs...)::Dict{String,Any}
+
+	Diagonalize_oneK(k, H(k), args...; kwargs...)
+
+end 
 
 
 #===========================================================================#
@@ -95,110 +246,73 @@ end
 
 function Diagonalize(H::Function, 
 										 kPoints::AbstractMatrix{Float64}, 
-										 filename=nothing; 
-										 kLabels=nothing,
+										 filename::Nothing=nothing; 
 										 kTicks=[0],
 										 filemethod::AbstractString="new", 
-										 parallel::Bool=false, operators=[[],[]],
-										 storemethod::AbstractString="dat",
-										 dim::Int=1,
-										 tol=1e-8,  
-										 nr_bands=nothing, 
+										 parallel::Bool=false, 
+										 storemethod::AbstractString="jld",
+										 dim::Int,
+										 tol::Float64=1e-8,
 										 sigma::Float64=tol/10, kwargs...)
+	
+	operators = prep_operators(;kwargs...)  
+
+	kLabels = prep_kLabels(kPoints, dim; kwargs...)
+
 
 	k1 = selectdim(kPoints, dim, 1)
 
 	rest_ks = Base.Iterators.drop(eachslice(kPoints, dims=dim), 1)
 
-	nr_bands_calc = get_nrbands(nr_bands, H(k1))
+	klab1, rest_klab = kLabels[1], kLabels[2:end]
+	
+	
+	H1 = H(k1)
 
-	if isnothing(operators) || isempty(operators)
-		operators = [[],[]]
+	nr_bands = get_nrbands(H1; kwargs...)
+
+	DoK(k,h,l) = Diagonalize_oneK(k,h,l, operators, nr_bands; tol=tol, sigma=sigma)
+	DoK((k,l)) = DoK(k,H,l)
+
+
+	D = Utils.RecursiveMerge(
+													 
+				DoK(k1, H1, klab1),
+
+				Utils.RecursiveMerge(DoK, zip(rest_ks, rest_klab); dim=dim);
+
+				dim=dim, parallel=parallel)
+
+	size(kPoints,dim)==1 && return D 
+
+	for (N,V) in D 
+
+		s = size(V)
+
+		@assert length(s)>=2 "Strange dimension"
+
+		S = [(s[1]*s[2],s[3:end]...), (s[1:end-2]..., s[end-1]*s[end])]
+
+		D[N] = reshape(V, S[dim])#filter(>(1), S[dim]))
+
 	end 
 
-  eig = get_eigen(H, !isempty(operators[1]); 
-									tol=tol, nr_bands=nr_bands_calc, sigma=sigma)
 
-
-	function restrict((e,p))
-
-						# if no restriction desired 
-						# if the restriction was implemented already 
-
-		isnothing(nr_bands) | !isnothing(nr_bands_calc)	&& return (e,p)
-
-						# if only the eigenvalues are calculated
-						# if the   
-
-		isnothing(p) | (nr_bands >= length(e)) && return (e, p)
-
-		m,M = argmin(abs.(e .- sigma)) .+ [-1,1]*div(nr_bands,2)
-
-		inds = max(m-1,0) + min(length(e)-M,0) .+ (1:nr_bands)
-	
-		return (e[inds], p[:,inds] ) # vectors come on columns 
-
-	end
-
-	out(k) = eig(k) |> restrict |> function	((e,p),)
-
-															(e, [Op(p,k=k) for Op in operators[2]])
-
-																end
-
-
-	E1, Op1 = out(k1)
-															
-	bounds = cumsum([0;1;size.(Op1,2)])
-
-
-  result = vcat(
-
-		hcat(E1, Op1...),
-
-		(parallel ? pmap : map)(rest_ks) do k
-
-			out(k) |> out_k -> hcat(out_k[1], out_k[2]...)
-
-    end...)
-
-
-
-
-	Write!, outdict = ReadWrite.Write_NamesVals(filename,  storemethod, 
-																		["Energy";operators[1]], result, bounds;
-																		tol=tol, filemethod=filemethod)
-
-
-
-
-
-	if size(kPoints,dim)==1
-	
-		return Write!("kLabels", reshape(range(0,1,length=size(result,1)),:,1), outdict)
-
-
-	end	
-
-
-	kLabels = Utils.Assign_Value(kLabels, range(0,1,length=size(kPoints,dim)))
-
-	kLabels = reshape(repeat(kLabels,
-													 inner=div(size(result,1), length(kLabels))),:,1)
-
-
-	# kPoints should also be repeated
-
-	Write!("kLabels", kLabels, outdict)
-
-	Write!("kTicks", kTicks, outdict)
-
-
-  return outdict
-
+	return setindex!(D, kTicks, "kTicks")
 
 end
 
+
+function Diagonalize(H::Function, 
+										 kPoints::AbstractMatrix{Float64}, 
+										 filename::Function;
+										 storemethod::AbstractString="jld",
+										 kwargs...)
+
+	ReadWrite.Write_PhysObs(filename, storemethod, 
+													Diagonalize(H, kPoints; kwargs...))
+
+end 
 
 
 #===========================================================================#
@@ -208,13 +322,50 @@ end
 #---------------------------------------------------------------------------#
 
 
+function prep_oper_names_rw(operators::Nothing=nothing, args...)::Vector{String}
+	
+	prep_oper_names_rw([], args...)
 
-function Read_Bands(filename,colors=[])
+end 
 
-  return Utils.Read_NamesVals(filename,[["Energy","kLabels"];colors])
+function prep_oper_names_rw(operators::AbstractString,args...)::Vector{String} 
+	prep_oper_names_rw([operators],args...) 
+
+end 
+
+function prep_oper_names_rw(operators::AbstractVector{<:AbstractString},
+													 )::Vector{String} 
+
+	operators 
+end 
+
+function prep_oper_names_rw(operators::AbstractVector{<:AbstractString},
+														extra_opers
+													 )::Vector{String}  
+
+	[operators; prep_oper_names_rw(extra_opers)]
+
+end 
+
+
+
+
+function Read_Bands(filename::Function, operators, args...)::Dict 
+
+	names = prep_oper_names_rw(operators, ["kLabels", "kTicks", "Energy"])
+	
+	return ReadWrite.Read_NamesVals(filename, names, args...)
 
 end
 
+
+function FoundFiles_Bands(filename::Function, operators, args...)::Bool
+
+	names = prep_oper_names_rw(operators, ["kLabels","Energy"])
+
+	return ReadWrite.FoundFiles_NamesVals(filename, names, args...)
+
+end 
 #===========================================================================#
 #
 # Time evolution of a state. psi(t) = e^iHt psi0

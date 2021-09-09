@@ -26,8 +26,9 @@ end
 #"utils" |> pr_in 
 
 #"utils_splitws" |> pr_in 
+"oper" |> pr_in
 
-#include("bandstr.jl") 
+"bandstr" |> pr_in
 
 
 
@@ -38,7 +39,6 @@ end
 #"param2" |>pr_in 
 
 
-"oper" |> pr_in
 
 
 
