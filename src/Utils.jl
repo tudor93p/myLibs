@@ -2083,7 +2083,7 @@ function catNewAx(dim::Int, arrays::Vararg{<:AbstractArray})::Array{<:Number}
 	d = new_axis(N, dim)  
 
 
-	shapes = map(zip(arrays,Ns)) do (a,n)
+	map(zip(arrays,Ns)) do (a,n)
 
 		inds = collect(1:n)
 
@@ -2091,9 +2091,8 @@ function catNewAx(dim::Int, arrays::Vararg{<:AbstractArray})::Array{<:Number}
 
 		return size(a)[inds]
 
-	end 
+	end |> unique |> only 
 
-	@assert length(unique(shapes))==1 
 
 
 	function prep(a::AbstractArray{t,n}
@@ -2103,8 +2102,7 @@ function catNewAx(dim::Int, arrays::Vararg{<:AbstractArray})::Array{<:Number}
 
 	end 
 
-
-	return cat((prep(a) for a in arrays)..., dims=d)
+	return mapreduce(prep, [vcat,hcat][d], arrays)
 
 end  
 
@@ -2112,10 +2110,23 @@ end
 
 function VecsToMat(vecs::Vararg{AbstractArray}; dim::Int)::Matrix 
 
-	cat((VecAsMat(v, dim) for v in vecs)..., dims=dim)
+	mapreduce([vcat,hcat][dim], vecs) do v
+
+		VecAsMat(v, dim)
+
+	end 
 
 end 
 
+function VecsToMat(f::Function, iter...; dim::Int)::Matrix 
+
+	mapreduce([vcat,hcat][dim], iter...) do obj...
+
+		VecAsMat(f(obj...), dim)
+
+	end 
+
+end 
 
 
 

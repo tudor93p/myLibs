@@ -26,87 +26,89 @@ shape[dim2]=size_H
 
 P = mapslices(LinearAlgebra.normalize,rand(ComplexF64,shape...),dims=dim2) 
 
+@testset "WF" begin 
 
 for psi in eachslice(P,dims=dim)
 
-	@assert isapprox(1,LinearAlgebra.norm(psi))
+	@test isapprox(1,LinearAlgebra.norm(psi))
 
 end  
 
+end 
 kwargs = (dim=dim,nr_at=nr_at,nr_orb=nr_orb,size_H=size_H)
-
-
-for Op in [#Operators.Position_Expectation(1, atoms; kwargs...),
-					 #Operators.Operator([-1,0,1]; kwargs...),
-					 #Operators.IPR(;kwargs...),
-					 #Operators.LDOS([1]; kwargs...),
-					 ]
-
-
-	@show Op
-
-
-end 
-
-
-for n in 0:3
-
-	@show n
-
-	ks = Utils.Random_Items([:nr_orb,:nr_at,:size_H],n)
-
-	@show ks 
-
-
-	kw = Utils.dict_diff(kwargs,ks)
-
-	@show kw 
-
-	@show Operators.get_nratorbH(;kw...) 
-
-#	if n>0
 #
-#		k = rand(ks) 
-#	
-#		@show k 
-#		@show Operators.get_nratorbH(kwargs[k];kw...) 
-#	
-#	end 
-
-
-i = rand(2:length(kwargs))
-
-	@show i 
-
-	k = keys(kwargs)[i]
-
-	@show k
-	v = kwargs[k]
-@show v 
-
-	A = rand(v)
-
-
-					 
-
-	@show size(A)
-
-	@show Operators.Operator(A; kwargs...)
-
-	println()
-	println()
-end  
-
-
-
-
-for k in [:nr_orb,:nr_at,:size_H]
-
-	nrs,enough_data = Operators.get_nratorbH(;kwargs...)
-
-	@show k Operators.which_diag(rand(kwargs[k]),nrs)
-
-end 
+#
+#for Op in [#Operators.Position_Expectation(1, atoms; kwargs...),
+#					 #Operators.Operator([-1,0,1]; kwargs...),
+#					 #Operators.IPR(;kwargs...),
+#					 #Operators.LDOS([1]; kwargs...),
+#					 ]
+#
+#
+#	@show Op
+#
+#
+#end 
+#
+#
+#for n in 0:3
+#
+#	@show n
+#
+#	ks = Utils.Random_Items([:nr_orb,:nr_at,:size_H],n)
+#
+#	@show ks 
+#
+#
+#	kw = Utils.dict_diff(kwargs,ks)
+#
+#	@show kw 
+#
+#	@show Operators.get_nratorbH(;kw...) 
+#
+##	if n>0
+##
+##		k = rand(ks) 
+##	
+##		@show k 
+##		@show Operators.get_nratorbH(kwargs[k];kw...) 
+##	
+##	end 
+#
+#
+#i = rand(2:length(kwargs))
+#
+#	@show i 
+#
+#	k = keys(kwargs)[i]
+#
+#	@show k
+#	v = kwargs[k]
+#@show v 
+#
+#	A = rand(v)
+#
+#
+#					 
+#
+#	@show size(A)
+#
+#	@show Operators.Operator(A; kwargs...)
+#
+#	println()
+#	println()
+#end  
+#
+#
+#
+#
+#for k in [:nr_orb,:nr_at,:size_H]
+#
+#	nrs,enough_data = Operators.get_nratorbH(;kwargs...)
+#
+#	@show k Operators.which_diag(rand(kwargs[k]),nrs)
+#
+#end 
 
 println()
 println()
@@ -199,53 +201,72 @@ end
 #@show sum(v[:,5]) sum(v[:,9])
 
 
+@testset "Expect, vals." begin 
+
 for n in [1,nr_at,nr_orb,size_H] 
 	
-for N in [(n,),]#(n,n)]
+for N in [(n,), (n,n)]
 
-#for n in [1,nr_at], N in [(n,),(n,n)]
-		
 	R = round.(rand(N...), digits=2) 
 
 	X = [] 
 
-	for (sum_atoms,sum_orbitals) in [(true,true),
-																	 (true,false),
-																	 (false,true),
-																	 (false,false)
+	for (sum_atoms,sum_orbitals) in [
+																	 (true,true);
+								(length(N)==1 || n==nr_at) ? [(true,false)] : [];
+								(length(N)==1 || n==nr_orb) ? [(false,true)] : [];
+							 length(N)==1 ? [(false,false)] : [];
 																	 ]
-		println("\n---------------------------")
-
-		@show N sum_atoms sum_orbitals
-
-		println("---------------------------\n")
+#		println("\n---------------------------")
+#
+#		@show N sum_atoms sum_orbitals
+#
+#		println("---------------------------\n")
 
 
 		local Op  = Operators.Operator(R; sum_atoms=sum_atoms, sum_orbitals=sum_orbitals, kwargs...)
 
 
-		po(Op)
+#		po(Op)
 
 		v = Op(P) 
 
-		@show size(v)
+		@test size(v)[end]==nr_wf 
 
-		@assert size(v)[end]==nr_wf 
+		sum_atoms && !sum_orbitals && @test size(v,1)==nr_orb
+		!sum_atoms && sum_orbitals && @test size(v,1)==nr_at 
+		!sum_atoms && !sum_orbitals && @test size(v,1)==size_H
+		
 
 		ndims(v)==1 ? push!(X,v) : push!(X,sum(v,dims=1)[:])
 
 	end 
 
-	if length(X)>1  
-		
-		@assert all(isapprox.(X[1:1],X[2:end]))
+	length(X)>1 && @test all(isapprox.(X[1:1],X[2:end]))
 
-		println("\n*************** Test passed\n")
-
-	end 
 
 end 
+#println()
 end 
+
+println()
+end  
+
+
+
+
+
+
+@testset "Trace" begin
+
+
+
+end 
+
+
+
+
+
 
 
 
