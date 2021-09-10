@@ -10,11 +10,15 @@ hopp(ri,rj) = isapprox(norm(ri-rj),0)*2.0+isapprox(norm(ri-rj),1)*1.0
 
 
 
-#println(TBmodel.HoppingMatrix(R; Hopping=hopp))
+TBmodel.HoppingMatrix(R; Hopping=hopp)
+TBmodel.HoppingMatrix(R; Hopping=hopp)
+
+
 
 TBL = ([0,1], [[1,0.],[2.,0]], R)
 
-inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
+@time inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
+@time inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
 
 
 @show size(inter)
@@ -29,6 +33,7 @@ for (argH, k) in [("k", rand(2)), ("phi", rand())]
 	println()
 	@show argH 
 	@show size(TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH=argH)(k))
+@time	size(TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH=argH)(k))
 
 end 
 
@@ -45,7 +50,7 @@ H = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp)
 
 println()
 
-F = Operators.Position_Expectation(1, R, nr_orb=1)#; kwargs...)#, fpos=df[2])
+F = Operators.Position(1, R, nr_orb=1,dim=2)#; kwargs...)#, fpos=df[2])
 
 
 E =  LinearAlgebra.eigen(Matrix(H(1)))

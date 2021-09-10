@@ -21,14 +21,14 @@ end
 #"lattices_attachleads" |> pr_in
 
 #
-#"tbmodel" |> pr_in 
+"tbmodel" |> pr_in 
 
 #"utils" |> pr_in 
 
 #"utils_splitws" |> pr_in 
-"oper" |> pr_in
+#"oper" |> pr_in
 
-"bandstr" |> pr_in
+#"bandstr" |> pr_in
 
 
 

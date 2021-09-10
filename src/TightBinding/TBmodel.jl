@@ -356,8 +356,8 @@ function Compute_Hopping_Matrices(
 
 
 	# if few procs, Rms will be distributed. Otherwise -> atoms
-	
-  Tms = (parallel && nprocs()<=length(Rms) ? pmap : map)(Rms) do Rm
+
+ 	Tms = (parallel && nprocs()<=length(Rms) ? pmap : map)(Rms) do Rm
 
     HoppingMatrix(AtomsUC,	Rm .+ AtomsUC;
 													kwargs...,
@@ -474,9 +474,10 @@ end
 #---------------------------------------------------------------------------#
 
 function get_argH(argH::AbstractString, 
-									ms::Tuple{Vararg{T, N}},									
+									ms::Tuple{Vararg{T, N}} where T<:Union{Int, 
+																												 AbstractVector{Int}},
 									Rms::Tuple{Vararg{AbstractVector{Float64}, N}},
-									)::String where N where T<:Union{Int, AbstractVector{Int}}
+									)::String where N 
   
 
   args = ["k","phi"]

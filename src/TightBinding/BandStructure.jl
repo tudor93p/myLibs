@@ -189,7 +189,7 @@ function prep_operators(;operators=nothing, kwargs...
 																Vector{<:Union{Function,Operators.Operator}}
 																}
 
-	isnothing(operators) || isempty(operators) && return (String[],Function[])
+	(isnothing(operators) || isempty(operators)) && return (String[],Function[])
 
 	@assert length(operators)==2 
 	
