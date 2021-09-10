@@ -535,19 +535,19 @@ BlkDiag(args...) = BlkDiag(args)
 #
 #---------------------------------------------------------------------------#
 
-function UnitMatrix(d::Int64,dtype=Float64)
+function UnitMatrix(d::Int64, dtype::DataType=Float64)::Matrix
 
-  return Matrix{dtype}(LA.I,d,d)
+  Matrix{dtype}(LA.I,d,d)
 
 end
 
-function UnitMatrix(A::AbstractMatrix)
+function UnitMatrix(A::AbstractMatrix)::Matrix
 
 	one(A)
 
 end
 
-function UnitMatrix(n::Nothing=nothing)
+function UnitMatrix(n::Nothing=nothing)::Nothing 
 
 	nothing
 
@@ -628,6 +628,55 @@ function ArrayToList(a)
 
 end
 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+#===========================================================================#
+#
+# Normalize an array (full, on columns, on rows)
+#
+#---------------------------------------------------------------------------#
+
+function Normalize(A::AbstractArray{T, n} where T, p::Real=2; 
+									 tol::Float64=1e-12, kwargs...)::Array{<:Number, n} where n
+
+	if n>1 && haskey(kwargs, :dim) 
+	
+		dim = kwargs[:dim]
+
+		@assert isa(dim,Int) && 1<=dim<=n 
+
+		N = LA.norm.(eachslice(A, dims=dim), p)
+
+		N[N.<tol] .= tol
+
+		return A./reshape(N, (d==dim ? Colon() : 1 for d=1:n)...)
+
+	end 
+
+	return A/LA.norm(A, p)
+
+end
+
+
+function Normalize_Columns(A::AbstractMatrix{<:Number}, p...)::Matrix 
+	
+	Normalize(A, p...; dim=2)
+
+end 
+
+function Normalize_Rows(A::AbstractMatrix{<:Number}, p...)::Matrix 
+	
+	Normalize(A, p...; dim=1)
+
+end 
 
 
 

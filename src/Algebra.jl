@@ -656,13 +656,13 @@ end
 #
 #  W2 = weights.(eachcol(atoms),eachcol(centers),[spread])
 #
-#  W2 = Normalize_Columns((*).(W2...))
+#  W2 = ArrayOps.Normalize_Columns((*).(W2...))
 ##  W2[i,j] : weight on atom i for the wf with center j
 #
 #
 #  for (iatom,(atom,w2)) in enumerate(zip(eachrow(atoms),eachrow(W2)))
 #
-#    w = Normalize(weight_orb(atom)).*reshape(w2,1,:)
+#    w = ArrayOps.Normalize(weight_orb(atom)).*reshape(w2,1,:)
 #
 #    psi0[TBmodel.Hamilt_indices(1:nr_orb,iatom,nr_orb),:] = w
 #
@@ -702,7 +702,7 @@ function Project_WF_toE0(eigenen,eigenwf,newE0,newE0wid;projection_method="impos
 
   newcoef = change_coef()
 
-  return wf -> eigenwf*Normalize_Columns(newcoef(eigenwf'*reshape(wf,:,1)))
+  return wf -> eigenwf*ArrayOps.Normalize_Columns(newcoef(eigenwf'*reshape(wf,:,1)))
 
 
 end
@@ -1028,27 +1028,7 @@ end
 
 
 
-#===========================================================================#
-#
-# Normalize an array (full, on columns, on rows)
-#
-#---------------------------------------------------------------------------#
 
-
-function Normalize(A::AbstractArray, p::Real=2; dim=nothing, tol=1e-12)
-
-	isnothing(dim) && return A/LA.norm(A, p)
-
-	N = LA.norm.(eachslice(A, dims=dim), p)
-
-	N[N.<tol] .= tol
-
-  return A./reshape(N, [d==dim ? Colon() : 1 for d in 1:ndims(A)]...)
-										
-end
-
-Normalize_Columns(A::AbstractMatrix, p::Real=2) = Normalize(A, p, dims=2)
-Normalize_Rows(A::AbstractMatrix, p::Real=2) = Normalize(A, p, dims=1)
 
 
 #===========================================================================#

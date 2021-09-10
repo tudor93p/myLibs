@@ -1118,7 +1118,7 @@ function Partial_PositExpect_fromLDOS(
 
 			@warn "WFs on columns" 
 
-			exp_vals[i,:] = Algebra.Normalize(Pi,1; dim=dim)*fi
+			exp_vals[i,:] = ArrayOps.Normalize(Pi,1; dim=dim)*fi
 
 		end
 
@@ -1126,7 +1126,7 @@ function Partial_PositExpect_fromLDOS(
 		#												/(sum ...) P[energy, i]
 	
 
-#		exp_vals = Algebra.Normalize_Columns(exp_vals, 1)
+#		exp_vals = ArrayOps.Normalize_Columns(exp_vals, 1)
 
 
 
