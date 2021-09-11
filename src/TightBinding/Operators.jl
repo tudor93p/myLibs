@@ -952,8 +952,7 @@ end
 
 function Trace(what::Symbol,
 								data::Union{Number,<:AbstractVecOrMat{<:Number}}=1;
-								dim::Int,
-								sum_up::Bool=false, kwargs...)::Function
+								sum_up::Bool=false, dim::Int=2, kwargs...)::Function
 
 	@assert what in [:orbitals, :atoms]
 
@@ -987,8 +986,8 @@ function Trace(what::Symbol,
 
 			a = get_diag(A)
 		
-			Op = Operator(data_; dim=dim, kwargs..., trace=sum_up ? :all : what,
-										size_H=length(a))
+			Op = Operator(data_; kwargs..., trace=sum_up ? :all : what,
+										dim=dim, size_H=length(a))
 
 			return Trace(a, Op.data, Op.inds)
 

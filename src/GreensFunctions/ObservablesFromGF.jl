@@ -13,13 +13,19 @@ import ..GreensFunctions, ..Utils, ..Algebra, ..Operators, ..LayeredSystem
 #
 #---------------------------------------------------------------------------#
 
-function LDOS(Gr::AbstractMatrix{ComplexF64}; kwargs...)
 
-	DOS(Gr; sum_up=false, kwargs...)
+function LDOS(Gr::AbstractMatrix{ComplexF64}; 
+							Op=1, kwargs...)::Vector{Float64}
+
+	trace = Operators.Trace("orbitals", Op; sum_up=false, kwargs...)
+	
+	return trace(-1/pi*imag(LA.diag(Gr)))
 
 end
 
-function DOS(Gr::AbstractMatrix{ComplexF64}; Op=[1], kwargs...)
+
+function DOS(Gr::AbstractMatrix{ComplexF64}; 
+						 Op=[1], kwargs...)::Float64
 
 	trace = Operators.Trace("orbitals", Op; sum_up=true, kwargs...)
 	
@@ -35,7 +41,8 @@ end
 #---------------------------------------------------------------------------#
 
 
-function LDOS_Decimation(GD, NrLayers, indsLayer; Op=[1], VirtLeads...)
+function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
+												 Op=1, VirtLeads...)::Vector{Float64}
 
 	dev_atoms = Dict(("Layer",L) => indsLayer(L) for L in 1:NrLayers)
 
@@ -48,7 +55,9 @@ function LDOS_Decimation(GD, NrLayers, indsLayer; Op=[1], VirtLeads...)
 
 	for d in (dev_atoms,lead_atoms), (key,inds) in pairs(d)
 
-		ldos[inds] = LDOS(GD(key...); Op=Op, nr_at = length(inds))
+		g = GD(key...)
+
+		ldos[inds] = LDOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1))
 
 	end
 
@@ -60,7 +69,8 @@ end
 
 
 
-function DOS_Decimation(GD, NrLayers, indsLayer; Op=[1], VirtLeads...) 
+function DOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
+												Op=[1], dim::Int, VirtLeads...)::Float64
 
 	out = 0.0
 
@@ -69,9 +79,12 @@ function DOS_Decimation(GD, NrLayers, indsLayer; Op=[1], VirtLeads...)
 
 		for (key,inds) in d
 
-			out += DOS(GD(key...), Op=Op, nr_at=length(inds))
+			g = GD(key...) 
 
-		end
+			out += DOS(GD(key...), Op=Op, nr_at=length(inds), size_H=size(g,1))
+			
+		end 
+
 	end
 
 
@@ -89,26 +102,27 @@ end
 #---------------------------------------------------------------------------#
 
 function ComputeDOSLDOS_Decimation(
-										G, NrLayers, IndsAtomsOfLayer, Op=[1], VirtLeads=[];
-										dos=true, ldos=true, doskey=nothing, ldoskey=nothing,
+										G, NrLayers::Int, IndsAtomsOfLayer, Op=[1], VirtLeads=[];
+										dos::Bool=true, ldos::Bool=true, 
+										doskey=nothing, ldoskey=nothing,
 										kwargs...)
 
 	if ldos
 
-		LDOS = LDOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
+		LDOS_ = LDOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
 													 Op=Op, VirtLeads..., kwargs...)
 		
 		if !dos 
 
-			isnothing(ldoskey) && return (nothing, LDOS)
+			isnothing(ldoskey) && return (nothing, LDOS_)
 
-			return Dict(ldoskey=>LDOS)
+			return Dict(ldoskey=>LDOS_)
 
 		else 	
 
-			isnothing(doskey) | isnothing(ldoskey) && return (sum(LDOS),LDOS)
+			isnothing(doskey) | isnothing(ldoskey) && return (sum(LDOS_),LDOS_)
 
-			return Dict(ldoskey=>LDOS, doskey=>sum(LDOS))
+			return Dict(ldoskey=>LDOS_, doskey=>sum(LDOS_))
 
 		end	
 
