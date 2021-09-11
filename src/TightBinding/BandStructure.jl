@@ -185,9 +185,11 @@ end
 
 
 function prep_operators(;operators=nothing, kwargs...
-											 )::Tuple{Vector{String},
-																Vector{<:Union{Function,Operators.Operator}}
-																}
+											 )::Tuple{Vector{String}, Vector} 
+
+@show operators 
+@show length(operators) 
+@show length.(operators)
 
 	(isnothing(operators) || isempty(operators)) && return (String[],Function[])
 
