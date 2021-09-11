@@ -188,8 +188,12 @@ function prep_operators(;operators=nothing, kwargs...
 											 )::Tuple{Vector{String}, Vector} 
 
 @show operators 
+
+if !isnothing(operators)
+
 @show length(operators) 
 @show length.(operators)
+end 
 
 	(isnothing(operators) || isempty(operators)) && return (String[],Function[])
 
