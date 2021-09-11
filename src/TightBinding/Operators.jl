@@ -154,7 +154,7 @@ function prep_diag(A::Union{Number,<:AbstractVecOrMat{<:Number}},
 
 	if :atoms in possib_diag && :orbitals in possib_diag 
 
-		@assert nr_at==nr_orb==1 "Confusing sizes. Provide 'diag' arg."
+		@assert numbers[1]==numbers[2]==1 "Confusing sizes. Provide 'diag' arg."
 
 	end  
 
