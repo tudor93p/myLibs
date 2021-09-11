@@ -1,4 +1,4 @@
-import myLibs:Operators ,Utils,TBmodel
+import myLibs:Operators ,Utils,TBmodel, ArrayOps
 import LinearAlgebra 
 using BenchmarkTools
 
@@ -367,7 +367,20 @@ end
 	@test isapprox(x[wf],LinearAlgebra.dot(selectdim(atoms,dim2,dir),ldos[:,wf]))
 
 
+	println()
 
+	atoms123 = [0.0 1.0 2.0 3.0 4.0; -1.0 -1.0 -1.0 -1.0 -1.0];
+
+	kwargs123 = (nr_at = 5, nr_orb = 4, dim = 2)
+
+	P123 = ArrayOps.Normalize_Columns(rand(ComplexF64,kwargs123[:nr_at]*kwargs123[:nr_orb],3))
+	x = Operators.Position(1, atoms123; kwargs123...)(P123)
+	y = Operators.Position(2, atoms123; kwargs123...)(P123)
+
+	@test length(x)==length(y)==3
+
+		
+	println()
 
 
 	charge = rand(nr_orb).-0.5 
@@ -406,6 +419,25 @@ end
 
 
 end 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

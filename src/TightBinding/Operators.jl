@@ -168,9 +168,24 @@ function prep_diag(A::Union{Number,<:AbstractVecOrMat{<:Number}},
 
 	possib_diag = which_diag(A, numbers) 
 
-	@assert diag in possib_diag "The 'diag' given is not consistent with sizes"
+	for (weak,strong) in [([diag],[diag]),
+												([:none],[:all,:orbitals,:atoms]),
+												([:orbitals,:atoms],[:all])]
 
-	return diag 
+		diag in weak || continue 
+
+		for k in strong 
+
+			k in possib_diag && return k
+
+		end 
+
+	end 
+
+
+
+	error("The 'diag' given is not consistent with sizes")
+
 
 end 
 
