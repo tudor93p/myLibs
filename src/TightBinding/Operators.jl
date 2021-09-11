@@ -952,6 +952,7 @@ end
 
 function Trace(what::Symbol,
 								data::Union{Number,<:AbstractVecOrMat{<:Number}}=1;
+								dim::Int,
 								sum_up::Bool=false, kwargs...)::Function
 
 	@assert what in [:orbitals, :atoms]
@@ -969,12 +970,42 @@ function Trace(what::Symbol,
 	end 
 
 
-	Op = Operator(get_diag(data); 
-								kwargs..., trace=sum_up ? :all : what) 
+	enough_data = get_nratorbH(; kwargs...)[2]
 
-	function tr(A::AbstractVecOrMat{T})::Union{T,Vector{T}} where T<:Number 
+	data_ = get_diag(data)
+
+
+
+	if !enough_data 
+		
+		@assert !haskey(kwargs, :size_H) 
+
+		@assert haskey(kwargs, :nr_at) || haskey(kwargs, :nr_orb)
+
+		return function tr2(A::AbstractVecOrMat{T}
+												)::Union{T,Vector{T}} where T<:Number 
+
+			a = get_diag(A)
+		
+			Op = Operator(data_; dim=dim, kwargs..., trace=sum_up ? :all : what,
+										size_H=length(a))
+
+			return Trace(a, Op.data, Op.inds)
+
+		end 
+
+
+	else 
+
+		Op = Operator(data_; dim=dim, kwargs..., trace=sum_up ? :all : what)  
+
+
+		return function tr(A::AbstractVecOrMat{T}
+											 )::Union{T,Vector{T}} where T<:Number 
 	
-		Trace(get_diag(A), Op.data, Op.inds)
+			Trace(get_diag(A), Op.data, Op.inds)
+
+		end 
 
 	end 
 

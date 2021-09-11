@@ -284,6 +284,10 @@ for n in [1,nr_at,nr_orb,size_H],
 
 		tr = Operators.Trace(what, R; sum_up=sum_up, kwargs...)
 
+		tr2 = Operators.Trace(what, R; sum_up=sum_up, dim=dim, nr_at=nr_at)
+
+
+
 		v1 = tr(M) 
 #		@time tr(M) 
 
@@ -294,14 +298,14 @@ for n in [1,nr_at,nr_orb,size_H],
 
 #		po(Op)
 
-#		v2 = tr2(M)
+		v2 = tr2(M)
 #		@time tr2(M)
 
 #		@show size(v1) size(v2)
 
 #		@test size(v1)==size(v2)
 
-		for v in [v1]
+		for v in [v1,v2]
 	
 			if v isa AbstractVector 
 				push!(X,sum(v))
