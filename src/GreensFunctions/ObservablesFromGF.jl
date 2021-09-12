@@ -44,11 +44,12 @@ end
 function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
 												 Op=1, dim::Int, VirtLeads...)::Vector{Float64}
 
+
 	dev_atoms = Dict(("Layer",L) => indsLayer(L) for L in 1:NrLayers)
 
 	nr_at = sum(length, values(dev_atoms))
 
-	lead_atoms = LayeredSystem.LeadAtomOrder(nr_at; VirtLeads...)
+	lead_atoms = LayeredSystem.LeadAtomOrder(nr_at; dim=dim, VirtLeads...)
 
 	ldos = zeros(Float64, mapreduce(length, +, values(lead_atoms), init=nr_at))
 
@@ -57,8 +58,7 @@ function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 		g = GD(key...)
 
-		ldos[inds] = LDOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1),
-											dim=dim)
+		ldos[inds] = LDOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1), dim=dim)
 
 	end
 
@@ -75,15 +75,14 @@ function DOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 	out = 0.0
 
-	for d in (pairs(LayeredSystem.LeadAtomOrder(;VirtLeads...)),
+	for d in (pairs(LayeredSystem.LeadAtomOrder(;dim=dim, VirtLeads...)),
 						(("Layer",L)=>indsLayer(L) for L=1:NrLayers))
 
 		for (key,inds) in d
 
 			g = GD(key...) 
 
-			out += DOS(GD(key...), Op=Op, nr_at=length(inds), size_H=size(g,1),
-								 dim=dim)
+			out += DOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1), dim=dim)
 			
 		end 
 
