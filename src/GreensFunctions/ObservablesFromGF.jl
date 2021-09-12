@@ -42,7 +42,7 @@ end
 
 
 function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
-												 Op=1, VirtLeads...)::Vector{Float64}
+												 Op=1, dim::Int, VirtLeads...)::Vector{Float64}
 
 	dev_atoms = Dict(("Layer",L) => indsLayer(L) for L in 1:NrLayers)
 
@@ -57,7 +57,8 @@ function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 		g = GD(key...)
 
-		ldos[inds] = LDOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1))
+		ldos[inds] = LDOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1),
+											dim=dim)
 
 	end
 
@@ -81,7 +82,8 @@ function DOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 			g = GD(key...) 
 
-			out += DOS(GD(key...), Op=Op, nr_at=length(inds), size_H=size(g,1))
+			out += DOS(GD(key...), Op=Op, nr_at=length(inds), size_H=size(g,1),
+								 dim=dim)
 			
 		end 
 

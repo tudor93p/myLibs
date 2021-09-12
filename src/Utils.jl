@@ -1905,7 +1905,7 @@ end
 
 
 function VecAsMat(V::AbstractArray{T}, dim::Int
-								 )::AbstractMatrix{T} where T<:Number
+								 )::AbstractMatrix{T} where T
 
 	count(size(V).>1)>1 && error("Wrong shape, vector not understood")
 
