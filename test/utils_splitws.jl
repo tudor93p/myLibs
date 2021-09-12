@@ -34,6 +34,9 @@ M = [1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 1.4, 2.38, 2.38
 
 
 
+M = [1.0, 4.5, 8.2] 
+
+possible_machines = [OrderedDict("yoshi" => 27, "taranis" => 16, "shu" => 12, "re" => 11, "sia" => 8, "kis" => 8, "thot" => 8, "qetesh" => 8, "uneg" => 8, "dedun" => 8, "nephtys" => 8, "menhit" => 7), OrderedDict("kis" => 8, "yoshi" => 6), OrderedDict("kis" => 7)]
 
 
 s = SW.split_in_tiers(M, possible_machines) 
@@ -42,6 +45,8 @@ for si in s
 	println.(si)
 	println()
 end 
+
+error() 
 
 Q = [4, 28, 48, 8]
 @show Q 

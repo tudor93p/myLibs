@@ -2801,12 +2801,19 @@ end
 
 
 
-function accept_sol((possible_machines, sectors, M), candidate)::Bool
+function accept_sol1((possible_machines, sectors, M), candidate)::Bool
 
 	isempty(candidate) && return false 
 
 	sectors[end][end]==candidate[end][2][end] || return false 
 
+	return true 
+
+end 
+
+function accept_sol2((possible_machines, sectors, M), candidate)::Bool 
+
+	accept_sol1((possible_machines, sectors, M), candidate) || return false 
 
 	most_powerful = collect(keys(possible_machines[end]))[1:length(candidate)] 
 
@@ -2922,31 +2929,36 @@ function split_in_tiers_(M::AbstractVector{<:Real},
 #Strictness duplicate
 #Nr sols, index sol, sort sola by
 
-	solutions = Backtracking((possible_machines,
-														IdentifySectors(keys.(possible_machines)),
-														M),
-													 possible_extensions,
-													 promising_candidate,
-													 accept_sol,
-													 output,
-													 data->[])
+	for accept_sol in [accept_sol2, accept_sol1]
+	
+		solutions = Backtracking((possible_machines,
+															IdentifySectors(keys.(possible_machines)),
+															M),
+														 possible_extensions,
+														 promising_candidate,
+														 accept_sol,
+														 output,
+														 data->[])
 
-	inds = sortperm(solutions, by=s->nr_procs_launched(possible_machines,s))
+		isempty(solutions) && continue 
 
-
-	return map(reverse(inds)) do j
-
-		map(reverse(solutions[j])) do (i, sector, ws, c)
-
-			([w=>minimum(possible_machines[s][w] for s in sector) for w in ws],
-			 
-			 UnitRange(extrema(1+length(M).-sector)...)
-			 )
-
+		inds = sortperm(solutions, by=s->nr_procs_launched(possible_machines,s))
+	
+	
+		return map(reverse(inds)) do j
+	
+			map(reverse(solutions[j])) do (i, sector, ws, c)
+	
+				([w=>minimum(possible_machines[s][w] for s in sector) for w in ws],
+				 
+				 UnitRange(extrema(1+length(M).-sector)...)
+				 )
+	
+			end 
+	
 		end 
 
 	end 
-
 
 end 
 
