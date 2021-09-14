@@ -1175,6 +1175,28 @@ function Velocity(L::NTuple{3,AbstractArray}, dir...; kwargs...)::Operator
 end 
 
 
+function FullVelocity(L::NTuple{3,AbstractArray}; 
+											kwargs...)::Union{Function, Operator}
+
+	V = Velocity.(TBmodel.Bloch_FullVelocity(L; kwargs...); kwargs...) 
+
+	length(V)==1 && return only(V)
+
+
+	return function full_velocity(P::AbstractMatrix{<:Number};
+																kw...)::Matrix{<:Number}
+
+		cat((v(P; kw...) for v in V)...; dims=V[1].csdim)
+
+	end 
+
+
+end 
+
+
+
+
+
 function NVelocity(args...; kwargs...)::Operator
 
 	Velocity(TBmodel.Bloch_NVelocity(args...; kwargs...); kwargs...)

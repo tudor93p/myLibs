@@ -424,6 +424,20 @@ function Bloch_Velocity(Lattice::NTuple{3,AbstractArray}, dir...;
 end
 
 
+function Bloch_FullVelocity(Lattice::NTuple{3,AbstractArray};
+														argH::AbstractString="",
+														Hopping...)::Vector{Function}
+			
+  intra, inter = Compute_Hopping_Matrices(Lattice; Hopping...)
+
+	@assert !isnothing(inter) "Local Hamiltonian"
+
+  return Assemble_FullVelocity_Operator(inter; argH=argH)
+
+end
+
+
+
 function Bloch_NVelocity(Lattice::NTuple{3,AbstractArray}, dir...;
 												 kwargs...)::Function
 
@@ -533,6 +547,25 @@ function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, (ms, Rms, Tms);
 end
 
 
+function Assemble_Velocity_Operator(Ts::NTuple{N, <:AbstractMatrix{<:Number}},
+																		Rs::NTuple{N, Union{Int, <:AbstractVector{<:Real}}},
+																		dir::Int)::Function where N 
+
+	function v_dir(k)::AbstractMatrix{<:ComplexF64}
+
+		v1 = mapreduce(+, Ts, Rs) do T,R 
+
+			T * R[dir] * BlochPhase(k, R) 
+
+		end 
+
+		return im*(v1-v1')
+
+	end 
+
+end 
+
+
 
 function Assemble_Velocity_Operator((ms,Rms,Tms), dir::Int=0; 
 																		kwargs...)::Function
@@ -543,17 +576,21 @@ function Assemble_Velocity_Operator((ms,Rms,Tms), dir::Int=0;
 
 	@assert 1<=dir<=length(iter2[1])
 
-	return function v_dir(k)::AbstractMatrix{<:ComplexF64}
+	return Assemble_Velocity_Operator(Tms, iter2, dir)
 
-		v1 = mapreduce(+, Tms, iter2) do T,R 
+end 
 
-			T * R[dir] * BlochPhase(k, R) 
 
-		end 
 
-		return im*(v1-v1')
 
-	end 
+function Assemble_FullVelocity_Operator((ms,Rms,Tms); kwargs...
+																				)::Vector{Function}
+
+	iter2 = iter_k_or_phi(ms, Rms; kwargs...)
+
+	all_dirs = 1:length(iter2[1])
+
+	return [Assemble_Velocity_Operator(Tms, iter2, dir) for dir in all_dirs]
 
 end 
 

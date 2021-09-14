@@ -467,8 +467,12 @@ v1n = TBmodel.Bloch_NVelocity(BlochH, 1)
 v2 = TBmodel.Bloch_Velocity(TBL, 2; Hopping=hopp, argH="k", dim=2, nr_orb=nr_orb)
 v2n = TBmodel.Bloch_NVelocity(TBL, 2; Hopping=hopp, argH="k", dim=2, nr_orb=nr_orb)
 
+v = TBmodel.Bloch_FullVelocity(TBL; Hopping=hopp, argH="k", dim=2, nr_orb=nr_orb)
+
 #@show size(v1(k))
 
+@test isapprox(v[1](k),v1(k))
+@test isapprox(v[2](k),v2(k))
 
 #@show maximum(abs.(v1(k)-v1n(k)))
 
@@ -495,7 +499,10 @@ V1k = Operators.Operator(Matrix(v1(k)), :none; kwargs...)
 
 V2 = Operators.Velocity(TBL, 2; Hopping=hopp,argH="k", kwargs...)
 
+V = Operators.FullVelocity(TBL; Hopping=hopp,argH="k", kwargs...)
+
 V2k = Operators.Operator(Matrix(v2(k)), :none; kwargs...)
+
 
 
 #po(V1);po(V2)
@@ -517,6 +524,13 @@ P = mapslices(LinearAlgebra.normalize, rand(ComplexF64, size_H, nr_wf), dims=1)
 
 
 @test isapprox(V2(P;OpArg=k),V2k(P))
+
+
+for (x,y) in zip(eachrow(V(P;OpArgs=(k,))),(V1(P;OpArg=k)[:],V2k(P)[:]))
+
+	@test isapprox(x,y)
+
+end 
 
 
 
