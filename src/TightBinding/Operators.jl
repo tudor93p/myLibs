@@ -2,7 +2,7 @@ module Operators
 #############################################################################
 
 
-
+#import SparseArrays
 
 import ..LA, ..SpA 
 
@@ -21,8 +21,18 @@ import ..Utils, ..TBmodel, ..Algebra
 struct Operator 
 
 	data::Union{Number, 
+
 							<:VecOrMat{<:Number},
-							<:Vector{<:VecOrMat{<:Number}}}
+#							<:SparseArrays.SparseVector{<:Number},
+#							<:SparseArrays.SparseMatrixCSC{<:Number},
+
+							<:Vector{<:VecOrMat{<:Number}},
+
+#							<:Vector{<:SparseArrays.SparseVector{<:Number}},
+#							<:Vector{<:SparseArrays.SparseMatrixCSC{<:Number}},
+
+							Function,
+							}
 
 	diag::Symbol  
 
@@ -60,56 +70,86 @@ struct Operator
 
 
 
-	function Operator(; kwargs...)
-
-		Operator(1; kwargs...)
-
-	end
-
-	function Operator(diag::Symbol; kwargs...)
-
-		Operator(1, diag; kwargs...)
-
-	end
-
-
-	function Operator(A::Union{Number, AbstractVecOrMat{<:Number}}, 
-										args...; kwargs...)
-
-		numbers,enough_data = get_nratorbH(; kwargs...)
-
-		@assert enough_data "Provide more size-related kwargs"
-	
-		return Operator(reduce_data(A), numbers, args...; kwargs...)
-
-	end   
-
-
-	function Operator(data_::Union{Number, AbstractVecOrMat{<:Number}},
-										numbers::NTuple{3,Int},
-										diag...;
-										kwargs...)
-
-		diag = prep_diag(data_, numbers, diag...)
-
-		ws = which_sum(;kwargs...)
-
-		ao = get_acts_on(diag, numbers...; kwargs...)
-	
-		dim = get_vc_dims(;kwargs...)
-
-
-		data = extend_data(data_, Val(diag), get_nratorbH(length.(ao)...)[1], Val.(ws))
-
-		inds = get_iter_inds(ws, ao, numbers) 
-
-		iter_Op = get_iter_Op(data, Val.(ws), inds, Val(diag))
-
-		return new(iter_Op, diag, dim..., ws, inds)
-
-	end  
-
 end 
+
+
+function Operator_(data_::Union{Number, AbstractVecOrMat{<:Number}},
+									numbers::NTuple{3,Int},
+									dim::NTuple{2,Int},
+									ws::NTuple{2,Bool},
+									args...;
+									kwargs...)::Operator
+
+	diag = prep_diag(data_, numbers, args...)
+
+
+	ao = get_acts_on(diag, numbers...; kwargs...)
+
+
+	data = extend_data(data_, Val(diag), get_nratorbH(length.(ao)...)[1], Val.(ws))
+
+	inds = get_iter_inds(ws, ao, numbers) 
+
+	iter_Op = get_iter_Op(data, Val.(ws), inds, Val(diag))
+
+	return Operator(iter_Op, diag, dim..., ws, inds)
+
+end  
+
+function Operator_(data::Function,
+									 numbers::NTuple{3,Int},
+									 dim::NTuple{2,Int},
+									 ws::NTuple{2,Bool},
+									 diag::Symbol;
+									 kwargs...)::Operator
+
+	ao = get_acts_on(diag, numbers...; kwargs...)
+
+	@assert get_nratorbH(length.(ao)...)[1]==numbers 
+					# Not necessarily, but the simplest assumption. 
+					# Otherwise this needs to be computed at each evaluation
+					# 'numbers' must be stored
+
+	inds = get_iter_inds(ws, ao, numbers) 
+
+	iter_Op = get_iter_Op_(data, Val.(ws), inds, Val(diag)) 
+	#size not checked ! 
+
+	return Operator(iter_Op, diag, dim..., ws, inds)
+
+end  
+
+
+
+function Operator(; kwargs...)::Operator
+
+	Operator(1; kwargs...)
+
+end
+
+function Operator(diag::Symbol; kwargs...)::Operator
+
+	Operator(1, diag; kwargs...)
+
+end
+
+
+function Operator(A::Union{Number, AbstractVecOrMat{<:Number}, Function}, 
+									args...; kwargs...)::Operator
+
+	numbers,enough_data = get_nratorbH(; kwargs...)
+
+	@assert enough_data "Provide more size-related kwargs"
+	
+	return Operator_(reduce_data(A), 
+									 numbers, 
+									 get_vc_dims(;kwargs...),
+									 which_sum(;kwargs...), 
+									 args...; 
+									 kwargs...)
+
+end   
+
 
 
 
@@ -140,7 +180,7 @@ function reduce_data(A::AbstractVector{T})::Union{T,Vector{T}} where T<:Number
 
 end 
 
-function reduce_data(A::T)::T where T<:Number 
+function reduce_data(A::T)::T where T<:Union{Number,Function}
 
 	A
 
@@ -566,13 +606,13 @@ end
 
 
 
-function get_iter_Op(Op::T,
+function get_iter_Op_(Op::T,
 									 sums::Tuple{Val{false}, Val{true}},
 									 I::AbstractVector{<:AbstractVector{Int}},
 									 diag::Union{Val{:atoms},Val{:orbitals}},
 									 )::Union{T,Vector{T}} where T<:AbstractVecOrMat{<:Number}
 
-	get_iter_Op(Op, reverse(sums), I,
+	get_iter_Op_(Op, reverse(sums), I,
 							only(setdiff([Val(:atoms),Val(:orbitals)],[diag])))
 
 end 
@@ -733,6 +773,33 @@ function Trace(A::AbstractVector{<:Number},
 end 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function ExpectVal(P::AbstractMatrix{<:Number}, 
+									 Op::Function,
+									 sums::NTuple{2,Val},
+									 csdim::Int,
+									 args...;
+									 kwargs...
+									 )::Matrix{<:Number}
+
+	@assert !haskey(kwargs, :OpArg) | !haskey(kwargs, :OpArgs)
+
+	A = Op((haskey(kwargs, :OpArg) ? (kwargs[:OpArg],) : get(kwargs, :OpArgs, ()))...)
+
+	check_size(A, sums, args...)
+
+	return ExpectVal(P, A, sums, csdim, args...)
+
+end 
+
+
 #===========================================================================#
 #
 # using an Operator as a one-argument function => compute expectation 
@@ -742,7 +809,7 @@ end
 function (H::Operator)(P::AbstractMatrix{<:Number}; kwargs...
 											)::Matrix{<:Number}
 
-	ExpectVal(P, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag))
+	ExpectVal(P, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag); kwargs...)
 
 end 
 
@@ -763,8 +830,11 @@ end
 #---------------------------------------------------------------------------#
 
 
-extend_data(A::Number, args...)::Number = A
+function extend_data(A::T, args...)::T where T<:Union{Number,Function}
 
+	A
+
+end 
 
 
 #function extend_data(A::T,
@@ -1053,10 +1123,6 @@ end
 
 
 
-
-
-
-
 	# ----- local charge operator ----- #
 
 
@@ -1090,31 +1156,32 @@ function IPR(;kwargs...)::Function
 end 
 
 
+# ------------- velocity and numerical velocity ----- # 
+
+function Velocity(v::Function; 
+									sum_atoms::Bool=true, sum_orbitals::Bool=true,
+									trace::Symbol=:all,
+									kwargs...)::Operator
+
+	Operator(v, :none; trace=:all, kwargs...)
+
+end 
+
+
+function Velocity(L::NTuple{3,AbstractArray}, dir...; kwargs...)::Operator
+
+	Velocity(TBmodel.Bloch_Velocity(L, dir...; kwargs...); kwargs...)
+
+end 
+
+
+function NVelocity(args...; kwargs...)::Operator
+
+	Velocity(TBmodel.Bloch_NVelocity(args...; kwargs...); kwargs...)
+
+end
+
 #=
-
-function Velocity(BlochH, dir=1; dk=pi/100)
-
-isnothing(dir) | isnothing(BlochH) && return (P;k) -> zeros(size(P,2),1)
-
-function v(k) 
-
-k1, k2 = copy(k), copy(k)
-
-k1[dir] -= dk/2
-
-k2[dir] += dk/2
-
-return (BlochH(k2) - BlochH(k1))/dk
-
-end
-
-#	(BlochH(k .+ dk*(axes(k,1).==dir)) - BlochH(k))/dk
-
-return (P;k,kwargs...) -> reshape(LA.diag(P'*v(k)*P),:,1)
-
-end
-
-
 
 
 

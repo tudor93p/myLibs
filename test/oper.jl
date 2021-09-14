@@ -112,13 +112,12 @@ kwargs = (dim=dim,nr_at=nr_at,nr_orb=nr_orb,size_H=size_H)
 #end 
 
 println()
-println()
 
 function po(Op)
 
 	for k in propertynames(Op)
 
-		k in [:data, :diag, :acts_on_atoms, :acts_on_orbs, :inds] || continue 
+		k in [:data, :diag, :acts_on_atoms, :acts_on_orbs, :inds, :vsdim, :csdim] || continue 
 
 		v = getproperty(Op, k)
 
@@ -127,7 +126,22 @@ function po(Op)
 		
 		if k == :data 
 			
-			println(typeof(v)," ",size(v))
+			print(typeof(v)," ")
+
+			if v isa AbstractArray 
+				
+				println(size(v))
+
+			elseif v isa Number 
+
+				println(v)
+
+			else
+				 
+				println()
+
+			end 
+
 
 		else 
 
@@ -410,38 +424,100 @@ end
 
 
 
-
-#	rand(1:nr_at)
-
-
-
-
-
-
-
-
-
-
 end 
 
 
 
+println()
+using LinearAlgebra:norm
+
+@testset "Velocity operator" begin
+
+
+R = rand(2, 3); 
+
+atoms = hcat(R, R.+[0,1], R.+[1,0])
+
+nr_at=size(atoms,2)
+
+nr_orb = 2 
+
+size_H = nr_at*nr_orb
+
+local_pot(ri,rj) = ArrayOps.UnitMatrix(nr_orb)*isapprox(norm(ri-rj),0)*2.0  
+
+atom_hopp(ri,rj) = (ones(nr_orb,nr_orb)-ArrayOps.UnitMatrix(nr_orb))*isapprox(norm(ri-rj), 1)*1.0
+
+hopp(ri,rj) = local_pot(ri,rj) + atom_hopp(ri,rj) 
+
+
+TBL = ([0,1], [[1,0.],[2.,0]], atoms)
 
 
 
+k = rand(2) 
+
+BlochH = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH="k", dim=2, nr_orb=nr_orb)
+
+v1 = TBmodel.Bloch_Velocity(TBL, 1; Hopping=hopp, argH="k", dim=2,
+														nr_orb=nr_orb)
+
+v1n = TBmodel.Bloch_NVelocity(BlochH, 1)
+
+v2 = TBmodel.Bloch_Velocity(TBL, 2; Hopping=hopp, argH="k", dim=2, nr_orb=nr_orb)
+v2n = TBmodel.Bloch_NVelocity(TBL, 2; Hopping=hopp, argH="k", dim=2, nr_orb=nr_orb)
+
+#@show size(v1(k))
+
+
+#@show maximum(abs.(v1(k)-v1n(k)))
+
+@test isapprox(v1(k),v1n(k),atol=1e-7)
+@test isapprox(v2(k),v2n(k),atol=1e-7)
+
+#@time v2n(k)
+#@time v2(k)
+#@time v1(k)
+#@time v1n(k)
+
+@test size(v1(k))==size(v2(k))==(size_H,size_H)
+
+
+kwargs=(nr_at=nr_at, nr_orb=nr_orb, size_H=size_H, dim=2, sum_atoms=true, sum_orbitals=true)
+
+#println()
+
+V1 = Operators.Velocity(v1; nr_at=nr_at,nr_orb=nr_orb, dim=2)
+
+V1N = Operators.NVelocity(BlochH, 1; nr_at=nr_at,nr_orb=nr_orb, dim=2)
+
+V1k = Operators.Operator(Matrix(v1(k)), :none; kwargs...) 
+
+V2 = Operators.Velocity(TBL, 2; Hopping=hopp,argH="k", kwargs...)
+
+V2k = Operators.Operator(Matrix(v2(k)), :none; kwargs...)
+
+
+#po(V1);po(V2)
+
+#println()
+
+
+P = mapslices(LinearAlgebra.normalize, rand(ComplexF64, size_H, nr_wf), dims=1) 
+
+@test all(isapprox.(1,LinearAlgebra.norm.(eachcol(P))))
+
+#@show size(P)
+#@show size(V1k(P))
+
+@test isapprox(V1(P;OpArg=k),V1k(P))
+
+#@show maximum(abs.(V1N(P;OpArg=k)-V1k(P)))
+@test isapprox(V1N(P;OpArg=k),V1k(P),atol=1e-7)
+
+
+@test isapprox(V2(P;OpArg=k),V2k(P))
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+end 

@@ -454,7 +454,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
+function NewGeometry(args...; Leads=[], nr_orb=nothing, kwargs...)
 
 	LayerAtom, LeadContacts = LayerAtomRels(args...;
 													get_leadcontacts=true, Leads=Leads, kwargs...)
@@ -463,9 +463,9 @@ function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
 
 
 
-	VirtLeads, LeadRels = Distribute_Leads(Leads, LeadContacts; Nr_Orbitals=Nr_Orbitals, LayerAtom..., kwargs...)
+	VirtLeads, LeadRels = Distribute_Leads(Leads, LeadContacts; nr_orb=nr_orb, LayerAtom..., kwargs...)
 	
-	if isnothing(Nr_Orbitals) || (
+	if isnothing(nr_orb) || (
 													!isempty(Leads) && !haskey(Leads[1],:intracell)
 																																			)
 		return LayerAtom, LeadRels, VirtLeads 
@@ -473,7 +473,7 @@ function NewGeometry(args...; Leads=[], Nr_Orbitals=nothing, kwargs...)
 	end
 	
 	Slicer = LeadLayerSlicer(;LeadRels..., LayerAtom..., VirtLeads...,
-																				 				Nr_Orbitals=Nr_Orbitals)
+																				 				nr_orb=nr_orb)
 	
 #	return LayerAtom, delete!(LeadRels,:LeadSlicer), VirtLeads, Slicer 
 
@@ -499,7 +499,7 @@ end
 
 
 
-function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
+function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, nr_orb, kwargs...)
 
 	T = Tuple{Tuple{AbstractString,Int},
 						Tuple{Union{Colon, Vector{Int}}}}
@@ -528,8 +528,8 @@ function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, Nr_Orbitals, kwargs...)
 
 		length(atoms) == 1 && return ("Layer",layer),(Colon(),)
 		
-		return ("Layer",layer), (TBmodel.Hamilt_indices(collect(1:Nr_Orbitals),
-															indexin(index,atoms)[1], Nr_Orbitals)
+		return ("Layer",layer), (TBmodel.Hamilt_indices(collect(1:nr_orb),
+															indexin(index,atoms)[1], nr_orb)
 														,)
 	end
 
@@ -696,7 +696,7 @@ function Distribute_Leads(
 							NrLayers::Int, LayerOfAtom::Function, 
 							AtomsOfLayer::Function, 
 							IndsAtomsOfLayer::Function, 
-							Nr_Orbitals=nothing, kwargs...)
+							nr_orb=nothing, kwargs...)
 
 	isempty(Leads) && return Dict(),Dict{Symbol,Function}()
 
@@ -789,7 +789,7 @@ function Distribute_Leads(
 
 			i_at = indexin(index, AtomsInLead(lead[1]))[1]
 
-			slice2 = TBmodel.Hamilt_indices(1:Nr_Orbitals, i_at, Nr_Orbitals)
+			slice2 = TBmodel.Hamilt_indices(1:nr_orb, i_at, nr_orb)
 
 
 			slice1 isa Colon && return out1, (slice2, )
@@ -838,11 +838,11 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, Nr_Orbitals=nothing, kwargs...)
+function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, nr_orb=nothing, kwargs...)
 
-	layer_slicer = LayerSlicer(;IndsAtomsOfLayer=IndsAtomsOfLayer, Nr_Orbitals=Nr_Orbitals, kwargs...)
+	layer_slicer = LayerSlicer(;IndsAtomsOfLayer=IndsAtomsOfLayer, nr_orb=nr_orb, kwargs...)
 														
-#kwargs: NrLayers, LayerOfAtom, IndsAtomsOfLayer, AtomsOfLayer, Nr_Orbitals, SideOfLead, LeadsOfSide, LeadSlicer
+#kwargs: NrLayers, LayerOfAtom, IndsAtomsOfLayer, AtomsOfLayer, nr_orb, SideOfLead, LeadsOfSide, LeadSlicer
 
 
 	function slicer(name::Union{String,Symbol}, index::Int64, args...)
@@ -892,7 +892,7 @@ end
 
 
 
-#function LeadAtomSlicer(IndsAtomsOfLayer,NrLayers,LeadSlicer,Nr_Orbitals,VirtLeads...)
+#function LeadAtomSlicer(IndsAtomsOfLayer,NrLayers,LeadSlicer,nr_orb,VirtLeads...)
 
 
 

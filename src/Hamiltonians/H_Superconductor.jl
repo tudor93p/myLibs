@@ -252,7 +252,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{Float64};
 		:dist_tol => dist_tol,
 		:SC_basis => using_SC_basis,
 		:BasisInfo => BasisInfo(using_SC_basis),
-		:Nr_Orbitals => d0,
+		:nr_orb => d0,
 		)
 			
 

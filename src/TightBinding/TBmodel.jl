@@ -235,7 +235,8 @@ function flat_indsvals(i::Int64, j::Int64, v::Number, d0::Int64=1)::Matrix
 end 
 
 
-function flat_indsvals(i::Int64, j::Int64, v::AbstractMatrix, d0::Int64=1)::Matrix
+function flat_indsvals(i::Int64, j::Int64, v::AbstractMatrix, d0::Int64)::Matrix
+
 
   I,J,V = SpA.findnz(SpA.sparse(v))
 
@@ -271,12 +272,15 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_hopps(atom_i::Int, Ri::AbstractVector, Rsj::AbstractMatrix, hopping::Function, hopp_cutoff::Float64, d0::Int)::Matrix{ComplexF64}
-
+function get_hopps(atom_i::Int, Ri::AbstractVector, 
+									 Rsj::AbstractMatrix, 
+									 hopping::Function, hopp_cutoff::Float64, 
+									 d0::Int)::Matrix{ComplexF64}
 
   hopps = hopping.([Ri],eachcol(Rsj))
 		# compute the hopping amplitudes from Ri to all Rj-s
 
+	@assert d0==(isa(rand(hopps),Number) ? 1 : LA.checksquare(rand(hopps)))
 
   atoms_js = findall(LA.norm.(hopps) .> hopp_cutoff)
 		# check which amplitudes are nonzero
@@ -301,22 +305,23 @@ end
 
 function HoppingMatrix(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
 											 Hopping::Function, 
-											 Nr_Orbitals::Int=1, 
+											 nr_orb::Int=1, 
 											 parallel::Bool=false, 
 											 hopp_cutoff::Float64=1e-6, 
 											 kwargs...
 											 )::SpA.SparseMatrixCSC
+
 
   indsvals_to_Tm(vcat(
 
       (parallel ? pmap : map)(enumerate(eachcol(Rsi))) do (i,Ri)
       	# for each atom i at position Ri
 
-								get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, Nr_Orbitals)
+				get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, nr_orb)
 
 	  	# find the atoms where it hopps and the amplitudes
 
-    end...), size(Rsi,2)*Nr_Orbitals, size(Rsj,2)*Nr_Orbitals)
+    end...), size(Rsi,2)*nr_orb, size(Rsj,2)*nr_orb)
 
 end
 
@@ -329,7 +334,7 @@ end
 
 function Compute_Hopping_Matrices(
 						Lattice::NTuple{3,AbstractArray};
-						dist_tol=1e-5,parallel=false,	kwargs...
+						dist_tol::Float64=1e-5, parallel::Bool=false,	kwargs...
 						)::Tuple{SpA.SparseMatrixCSC, Any}
 
 
@@ -347,7 +352,7 @@ function Compute_Hopping_Matrices(
   # Hopping 	-> the function f(ri,rj) which gives the hopping amplitude
   #	 		where the atoms in the central cell can hop;
   # hopp_cutoff -> the cutoff for the hopping amplitudes
-  # Nr_Orbitals -> the size of the matrix f(ri,rj) 
+  # nr_orb -> the size of the matrix f(ri,rj) 
   # ...
 
 	AtomsUC = Lattice[3] 
@@ -371,7 +376,6 @@ function Compute_Hopping_Matrices(
 
 
 	intra = findfirst(m -> m==-m, ms)
-										
 		# corresponds to the intra-cell hopping
 
   inter = nonzeroT[nonzeroT .!= intra]
@@ -379,12 +383,8 @@ function Compute_Hopping_Matrices(
 
 	isempty(inter) && return Tms[intra], nothing 
 
-	return (Tms[intra], 
-					Utils.zipmap(inter) do  i
-															 
-						ms[i], Rms[i], Tms[i]
+	return Tms[intra], Tuple.(getindex.((ms, Rms, Tms), (inter,)))
 
-					end |> collect)
 
 end
 
@@ -395,7 +395,10 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Bloch_Hamilt(Lattice; argH::String="",savefile="",	Hopping...)::Function
+function Bloch_Hamilt(Lattice::NTuple{3,AbstractArray};
+											argH::AbstractString="", 
+											savefile::AbstractString="",	
+											Hopping...)::Function
 			
   data = Compute_Hopping_Matrices(Lattice; Hopping...)
 
@@ -408,6 +411,59 @@ function Bloch_Hamilt(Lattice; argH::String="",savefile="",	Hopping...)::Functio
 end
 
 
+function Bloch_Velocity(Lattice::NTuple{3,AbstractArray}, dir...;
+												argH::AbstractString="",
+												Hopping...)::Function
+			
+  intra, inter = Compute_Hopping_Matrices(Lattice; Hopping...)
+
+	@assert !isnothing(inter) "Local Hamiltonian"
+
+  return Assemble_Velocity_Operator(inter, dir...; argH=argH)
+
+end
+
+
+function Bloch_NVelocity(Lattice::NTuple{3,AbstractArray}, dir...;
+												 kwargs...)::Function
+
+	Bloch_NVelocity(Bloch_Hamilt(Lattice; kwargs...), dir...; kwargs...)
+
+end 
+
+function Bloch_NVelocity(BlochH::Function;
+												 dk::Float64=pi*1e-6, kwargs...
+												 )::Function
+
+	function v(k::AbstractVector{<:Real})::AbstractMatrix{<:Number}
+
+		@assert length(k)==1
+
+		(BlochH(k[1]+dk/2) - BlochH(k[1]-dk/2))/dk
+
+	end 
+
+end 
+
+
+function Bloch_NVelocity(BlochH::Function, dir::Int;
+												 dk::Float64=pi*1e-6, kwargs...
+												 )::Function
+	
+	@assert 1<=dir<=3
+
+	D = setindex!(zeros(3), dk/2, dir)
+
+
+	return function v(k::AbstractVector{<:Real})::AbstractMatrix{<:Number}
+
+		@assert 1<=dir<=length(k) 
+
+		(BlochH(k+D[axes(k,1)])-BlochH(k-D[axes(k,1)]))/dk
+
+	end
+
+end
 
 
 function Bloch_Hamilt(savefile::String="";argH::String="")::Function
@@ -426,37 +482,48 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, inter::Nothing=nothing; kwargs...)::Function
+function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, 
+																		inter::Nothing=nothing; 
+																		kwargs...)::Function
 
 	# if this is a finite system or the Hamiltonian is simply local
 	
 	H_no_k(args...) = intra 
 
 end 
-	
-function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, inter::Utils.List;
-																		argH::String="")::Function
 
-  (ms,Rms,Tms) = inter
-
-  argH = get_argH(argH, ms, Rms)
+function iter_k_or_phi(ms::NTuple{N, Union{Int,<:AbstractVector{Int}}},
+											 Rms::NTuple{N, <:AbstractVector{Float64}};
+											 argH::AbstractString="") where N
 
 	@assert !any(m-> m==-m, ms)
+	
+	[Rms,ms][findfirst(get_argH(argH, ms, Rms).==["k","phi"])]
 
-	iter2 = [Rms,ms][findfirst(argH .== ["k","phi"])]
+end 
 
+function BlochPhase(k,R)::ComplexF64
 
-#  return function h(k)
+	exp(im * LA.dot(k,R))
+
+end 
+
+function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, (ms, Rms, Tms);
+																		kwargs...)::Function
 
 #		phases = (Algebra.dot(k,R) for R in iter2) 
-					# Bloch phase ℯ^(i 𝐤 ⋅ 𝐑 ), even if dimensions mismatch 
-					# 														(first common n entries are used)
+					# Bloch phase ℯ^(i 𝐤 ⋅ 𝐑 ), 
 
-	return function h(k)
 
-		phases = (LA.dot(k,R) for R in iter2)
+	iter2 = iter_k_or_phi(ms, Rms; kwargs...)
 
-		h1 = sum(T*exp(phi*im) for (T,phi) in zip(Tms,phases))
+	return function h(k)::AbstractMatrix{<:ComplexF64}
+
+		h1 = mapreduce(+, Tms, iter2) do T,R
+
+			T * BlochPhase(k, R)
+
+		end 
 
     return intra + h1 + h1'
 
@@ -467,6 +534,32 @@ end
 
 
 
+function Assemble_Velocity_Operator((ms,Rms,Tms), dir::Int=0; 
+																		kwargs...)::Function
+
+	iter2 = iter_k_or_phi(ms, Rms; kwargs...)
+
+	dir += (dir==0 && length(iter2[1])==1)
+
+	@assert 1<=dir<=length(iter2[1])
+
+	return function v_dir(k)::AbstractMatrix{<:ComplexF64}
+
+		v1 = mapreduce(+, Tms, iter2) do T,R 
+
+			T * R[dir] * BlochPhase(k, R) 
+
+		end 
+
+		return im*(v1-v1')
+
+	end 
+
+end 
+
+
+
+
 #===========================================================================#
 #
 #		Helper function for deciding what argument the Hamiltonian gets
@@ -474,9 +567,8 @@ end
 #---------------------------------------------------------------------------#
 
 function get_argH(argH::AbstractString, 
-									ms::Tuple{Vararg{T, N}} where T<:Union{Int, 
-																												 AbstractVector{Int}},
-									Rms::Tuple{Vararg{AbstractVector{Float64}, N}},
+									ms::NTuple{N, Union{Int, AbstractVector{Int}}},
+									Rms::NTuple{N, AbstractVector{Float64}},
 									)::String where N 
   
 
@@ -484,7 +576,7 @@ function get_argH(argH::AbstractString,
 
   argH in args && return argH
 
-	isempty(argH) || error("** Error in Bloch_Hamiltonian: argH=$argH not understood. It should be an empty string or either of ",join((a->"'$a'").(args),", ")," **")
+	@assert isempty(argH) "** Error in Bloch_Hamiltonian: argH=$argH not understood. It should be an empty string or either of $args **"
 
 	# it should be physical 'k' if the length of the lattice vectors,
 	#	 is equal to their number, and Bloch phase 'phi' otherwise
@@ -583,7 +675,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Add_Hopping_Terms(d0,hopp_cutoff::Float64=1e-8)
+function Add_Hopping_Terms(d0::Int,hopp_cutoff::Float64=1e-8)
 
   small = Utils.fSame(hopp_cutoff)
 

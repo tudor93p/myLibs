@@ -294,7 +294,7 @@ end
 #
 #
 #---------------------------------------------------------------------------#
-is_float(S) = any(Ti -> S<:Ti, [Float64, Complex{<:Float64}])
+is_float(S) = any(Ti -> S<:Ti, [Float64, ComplexF64])
 
 is_exact(S) = any(Ti -> S<:Ti, [Integer, Rational, AbstractString, AbstractChar, Complex{<:Integer}, Complex{<:Rational}])
 
@@ -432,8 +432,10 @@ function Unique(V::AbstractArray{T};
 		ntol,ftol = tolNF(tol)
 
 		if ftol>0 && (is_float(T) || any(is_float ∘ typeof, V))
-			
-			return trunc.(V, digits=ntol)
+	
+			rt = trunc.(real(V), digits=ntol)
+
+			return T<:Real ? rt : rt + im*trunc.(imag(V), digits=ntol)
 
 		end 
 
@@ -1989,7 +1991,7 @@ end
 #										 fdist::Function=identity,
 
 function PathConnect(points::AbstractMatrix, n::Int; 
-										 dim::Int=1, kwargs...)::Tuple{Matrix,Vector{Float64}}
+										 dim::Int, kwargs...)::Tuple{Matrix,Vector{Float64}}
 
 	PathConnect(points, n,
 							LA.norm.(eachslice(diff(points,dims=dim),dims=dim));
@@ -2003,7 +2005,7 @@ end
 function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 										 end_point::Bool=true, 
 										 bounds::AbstractVector=[0,1],
-										 dim=1,
+										 dim::Int,
 										 )
 
 	nr_intervals = size(points, dim) - 1

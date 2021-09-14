@@ -1,44 +1,60 @@
-using myLibs: TBmodel, Operators, Lattices, H_Superconductor
+using myLibs: TBmodel, Operators, Lattices, H_Superconductor, ArrayOps
 using LinearAlgebra 
 
 
 R = rand(2,3);
 R= hcat(R,R.+[0,1],R.+[1,0])#,R.+[0,-1],R.+[-1,0])
 
-hopp(ri,rj) = isapprox(norm(ri-rj),0)*2.0+isapprox(norm(ri-rj),1)*1.0
+nr_orb = 2
+
+local_pot(ri,rj) = ArrayOps.UnitMatrix(nr_orb)*isapprox(norm(ri-rj),0)*2.0  
+
+atom_hopp(ri,rj) = (ones(nr_orb,nr_orb)-ArrayOps.UnitMatrix(nr_orb))*isapprox(norm(ri-rj), 1)*1.0
+
+hopp(ri,rj) = local_pot(ri,rj) + atom_hopp(ri,rj) 
 
 
+TBmodel.HoppingMatrix(R; Hopping=hopp, nr_orb=nr_orb)
+
+TBL = ([0,1,2], [[1,0.],[2.,0],[0,1]], R)
+
+intra, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp,
+																											 nr_orb=nr_orb)
 
 
-TBmodel.HoppingMatrix(R; Hopping=hopp)
-TBmodel.HoppingMatrix(R; Hopping=hopp)
-
-
-
-TBL = ([0,1], [[1,0.],[2.,0]], R)
-
-@time inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
-@time inter, (ms,Rms,Tms) = TBmodel.Compute_Hopping_Matrices(TBL,Hopping=hopp)
-
-
-@show size(inter)
+@show size(intra)
 
 @show ms 
 @show Rms 
 
 @show size.(Tms)
 
+
+
 for (argH, k) in [("k", rand(2)), ("phi", rand())]
 
 	println()
+
 	@show argH 
-	@show size(TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH=argH)(k))
-@time	size(TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH=argH)(k))
+
+	@show size(TBmodel.Bloch_Hamilt(TBL; Hopping=hopp, argH=argH,nr_orb=nr_orb)(k))
+
+
+	dir = length(k)
+
+	v = TBmodel.Assemble_Velocity_Operator((ms, Rms, Tms), dir; argH=argH)
+
+	v2 = TBmodel.Bloch_Velocity(TBL, dir; Hopping=hopp, argH=argH,nr_orb=nr_orb)
+
+	@show size(v(k)) 
+
+	@assert isapprox(v(k),v2(k))
 
 end 
 
+
 println()
-H = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp)
+H = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp,nr_orb=nr_orb)
 
 
 
@@ -104,7 +120,7 @@ tbl = Lattices.NearbyUCs(L)
 println.(tbl)
 
 
-intra,inter = TBmodel.Compute_Hopping_Matrices(tbl; Hopping=hopp)
+intra,inter = TBmodel.Compute_Hopping_Matrices(tbl; Hopping=hopp,nr_orb=nr_orb)
 
 println()
 
@@ -118,7 +134,7 @@ println()
 
 
 
-H = TBmodel.Bloch_Hamilt(tbl; Hopping=hopp)
+H = TBmodel.Bloch_Hamilt(tbl; Hopping=hopp,nr_orb=nr_orb)
 
 
 @show H(rand(Lattices.LattDim(L)))
@@ -127,7 +143,7 @@ H = TBmodel.Bloch_Hamilt(tbl; Hopping=hopp)
 println()
 
 
-Hpar = TBmodel.BlochHamilt_Parallel(L, Dict(:Hopping=>hopp))
+Hpar = TBmodel.BlochHamilt_Parallel(L, Dict(:Hopping=>hopp,:nr_orb=>nr_orb))
 
 
 @show Hpar(rand()) #Bloch phase #Lattices.LattDim(L)-1))
@@ -136,7 +152,7 @@ println()
 
 
 
-Hperp = TBmodel.BlochHamilt_Perpendicular(L, Dict(:Hopping=>hopp))
+Hperp = TBmodel.BlochHamilt_Perpendicular(L, Dict(:Hopping=>hopp,:nr_orb=>nr_orb))
 
 
 
@@ -145,7 +161,7 @@ Hperp = TBmodel.BlochHamilt_Perpendicular(L, Dict(:Hopping=>hopp))
 
 
 
-HPar,Hperp = TBmodel.BlochHamilt_ParallPerp(L, Dict(:Hopping=>hopp))
+HPar,Hperp = TBmodel.BlochHamilt_ParallPerp(L, Dict(:Hopping=>hopp,:nr_orb=>nr_orb))
 
 
 
