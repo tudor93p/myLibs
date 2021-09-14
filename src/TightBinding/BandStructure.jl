@@ -222,7 +222,7 @@ function Diagonalize_oneK(k::AbstractVector{Float64},
 
 	return Dict{String,Any}("Energy"=>e,
 													"kLabels"=>fill(lab, length(e)),
-													(N=>Op(p;k=k) for (N,Op)=zip(operators...))...)
+													(N=>Op(p; OpArg=k) for (N,Op)=zip(operators...))...)
 
 end  
 

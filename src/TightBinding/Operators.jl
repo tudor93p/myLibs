@@ -638,7 +638,8 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 sums::NTuple{2,Val{false}},
 									 csdim::Int,
 									 I::AbstractVector{Int},
-									 args...)::Matrix{<:Number}
+									 args...; kwargs...
+									 )::Matrix{<:Number}
 
 	ExpectVal(selectdim(P, csdim, I), Op, sums, csdim, :, args...) 
 
@@ -652,7 +653,8 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 sums::NTuple{2,Val{true}},
 									 csdim::Int,
 									 I::AbstractVector{Int},
-									 args...)::Matrix{<:Number}
+									 args...; kwargs...
+									 )::Matrix{<:Number}
 
 	ExpectVal(selectdim(P, csdim, I), Op, sums, csdim, :, args...)
 
@@ -673,7 +675,8 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 ::NTuple{2,Val{false}},
 									 csdim::Int,
 									 I::Colon,
-									 args...)::Matrix{<:Number}
+									 args...; kwargs...
+									 )::Matrix{<:Number}
 	abs2.(P)*Op 
 
 end 
@@ -683,7 +686,8 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 Op::AbstractVector{<:Number},
 									 sums::NTuple{2,Val{false}},
 									 csdim::Int,
-									 args...)::Matrix{<:Number}
+									 args...; kwargs...
+									 )::Matrix{<:Number}
 
 	aP = ExpectVal(P, 1, sums, csdim, args...)
 
@@ -698,7 +702,8 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 Op::Union{Number,<:AbstractVector{<:Number}},
 									 sums::NTuple{2,Val{true}},
 									 csdim::Int,
-									 args...)::Matrix{<:Number}
+									 args...; kwargs...
+									 )::Matrix{<:Number}
 
 	sum(ExpectVal(P, Op, (Val(false),Val(false)), csdim, args...), dims=csdim)
 
@@ -710,7 +715,8 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 ::NTuple{2,Val{true}},
 									 csdim::Int,
 									 I::Colon,
-									 args...)::Matrix
+									 args...; kwargs...
+									 )::Matrix
 
 	Utils.VecAsMat(LA.diag(P' * Op * P), csdim)
 
@@ -732,7 +738,7 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 														Tuple{Val{false},Val{true}}},
 									 csdim::Int,
 									 I::AbstractVector{<:AbstractVector{Int}},
-									 args...
+									 args...; kwargs...
 									 )::Matrix{<:Number} where T<:AbstractVecOrMat{<:Number}
 
 	Utils.VecsToMat(iter_Op, I; dim=csdim) do Op,inds
