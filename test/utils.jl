@@ -220,7 +220,8 @@ end
 
 
 println()
-println()
+println("----------------")
+println("DistributeBallsToBoxes")
 println()
 
 
@@ -247,11 +248,53 @@ f = g
 
 for item in Utils.DistributeBallsToBoxes(2,3,f)
 
-	println(item," ",sum(abs,item),"\n")
-
+#	println(item," ",sum(abs,item),"\n")
+	@assert sum(abs,item) == 2
 
 end 
 
+println("----------------")
+println("\nCombsOfVecs\n")
+
+@testset "CombsOfVecs" begin 
+
+
+vecs= rand(2,5)
+coeffs = rand(5,3)
+
+
+cv = Utils.CombsOfVecs(vecs, coeffs; dim=2)
+
+
+@test size(cv)==(2,3)
+
+
+
+cv2 = Utils.CombsOfVecs(vecs[:,2], coeffs[1:1,:]; dim=2)
+
+@test size(cv2)==(2,3)
+
+
+
+cv3 = Utils.CombsOfVecs(vecs, coeffs[:,1:1]; dim=2)
+
+
+@test size(cv3)==(2,1)
+
+
+
+
+cv4 = Utils.CombsOfVecs(vecs, coeffs[:,1]; dim=2)
+
+
+@test size(cv4)==(2,) && isapprox(cv4,cv3[:])
+
+
+
+
+
+
+end
 
 
 

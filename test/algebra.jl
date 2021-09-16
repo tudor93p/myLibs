@@ -161,7 +161,26 @@ end
 
 
 
+@testset "Normalized distrib" begin 
 
+
+	for arg in [(),(true,),(false,)]
+
+
+		Algebra.normalizeDistrib(rand(15),rand(),arg...)
+		Algebra.normalizeDistrib(rand(5),rand(5),arg...)
+		Algebra.normalizeDistrib(rand(5,2),rand(5,2)*0,arg...)
+
+
+		Algebra.normalizeDistrib(rand(5,2),rand(5), arg...)
+		Algebra.normalizeDistrib(rand(5),rand(5,2), arg...)
+
+
+	end 
+
+
+
+end 
 
 
 

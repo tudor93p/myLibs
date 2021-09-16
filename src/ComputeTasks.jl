@@ -246,13 +246,16 @@ end
 #---------------------------------------------------------------------------#
 
 
-function get_data_all(task; shuffle=false, seed=nothing, rev=false,
-														check_data=true, mute=true) 
+function get_data_all(task; 
+											shuffle::Bool=false, seed=nothing, 
+											rev::Bool=false,
+											check_data::Bool=true,
+											mute::Bool=true, kwargs...)
 
 
 	AC = task.get_paramcombs()
 
-	check_data && filter!(c->!task.files_exist(c...), AC)
+	check_data && filter!(c->!task.files_exist(c...; kwargs...), AC)
 
 	rev && reverse!(AC)
 
@@ -283,7 +286,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function missing_data(task; show_missing=false)
+function missing_data(task; show_missing::Bool=false, kwargs...)
 
 	allcombs = task.get_paramcombs()
 
@@ -294,7 +297,7 @@ function missing_data(task; show_missing=false)
 		(nprocs()>1 ? pmap : map)(enumerate(allcombs)) do (i,c)
 
 
-			out = !task.files_exist(c...)
+			out = !task.files_exist(c...; kwargs...)
 
 
 #			id(myid()) && println(i,"/",length(allcombs)," Files ", out ? "don't " : "", "exist")
@@ -325,11 +328,11 @@ end
 
 
 
-function existing_data(task; show_existing=false)
+function existing_data(task; show_existing::Bool=false, kwargs...)
 
 	allcombs = task.get_paramcombs()
 
-	donecombs = filter(c -> task.files_exist(c...), allcombs)
+	donecombs = filter(c -> task.files_exist(c...; kwargs...), allcombs)
 
 	println(string("\nTask: ",get_taskname(task),
 								 "\nTotal number of jobs done: ",
@@ -1040,8 +1043,7 @@ function assess_ext_par(Z::AbstractArray,
 end
 	
 
-function get_Z_and_axes(
-												dims::AbstractVector{<:AbstractVector{Int}},
+function get_Z_and_axes(dims::AbstractVector{<:AbstractVector{Int}},
 												inds::AbstractVector{<:Tuple{Vararg{Int}}},
 												Data::AbstractVector,
 												zname::AbstractString,

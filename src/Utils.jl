@@ -2332,7 +2332,8 @@ end
 
 function CombsOfVecs(vecs::AbstractMatrix{Tv}, 
 										 coeff::AbstractMatrix{Tc}; dim::Int
-										 )::Matrix{promote_type(Tv,Tc)} where {Tv,Tc}
+										 )::Matrix{promote_type(Tv,Tc)} where {Tv<:Number,
+																													 Tc<:Number}
 
 	dim==2 && return vecs*coeff # Vectors are on columns 
 
@@ -2341,6 +2342,27 @@ function CombsOfVecs(vecs::AbstractMatrix{Tv},
 	error()
 
 end
+
+
+
+function CombsOfVecs(v::AbstractVector{Tv},
+										 coeff::AbstractMatrix{Tc}; dim::Int
+										 )::Matrix{promote_type(Tv,Tc)} where {Tv<:Number,
+																													 Tc<:Number}
+
+	CombsOfVecs(VecAsMat(v, dim), coeff; dim=dim)
+
+end 
+
+
+function CombsOfVecs(vecs::AbstractMatrix{Tv}, 
+										 coeff::AbstractVector{Tc}; dim::Int
+										 )::Vector{promote_type(Tv,Tc)} where {Tv<:Number,
+																													 Tc<:Number}
+
+	selectdim(CombsOfVecs(vecs, VecAsMat(coeff, dim); dim=dim), dim, 1)
+
+end 
 
 
 function CombsOfVecs10(A::AbstractMatrix{<:Number}, 

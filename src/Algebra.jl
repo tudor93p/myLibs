@@ -11,7 +11,7 @@ import Dierckx,FFTW
 
 
 
-
+const EPSILON = 1e-20
 
 
 #===========================================================================#
@@ -182,8 +182,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function GramSchmidt(V::T, iter_axis=1; 
-										 						normalize=true, tol=1e-10) where T
+function GramSchmidt(V::T, iter_axis::Int=1;
+										 normalize::Bool=true, tol::Float64=1e-10)::T where T
 
 	inds(i) = insert!(repeat(Any[:], ndims(V)-1), iter_axis, i)
 
@@ -750,9 +750,10 @@ struct myDistrib
 	
 		g(v::Real, c::AbstractArray, w::Real)::Array = f.(c.-v, w)
 	
-		g(v::AbstractVector, c::AbstractVector, w::Real)::Matrix = f.(reshape(c,1,:) .- reshape(v,:,1), w)
+		g(v::AbstractVector, c::AbstractVector, w::Real)::Matrix = f.(Utils.VecAsMat(c,1) .- Utils.VecAsMat(v,2), w)
 	
-	
+
+
 		function g(w::Real)::Function 
 			
 			h(x::Real)::Real = f(x,w)	
@@ -765,17 +766,16 @@ struct myDistrib
 	
 			h(v::Real, c::AbstractArray)::Array = f.(c.-v, w)
 	
-			h(v::AbstractVector, c::AbstractVector)::Matrix = f.(reshape(c,1,:) .- reshape(v,:,1), w)	
+			h(v::AbstractVector, c::AbstractVector)::Matrix = f.(Utils.VecAsMat(c,1) .- Utils.VecAsMat(v,2), w)
 	
 	
 			return h 
 	
 		end 
 
-#		g(a::Tuple) = g(a...)
 	
 		return new(g)
-#	return g
+
 	
 	end 
 	
@@ -804,33 +804,59 @@ end
 
 
 normDistrib(W::Real)::Real = W 
-normDistrib(W::AbstractVector)::Real = sum(W) + 1e-20
-normDistrib(W::AbstractMatrix)::Matrix = sum(W, dims=2) .+ 1e-20
 
-normDistrib(F::Function)::Function = normDistrib ∘ F
+function normDistrib(W::AbstractVector{T})::T where T<:Real 
+	
+	sum(W)
+
+end 
+
+function normDistrib(W::T)::T where T<:AbstractMatrix{<:Real} 
+
+	sum(W, dims=2) # sums all centers => length(norm)==length(values)
+
+end 
+
+normDistrib(F::Function)::Function = normDistrib ∘ F 
+
 normDistrib(D::myDistrib)::Function = normDistrib(D.F)
 
 
-normalizeDistrib(W::Real, N::Union{Float64,Int64})::Real = W/N 
-normalizeDistrib(W::AbstractVector, N::Union{Int64,Float64})::Vector = W/N 
-normalizeDistrib(W::AbstractMatrix, N::AbstractMatrix)::Matrix = W./N 
+function normalizeDistrib(W::T, N::Real
+												 )::T where T<:Union{Real,AbstractVector{<:Real}}
+	
+	W/(N+EPSILON)
+
+end 
 
 
-function normalizeDistrib(W::Tw, N::Tn, n::Bool) where Tw<:T where Tn<:T where T<:Union{Real, AbstractVecOrMat}
+function normalizeDistrib(W::AbstractArray{Tw,Nw}, norm::AbstractArray{Tn,Nn}
+													)::AbstractArray{promote_type(Tw,Tn), max(Nw,Nn)} where {
+																						Nw,Nn}  where {
+																		Tw<:Number, Tn<:Number}
+
+	W./(norm .+ EPSILON)
+
+end 
+
+
+
+function normalizeDistrib(W::Tw, N::Tn, n::Bool
+												 ) where {Tw<:T,Tn<:T} where T<:Union{Real, AbstractVecOrMat}
 
 	n ? normalizeDistrib(W, N) : W 
 
 end 
 
 
-function normalizeDistrib(W::T) where T<:Union{Real, AbstractVecOrMat}
+function normalizeDistrib(W::T)::T where T<:Union{Real, AbstractVecOrMat}
 
 	normalizeDistrib(W, normDistrib(W))
 
 end 
 
 
-function normalizeDistrib(W::T, n::Bool) where T<:Union{<:Real, <:AbstractVecOrMat}
+function normalizeDistrib(W::T, n::Bool)::T where T<:Union{<:Real, <:AbstractVecOrMat}
 
 	n ? normalizeDistrib(W) : W 
 
@@ -1352,7 +1378,8 @@ end
 
 
 
-function EuclDistEquals(d0; tol=1e-8, dim=1)
+function EuclDistEquals(d0::Float64; tol::Float64=1e-8, dim::Int=1
+												)::Function
 
 	isd0(dist) = isapprox(dist, d0, atol=tol)
 
@@ -1362,7 +1389,8 @@ function EuclDistEquals(d0; tol=1e-8, dim=1)
 
 
 
-	return function(A::a, B::b; kwargs...) where {a<:T,b<:T} where T<:AbstractVecOrMat
+	return function EuclDistEquals_(A::a, B::b; kwargs...
+																	) where {a<:T,b<:T} where T<:AbstractVecOrMat
 
 		isd0.(Dist(A,B; dim=dim))
 
