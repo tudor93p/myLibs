@@ -391,7 +391,7 @@ end
 
 
 function Unique(V::AbstractArray{T};
-								dim=1,
+								dim::Int=1,
 								tol=1e-8, inds=nothing,
 								sorted=false,
 								check_type=true) where T

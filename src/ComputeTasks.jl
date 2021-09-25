@@ -546,7 +546,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function combine_files_exist(tasks::AbstractVector{CompTask})::Function
+function combine_files_exist(tasks::Tuple{Vararg{CompTask}})::Function
 
 	function files_exist(args...; kwargs...)::Bool
 
@@ -563,17 +563,44 @@ function combine_files_exist(tasks::AbstractVector{CompTask})::Function
 end 
 
 
-function combine_get_data(tasks::AbstractVector{CompTask})::Function
+function combine_get_data(tasks::NTuple{N,CompTask},
+													print_intpars::NTuple{N, AbstractString},
+#													internal_keys::AbstractVector{Symbol},
+#													internal_params#::OrderedDict=OrderedDict()
+													)::Function where N
 
-	function get_data(P...; samplevectors=12345, kwargs...)::Vector
+	max_len = maximum(length, print_intpars) + 5
 
-		if !(isa(samplevectors,Int) && samplevectors==12345)
 
-					error("kwarg disabled")
-		end 
-#			return Any[SampleVectors(reshape(obs,:,1), P), I...]
+	function get_data(P...; samplevectors=12345, kwargs...
+										)::Vector
 
-		return [t.get_data(P...; kwargs...) for t in tasks]
+		@assert isa(samplevectors,Int)&&samplevectors==12345 "kwarg disabled"
+
+
+		pr = !haskey(kwargs, :mute)  
+
+		
+		pr && println()
+
+		out = map(collect(1:N)) do i
+
+			if pr 
+
+				s = print_intpars[i] 
+
+				print("\r$s",repeat(" ",max_len-length(s))) 
+			
+			end 
+
+			return tasks[i].get_data(P...; kwargs...)
+
+		end  
+
+		pr && println("\r",repeat(" ",max_len))
+
+
+		return out 
 
 	end  
 
@@ -1220,14 +1247,27 @@ function init_multitask_(C::Parameters.Calculation,
 	
 	internal_params_inds = combs(axes.(internal_allparams, 1))
 
+
 					#-----------------#
 
-	tasks = map(combs(internal_allparams)) do intpar  
+	emptyP = [NamedTuple() for i=1:maximum(maximum,values(internal_keys))]
+
+
+	tasks,print_intpars = Utils.zipmap(combs(internal_allparams)) do intpar  
+
+						add_ip = init_add_internal_param(intpar) 
+
+						return (
 
 						CompTask(C; 
 										 rmv_internal_key = rmv_internal_key,
-										 add_internal_param = init_add_internal_param(intpar),
-														 )
+										 add_internal_param = add_ip,
+														 ),
+
+						string(merge((add_ip(i, emptyP...) for i=1:length(emptyP))...)),
+
+						)
+
 					 end	
 					 
 
@@ -1236,8 +1276,10 @@ function init_multitask_(C::Parameters.Calculation,
 
 	multitask = CompTask(getproperty.([CompTask(C; rmv_internal_key=rmv_internal_key)], [:name, :get_plotparams, :get_paramcombs])...,
 									 combine_files_exist(tasks),
-									 combine_get_data(tasks)
+									 combine_get_data(tasks, print_intpars)
+
 									 )
+
 
 				# ----------------- #
 

@@ -134,11 +134,17 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function convertKey_toPlot(k; kwargs...)::String 
+
+	string(k)
+
+end
+
 function convertKey_toPlot(p::UODict, k; separator="__")::String 
 
 	haskey(p,:Label) && return join([p[:Label], k], separator) 
 
-	return string(k)
+	return convertKey_toPlot(k; separator=separator)
 
 end
 

@@ -83,7 +83,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Interp1D(x, y, k::Int)
+function Interp1D(x, y, k::Int)::Function
 
 	if k==0
 
@@ -101,6 +101,7 @@ function Interp1D(x, y, k::Int)
 	return Dierckx.Spline1D(vcat(x...), vcat(y...), k=k)
 
 end 
+
 
 function Interp1D(x, y, k::Int, X)
 

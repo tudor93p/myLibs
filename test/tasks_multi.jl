@@ -55,7 +55,7 @@ MDs = map(enumerate([QQ,RR,SS])) do (l,M)
 
 	for k in M.usedkeys 
 
-		allparams[k] = 10l .+ sort(Utils.Random_Items(1:10, 0l + rand(1:2)))
+		allparams[k] = 10l .+ sort(Utils.Random_Items(1:10, 0l + rand(2:3)))
 
 		digits[k] = (2,0)
 
@@ -71,7 +71,9 @@ function Compute(args...; get_fname::Function, kwargs...)
 
 #	get_fname(args...)() |> println
 
-return Dict("a"=>sum(sum.(values.(args))) .+  rand())
+	A = sum(sum.(values.(args))) .+  rand(2,3)
+
+	return Dict("a"=>A)
 
 end 
 
@@ -86,9 +88,9 @@ C = Parameters.Calculation("test_multitask",
 													 Compute) 
 
 for (internal, external) in (
-														([:Q1=>1], Int[]),
-#													 ([:Q1=>1], [1,2]),
-#													 ([:Q1=>1, :R1=>2], [1,3]),
+#														([:Q1=>1], Int[]),
+													 ([:Q1=>1], [1,2]),
+													 ([:Q1=>1, :R1=>2], [1,3]),
 #													 ([:Q1=>1, :R1=>2], [2,3]),
 #													 ([:Q1=>1, :R1=>2], [3,4]),
 #													 ([:Q1=>1, :Q2=>1,:R1=>2], [1]),
@@ -96,7 +98,7 @@ for (internal, external) in (
 													 )
 
 #for e in [(30:40,), external, ((D::AbstractVector{<:Number})->axes(D,1),)] 
-for e_ in [(rand(11),rand(7)), (1,2), [(D::AbstractArray{<:Number})->axes(D,i) for i=1:2]]
+for e_ in [(rand(11),rand(7),rand(2))]#, (1,2,3), [(D::AbstractArray{<:Number})->axes(D,i) for i=1:2]]
 	
 	e = e_[axes(external,1)]
 
@@ -144,7 +146,7 @@ for construct_Z_args in [
 												 #(P,),
 												 #(P,"some_label"),
 												 #(identity, P),
-												 (identity, "a", P),
+#												 (identity, "a", P),
 												 ("a", P),
 												 #(identity, P,"some_label"),
 												 ]
@@ -198,7 +200,7 @@ t = ComputeTasks.init_multitask(C, [:Q1=>1], [2=>1], ["Energy"])[1]
 
 for P in t.get_paramcombs()
 
-	println(P,"\n")
+#	println(P,"\n")
 end
 
 

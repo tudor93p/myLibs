@@ -10,7 +10,7 @@ function pr_in(f::AbstractString)
 	include("$f.jl")
 
 end
-"algebra" |> pr_in
+#"algebra" |> pr_in
 
 #"lattices_vecs" |> pr_in
 
@@ -46,7 +46,7 @@ end
 #"tasks" #|> pr_in
 
 
-#"tasks_multi" |> pr_in
+"tasks_multi" |> pr_in
 
 
 #"choose-obs" #|> pr_in
