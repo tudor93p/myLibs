@@ -546,7 +546,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function combine_files_exist(tasks::Tuple{Vararg{CompTask}})::Function
+function combine_files_exist(tasks::AbstractVector{CompTask})::Function
 
 	function files_exist(args...; kwargs...)::Bool
 
@@ -563,42 +563,36 @@ function combine_files_exist(tasks::Tuple{Vararg{CompTask}})::Function
 end 
 
 
-function combine_get_data(tasks::NTuple{N,CompTask},
-													print_intpars::NTuple{N, AbstractString},
+function combine_get_data(tasks::AbstractVector{Tuple{CompTask,String}},
+#													NTuple{N,CompTask},
+#													print_intpars::NTuple{N, AbstractString},
 #													internal_keys::AbstractVector{Symbol},
 #													internal_params#::OrderedDict=OrderedDict()
-													)::Function where N
+													)::Function #where N
 
-	max_len = maximum(length, print_intpars) + 5
+	max_len = maximum([length(pr_ip) for (t,pr_ip) in tasks]) 
+#	max_len = maximum(length, print_intpars) 
 
+	max_len += 5
 
 	function get_data(P...; samplevectors=12345, kwargs...
 										)::Vector
 
 		@assert isa(samplevectors,Int)&&samplevectors==12345 "kwarg disabled"
 
-
 		pr = !haskey(kwargs, :mute)  
 
-		
 		pr && println()
 
-		out = map(collect(1:N)) do i
+		out = map(tasks) do (t,s)
 
-			if pr 
+			pr && print("\r$s",repeat(" ",max_len-length(s))) 
 
-				s = print_intpars[i] 
-
-				print("\r$s",repeat(" ",max_len-length(s))) 
-			
-			end 
-
-			return tasks[i].get_data(P...; kwargs...)
+			return t.get_data(P...; kwargs...)
 
 		end  
 
 		pr && println("\r",repeat(" ",max_len))
-
 
 		return out 
 
@@ -1131,6 +1125,8 @@ function init_multitask(C::Parameters.Calculation,
 												kwargs...) 
 	#::AbstractVector{Pair{Int,<:AbstractVector{<:Number}}}=[]; kwargs...)
 
+	@assert allunique(internal_keys)
+
 	rmv, add = Parameters.rmv_add_summarize(; kwargs...)
 
 	rmv_ikey = Parameters.combine_functions_addrem(rmv,
@@ -1250,10 +1246,10 @@ function init_multitask_(C::Parameters.Calculation,
 
 					#-----------------#
 
-	emptyP = [NamedTuple() for i=1:maximum(maximum,values(internal_keys))]
+	emptyP = [NamedTuple() for i=1:maximum(maximum, values(internal_keys))]
 
 
-	tasks,print_intpars = Utils.zipmap(combs(internal_allparams)) do intpar  
+	tasks = map(combs(internal_allparams)) do intpar  
 
 						add_ip = init_add_internal_param(intpar) 
 
@@ -1272,12 +1268,14 @@ function init_multitask_(C::Parameters.Calculation,
 					 
 
 
-					 # get_plotparams and get_paramcombs will not always work; some keys removed at lower levels might be needed at higher levels 
 
-	multitask = CompTask(getproperty.([CompTask(C; rmv_internal_key=rmv_internal_key)], [:name, :get_plotparams, :get_paramcombs])...,
-									 combine_files_exist(tasks),
-									 combine_get_data(tasks, print_intpars)
+	 not_possib(args...; kwargs...) = error("The functions 'get_plotparams' and 'get_paramcombs' do not always work for multitasks because some keys removed at lower levels might be needed at higher levels. The two function are not provided for multitasks.")
 
+#	 [CompTask(C; rmv_internal_key=rmv_internal_key)], [:name, :get_plotparams, :get_paramcombs])...,
+	 
+	multitask = CompTask(C.name, not_possib, not_possib, 
+											 combine_files_exist(first.(tasks)),
+											 combine_get_data(tasks)
 									 )
 
 

@@ -85,7 +85,9 @@ println()
 C = Parameters.Calculation("test_multitask", 
 													 Parameters.ParamFlow("Data", MDs...; 
 																								adjust=RR.adjust_paramcomb),
-													 Compute) 
+													 Compute)  
+
+task0 = ComputeTasks.CompTask(C)
 
 for (internal, external) in (
 #														([:Q1=>1], Int[]),
@@ -136,7 +138,7 @@ for e_ in [(rand(11),rand(7),rand(2))]#, (1,2,3), [(D::AbstractArray{<:Number})-
 #	println() 
 
 
-	P = task.get_plotparams(rand(task.get_paramcombs())...)
+	P = task0.get_plotparams(rand(task0.get_paramcombs())...)
 
 #	@show P; 	println()
 
@@ -196,13 +198,3 @@ end end
 
 
 t = ComputeTasks.init_multitask(C, [:Q1=>1], [2=>1], ["Energy"])[1]
-
-
-for P in t.get_paramcombs()
-
-#	println(P,"\n")
-end
-
-
-t.get_plotparams() |> println 
-
