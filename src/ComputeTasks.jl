@@ -593,7 +593,7 @@ function combine_get_data(tasks::AbstractVector{Tuple{CompTask,String}},
 		end  
 
 		pr && println("\r",repeat(" ",max_len))
-
+		
 		return out 
 
 	end  
@@ -1264,16 +1264,20 @@ function init_multitask_(C::Parameters.Calculation,
 
 						)
 
-					 end	
+	end	
 					 
 
+	not_possib(args...; kwargs...) = error("The functions 'get_plotparams(P...)' and 'get_paramcombs()' do not always work for multitasks because some keys removed at lower levels might be needed by 'allparams' at higher levels. The two functions are not provided for multitasks.")
 
+	all_plot_params = Parameters.convertParams_toPlot(C; repl=rmv_internal_key) 
 
-	 not_possib(args...; kwargs...) = error("The functions 'get_plotparams' and 'get_paramcombs' do not always work for multitasks because some keys removed at lower levels might be needed at higher levels. The two function are not provided for multitasks.")
+	get_plotparams() = all_plot_params
 
-#	 [CompTask(C; rmv_internal_key=rmv_internal_key)], [:name, :get_plotparams, :get_paramcombs])...,
+	get_plotparams(arg1, args...) = not_possib()
+
 	 
-	multitask = CompTask(C.name, not_possib, not_possib, 
+	multitask = CompTask(C.name, get_plotparams, 
+											 not_possib, 
 											 combine_files_exist(first.(tasks)),
 											 combine_get_data(tasks)
 									 )

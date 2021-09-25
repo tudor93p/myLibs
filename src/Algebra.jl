@@ -83,7 +83,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Interp1D(x, y, k::Int)
+function Interp1D(x, y, k::Int)::Union{Function,Dierckx.Spline1D}
 
 	if k==0
 

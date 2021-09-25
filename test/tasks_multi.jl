@@ -197,4 +197,9 @@ end end
 
 
 
-t = ComputeTasks.init_multitask(C, [:Q1=>1], [2=>1], ["Energy"])[1]
+t = ComputeTasks.init_multitask(C, [:Q1=>1], [2=>1], ["Energy"])[1] 
+
+
+@show t.get_plotparams() 
+
+#t.get_plotparams(Dict())
