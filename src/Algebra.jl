@@ -83,7 +83,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Interp1D(x, y, k::Int)::Function
+function Interp1D(x, y, k::Int)
 
 	if k==0
 
