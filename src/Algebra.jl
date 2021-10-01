@@ -823,7 +823,7 @@ normDistrib(F::Function)::Function = normDistrib ∘ F
 normDistrib(D::myDistrib)::Function = normDistrib(D.F)
 
 
-function normalizeDistrib(W::T, N::Real
+function normalizeDistrib(W::T, N::Float64
 												 )::T where T<:Union{Real,AbstractVector{<:Real}}
 	
 	W/(N+EPSILON)

@@ -176,7 +176,6 @@ function prep_kLabels(kPoints::AbstractMatrix, dim::Int;
 
 		@assert length(kLabels)==size(kPoints,dim) string(length(kLabels)," ",size(kPoints))
 
-
 		return kLabels 
 
 	end 
@@ -246,7 +245,6 @@ end
 function Diagonalize(H::Function, 
 										 kPoints::AbstractMatrix{Float64}, 
 										 filename::Nothing=nothing; 
-										 kTicks=[0],
 										 filemethod::AbstractString="new", 
 										 parallel::Bool=false, 
 										 storemethod::AbstractString="jld",
@@ -296,8 +294,9 @@ function Diagonalize(H::Function,
 
 	end 
 
+	haskey(kwargs, :kTicks) && setindex!(D, kwargs[:kTicks], "kTicks")
 
-	return setindex!(D, kTicks, "kTicks")
+	return D
 
 end
 
