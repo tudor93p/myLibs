@@ -174,7 +174,8 @@ function prep_kLabels(kPoints::AbstractMatrix, dim::Int;
 
 	elseif kLabels isa AbstractVector 
 
-		@assert length(kLabels)==size(kPoints,dim)
+		@assert length(kLabels)==size(kPoints,dim) string(length(kLabels)," ",size(kPoints))
+
 
 		return kLabels 
 
