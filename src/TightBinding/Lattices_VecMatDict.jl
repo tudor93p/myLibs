@@ -2,15 +2,17 @@
 const TOLERANCE = 1e-5 
 approx(args...) = isapprox(args...; atol=TOLERANCE)
 
-Unique(args...;kwargs...) = Utils.Unique(args...; kwargs..., tol=TOLERANCE)
-Unique!(args...;kwargs...) = Utils.Unique!(args...; kwargs..., tol=TOLERANCE)
-
-
-EnumUnique(args...;kwargs...) = Utils.EnumUnique(args...; kwargs..., tol=TOLERANCE)
 
 
 const VECTOR_STORE_DIM = 2 
 const VECTOR_AXIS = [2,1][VECTOR_STORE_DIM] 
+
+
+Unique(args...;kwargs...) = Utils.Unique(args...; kwargs..., tol=TOLERANCE, dim=VECTOR_STORE_DIM)
+Unique!(args...;kwargs...) = Utils.Unique!(args...; kwargs..., tol=TOLERANCE, dim=VECTOR_STORE_DIM)
+
+
+EnumUnique(args...;kwargs...) = Utils.EnumUnique(args...; kwargs..., tol=TOLERANCE,dim=VECTOR_STORE_DIM)
 
 @assert Set([VECTOR_STORE_DIM,VECTOR_AXIS])==Set(1:2)
 

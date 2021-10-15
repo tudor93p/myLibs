@@ -117,6 +117,15 @@ end
 #
 #---------------------------------------------------------------------------#
 
+
+function Mean(f::Function, iter::Utils.List)
+
+	mapreduce(f, +, iter)/length(iter) 
+
+
+end 
+
+
 function Mean(A::AbstractArray, dims::Union{Tuple,Int})
 
 	dims_ = unique(vcat(dims...))
@@ -1379,7 +1388,7 @@ end
 
 
 
-function EuclDistEquals(d0::Float64; tol::Float64=1e-8, dim::Int=1
+function EuclDistEquals(d0::Real; tol::Float64=1e-8, dim::Int=1
 												)::Function
 
 	isd0(dist) = isapprox(dist, d0, atol=tol)
@@ -1446,7 +1455,7 @@ function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix,
 									 dim=1, order_pairs=false, N=5000,
 										)::Vector{Tuple{Int,Int}}
 
-	nr_at = [size(atoms1,dim),size(atoms2,dim)]
+	nr_at = [size(atoms1,dim), size(atoms2,dim)]
 
 	nr_batches = Int.(ceil.(nr_at/N))
 

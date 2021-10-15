@@ -290,6 +290,13 @@ function LattVec(latt::Lattice, mode::Symbol)::Matrix{Float64}
 
 end 
 
+function LattVec(latt::Lattice, i::Union{Int,<:AbstractVector{Int}}, args...
+								 )::Matrix{Float64}
+
+	Vecs(LattVec(latt, args...), i)
+
+end 
+
 
 #LattVec(::Nothing)::Nothing = nothing
 #
@@ -333,6 +340,7 @@ function LattVec!(latt::Lattice, v::AbstractMatrix{<:Number},
 		changed_inds = latt.LattDims 
 
 		not_changed_inds = setdiff(IndsVecs(latt.LattVec), changed_inds)
+
 
 		if maximum(changed_inds) < minimum(not_changed_inds)  
 
@@ -1110,7 +1118,7 @@ end
 
 function SquareInt_LattCoeff(latt::Lattice, n, args...)::Matrix{Int}
 
-	n = to_int(to_myMatrix(n, latt))
+	n = to_int(to_myMatrix(n, LattDim(latt)))
 
 	ld = LattDim(latt, args...)
 
@@ -1146,36 +1154,52 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function ucsUC_Polygon(v, mM, polygon; asfunction=false)
+function ucsUC_Polygon(#v::AbstractMatrix{Int}, 
+											 mM::AbstractMatrix{Int}, 
+											 polygon::AbstractMatrix{Int},
+											 )::Tuple{Int,Function}#; asfunction=false)
 
-	is_inside = PointInPolygon(polygon, order_vertices=true)
 
-	uc_candidates = vectors_of_integers(2, Vecs(mM, 2)[:].+1, Vecs(mM, 1)[:].-1)
+	is_inside = if VecLen(polygon)==1
+
+								@assert length(polygon)==2 
+
+								m,M = extrema(polygon)
+
+								btw(x)::Bool = m<=first(x)<=M 
+
+							elseif VecLen(polygon)==2 
+
+									PointInPolygon(polygon, order_vertices=true)
+
+							end 
 
 
-	function out(cand::AbstractMatrix{T})::Matrix{T} where T<:Number
+	uc_candidates = vectors_of_integers(VecLen(mM), Vecs(mM, 2)[:].+1, Vecs(mM, 1)[:].-1)
+
+
+
+	function out(cand::AbstractMatrix{T})::Matrix{T} where T<:Real
 		
-		Vecs(cand, map(is_inside, eachvec(cand)))
+		Vecs(uc_candidates, map(is_inside, eachvec(cand)))
 
 	end 
 
 
-	!asfunction && return out(uc_candidates)
-
-	shifts = sortvecs(CombsOfVecs10(polygon, 1), by=LA.norm)
-
-
+	shifts = Unique(CombsOfVecs10(polygon, 1), sorted=LA.norm)
+	
+		
 	return (
 					
 		NrVecs(shifts),
 					
-		function shiftout(i::Int)
+		function shiftout(i::Int)::Matrix
 
 			s = Vecs(shifts, i)
 	
 			v = TOLERANCE * s / (LA.norm(s) + TOLERANCE/100)
-	
-			return out( v .+ uc_candidates )
+
+			return out(v .+ uc_candidates)
 
 		end )
 
@@ -1212,49 +1236,34 @@ ucs_in_UC(N::Real; kwargs...) = ucs_in_UC(hcat(N); kwargs)
 
 ucs_in_UC(N::Utils.List; kw...) = ucs_in_UC(LA.Diagonal(vcat(N...)); kw...) 
 
-function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) where T
 
-	if T<:Int 
+function ucs_in_UC(N::AbstractMatrix{Int};  method2D_cells=:Polygon, kwargs...) where T
 
-		# Nothing to do, N is ready.
+	nr_vecs = LA.checksquare(N)
 
-	elseif T<:Float64 || any(n->isa(n,Float64), N)
-
-		N[:,:] .= to_int(N)
-
-	else 
-
-		error("Type '$T' not supported")
-
-	end 
-
-
-	correct_nr = Int(round(abs(LA.det(N))))
+	correct_nr = Int(round(abs(LA.det(N)))) 
 	# this should be the size of the new unit cell -- like | a1.(a2 x a3) |
 
-	correct_nr>0 || error("Vectors must be linear independent")
+	@assert correct_nr>0 "Vectors must be nonzero/linearly independent" 
 
 	polygon = Geometry.rhomboidVertices_fromDVectors(N; dim=VECTOR_STORE_DIM)
+
 
 	mM = Cat(cat.(extrema(polygon, dims=VECTOR_STORE_DIM)..., dims=VECTOR_AXIS)...)
 
 
-#  if len(N) == 1:
-#
-#    iter_ucs = [np.arange(*maxmin[::-1]).reshape(-1,1)]
-#
 
 
 
-			n, iter_ucs = if NrVecs(N)==2 && method2D_cells == :Polygon
-									
-									ucsUC_Polygon(N, mM, polygon; asfunction=true)
+	n, iter_ucs = if nr_vecs in [1,2] && method2D_cells == :Polygon
+							
+							ucsUC_Polygon(mM, polygon)
 
-								else 
+						else
 
-									error("Not implemented")
+							error("Not implemented")
 
-								end 
+						end 
 
 #    elif method2D_cells == "Spiral":
 #      iter_ucs = ucsUC_Spiral(N,maxmin,correct_nr)
@@ -1267,7 +1276,7 @@ function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) wh
 #
 #    iter_ucs = method2(N,maxmin)
 #
-#
+
 	for i=1:n 
 
 		ucs = iter_ucs(i)
@@ -1281,6 +1290,14 @@ function ucs_in_UC(N::AbstractMatrix{T};  method2D_cells=:Polygon, kwargs...) wh
 	error("Could not construct big unit cell correctly.")
 
 end
+
+function ucs_in_UC(N::AbstractMatrix{<:Any};  kwargs...)
+
+	@assert any(n->n isa Real) "Unsupported type in N=$N"
+
+	ucs_in_UC(to_int(N); kwargs...)
+
+end 
 
 #===========================================================================#
 #
@@ -1520,14 +1537,18 @@ function Superlattice!(latt::Lattice, n, args...;
 											 Labels=nothing, kwargs...)::Lattice
 
 	n = SquareInt_LattCoeff(latt, n, args...)
-	
+
+
 	new_atoms = new_atoms_dict(latt, ucs_in_UC(n; kwargs...), Labels)
+
+
 
 	for (kind,D) in latt, k in sublatt_labels(D) 
 
 		merge!(D, new_atoms(pop!(D,k), k)) # may contain new labels != k
 	
 	end 
+
 
 	LattVec!(latt, CombsOfVecs(latt, n), args...)
 
@@ -2106,19 +2127,81 @@ end
 
 
 function SurfaceAtoms(atoms::AbstractMatrix{Float64}, 
-											bondlength::Real)::Matrix{Float64}
+											len_or_f...)::Matrix{Float64}
 
-	NrVecs(atoms) > 5000 && error("Too many atoms")
-
-#	Ds = OuterDist(atoms, atoms)
-
-#	d_nn = Utils.Unique(Ds[:]; tol=TOLERANCE, sorted=true)[2]
-
-	nr_bonds = NrBonds(atoms, bondlength)
-	
-	return Vecs(atoms, nr_bonds .< maximum(nr_bonds))
+	Vecs(atoms, indsSurfaceAtoms(atoms, len_or_f...))
 	
 end 
+
+
+function indsSurfaceAtoms(atoms::AbstractMatrix{Float64}, 
+											len_or_f...)::BitVector
+
+	indsAtoms_byNrBonds(atoms, len_or_f...) do nr_bonds::AbstractVector{Int}
+
+		nr_bonds .< maximum(nr_bonds)
+
+	end 
+	
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function indsAtoms_byNrBonds(nr::Int,args...)::BitVector
+
+	indsAtoms_byNrBonds([nr], args...)
+
+end 
+
+
+function indsAtoms_byNrBonds(nr::AbstractVector{Int}, args...)::BitVector
+
+	indsAtoms_byNrBonds(args...) do nrb::AbstractVector{Int}
+	
+		nr_wanted = nr .+ (nr.<0)*maximum(nrb) 
+
+		return any(Algebra.OuterBinary(nrb,nr_wanted,==),dims=2)[:,1]
+	
+	end 
+
+end 
+
+
+
+
+function indsAtoms_byNrBonds(f_nr::Function,
+															 atoms::AbstractMatrix{Float64},
+															 len_or_f...,
+															 )::BitVector
+
+	f_nr(NrBonds(atoms, len_or_f...))
+
+end 
+
+function filterAtoms_byNrBonds(nr_or_f,
+															 atoms::AbstractMatrix{Float64},
+															 len_or_f...,
+															 )::Matrix{Float64} 
+
+	Vecs(atoms, indsAtoms_byNrBonds(nr_or_f, atoms, len_or_f...))
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 
@@ -2126,12 +2209,15 @@ function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 
 end 
 
-function NrBonds(atoms::AbstractMatrix{Float64}, bondlength::Real)::Vector{Int} 
+function NrBonds(atoms::AbstractMatrix{Float64}, len_or_f...)::Vector{Int} 
+
+	@assert NrVecs(atoms)<5000 "Too many atoms" 
+
 	out = zeros(Int, NrVecs(atoms))
 	
 	NrVecs(atoms) > 1 || return out 
 
-	allpairs = Algebra.get_Bonds_asMatrix(atoms, bondlength; 
+	allpairs = Algebra.get_Bonds_asMatrix(atoms, len_or_f...; 
 																				dim=VECTOR_STORE_DIM, inds=true) 
 
 	isempty(allpairs) && return out

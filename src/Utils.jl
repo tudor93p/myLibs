@@ -388,13 +388,12 @@ end
 #---------------------------------------------------------------------------#
 
 
-
-
 function Unique(V::AbstractArray{T};
-								dim::Int=1,
+								dim::Int=ndims(V)==1 ? 1 : 0,
 								tol=1e-8, inds=nothing,
 								sorted=false,
 								check_type=true) where T
+
 
 	if !check_type || is_exact(T) || all(is_exact ∘ typeof, V)
 
@@ -907,13 +906,14 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Quadrant(A::AbstractMatrix, C::AbstractMatrix; dim::Int)::Int
+function Quadrant(A::AbstractMatrix, C::AbstractVecOrMat; dim::Int
+								 )::Vector{Int}
 
 	Quadrant(A.-C; dim=dim)
 
 end
 
-function Quadrant(A::AbstractMatrix; dim::Int)::Int
+function Quadrant(A::AbstractMatrix; dim::Int)::Vector{Int}
 
 	Quadrant.(eachslice(A, dims=dim))
 
