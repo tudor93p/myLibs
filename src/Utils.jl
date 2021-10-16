@@ -394,6 +394,7 @@ function Unique(V::AbstractArray{T};
 								sorted=false,
 								check_type=true) where T
 
+	dim = min(dim, ndims(V))
 
 	if !check_type || is_exact(T) || all(is_exact ∘ typeof, V)
 
