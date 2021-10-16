@@ -405,9 +405,6 @@ function to_myODict((labels,atoms)::Tuple{<:AbstractVector{<:AbstractString},
 
 	end 
 
-	@show labels 
-
-	@show EnumUnique(labels)
 
 	return OrderedDict(L=>Vecs(atoms, I) for (L,I) in EnumUnique(labels))
 
