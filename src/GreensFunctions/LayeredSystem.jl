@@ -369,7 +369,7 @@ function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
 	end
 
 
-	LayerAtom=="forced" || error("'LayerAtom' $LayerAtom not understood.")
+	@assert LayerAtom=="forced" "'LayerAtom' $LayerAtom not understood."
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 

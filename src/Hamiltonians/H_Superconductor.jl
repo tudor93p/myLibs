@@ -80,7 +80,7 @@ end
 
 
 
-function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{Float64}; 
+function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real}; 
 									 indomain=nothing, nr_uc::Int=1, 
 									 dist_tol::Float64=1e-5, hopp_cutoff::Float64=1e-6,
 									 )::Dict{Symbol,Any}
