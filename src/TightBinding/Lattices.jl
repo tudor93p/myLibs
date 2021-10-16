@@ -2177,7 +2177,7 @@ end
 
 
 function indsAtoms_byNrBonds(f_nr::Function,
-															 atoms::AbstractMatrix{Float64},
+														 atoms::AbstractMatrix{<:Real},
 															 len_or_f...,
 															 )::BitVector
 
@@ -2186,7 +2186,7 @@ function indsAtoms_byNrBonds(f_nr::Function,
 end 
 
 function filterAtoms_byNrBonds(nr_or_f,
-															 atoms::AbstractMatrix{Float64},
+															 atoms::AbstractMatrix{<:Real},
 															 len_or_f...,
 															 )::Matrix{Float64} 
 
@@ -2209,7 +2209,7 @@ function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 
 end 
 
-function NrBonds(atoms::AbstractMatrix{Float64}, len_or_f...)::Vector{Int} 
+function NrBonds(atoms::AbstractMatrix{<:Real}, len_or_f...)::Vector{Int} 
 
 	@assert NrVecs(atoms)<5000 "Too many atoms" 
 
@@ -2324,7 +2324,7 @@ end
 
 
 function Align_toAtoms!(latt::Lattice, 
-												atoms::AbstractMatrix{Float64},
+												atoms::AbstractMatrix{<:Real},
 												d_nn::Float64, args...;
 												prepare_vertices=false, order_vertices=false,
 												kwargs...)::Lattice
@@ -2337,7 +2337,7 @@ end
 
 
 function Align_toAtoms!(latt::Lattice, 
-												surface::AbstractMatrix{Float64}, 
+												surface::AbstractMatrix{<:Real}, 
 												shift_dir::Int=-1; 
 												kwargs...)::Lattice 
 	
@@ -2350,8 +2350,8 @@ end
 
 
 function Align_toAtoms!(latt::Lattice, 
-												surface::AbstractMatrix{Float64}, 
-												shift_dir::AbstractVector{Float64};
+												surface::AbstractMatrix{<:Real}, 
+												shift_dir::AbstractVector{<:Real};
 												prepare_vertices=true, order_vertices=true, 
 												kwargs...)::Lattice
 

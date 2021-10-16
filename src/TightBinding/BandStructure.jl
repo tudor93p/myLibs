@@ -269,18 +269,22 @@ function Diagonalize(H::Function,
 	nr_bands = get_nrbands(H1; kwargs...)
 
 	DoK(k,h,l) = Diagonalize_oneK(k,h,l, operators, nr_bands; tol=tol, sigma=sigma)
+
 	DoK((k,l)) = DoK(k,H,l)
 
 
+	isempty(rest_ks) && return DoK(k1, H1, klab1)
+
+
 	D = Utils.RecursiveMerge(
-													 
+														 
 				DoK(k1, H1, klab1),
 
 				Utils.RecursiveMerge(DoK, zip(rest_ks, rest_klab); dim=dim);
 
 				dim=dim, parallel=parallel)
 
-	size(kPoints,dim)==1 && return D 
+
 
 	for (N,V) in D 
 

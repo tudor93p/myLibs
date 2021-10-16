@@ -2235,7 +2235,7 @@ end
 
 function RecursiveMerge(arg::List; kwargs...)::AbstractDict{<:Any, Any}
 
-	isList(arg, AbstractDict) || error("Argument not understood")
+	@assert isList(arg, AbstractDict) "Argument not understood"
 
 	return RecursiveMerge(arg...; kwargs...)
 
