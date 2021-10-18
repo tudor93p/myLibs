@@ -428,9 +428,19 @@ function Bloch_FullVelocity(Lattice::NTuple{3,AbstractArray};
 														argH::AbstractString="",
 														Hopping...)::Vector{Function}
 			
-  intra, inter = Compute_Hopping_Matrices(Lattice; Hopping...)
+	intra, inter = Compute_Hopping_Matrices(Lattice; Hopping...)
 
-	@assert !isnothing(inter) "Local Hamiltonian"
+	isnothing(inter) && return Function[]
+
+#		ms,Rms = map(iter_matrix, Lattice[1:2])
+#
+#		mRT = ((Int[],), (Rms[1],), (zero(intra),))
+#
+#		return Assemble_FullVelocity_Operator(mRT, argH=argH)
+#
+#	end 
+
+
 
   return Assemble_FullVelocity_Operator(inter; argH=argH)
 
@@ -510,7 +520,7 @@ function iter_k_or_phi(ms::NTuple{N, Union{Int,<:AbstractVector{Int}}},
 											 Rms::NTuple{N, <:AbstractVector{Float64}};
 											 argH::AbstractString="") where N
 
-	@assert !any(m-> m==-m, ms)
+	@assert !any(m->  m==-m, ms)
 	
 	[Rms,ms][findfirst(get_argH(argH, ms, Rms).==["k","phi"])]
 
@@ -593,6 +603,7 @@ function Assemble_FullVelocity_Operator((ms,Rms,Tms); kwargs...
 	return [Assemble_Velocity_Operator(Tms, iter2, dir) for dir in all_dirs]
 
 end 
+
 
 
 
@@ -716,7 +727,9 @@ function Add_Hopping_Terms(d0::Int,hopp_cutoff::Float64=1e-8)
 
   small = Utils.fSame(hopp_cutoff)
 
-  matrixval(val) = Matrix{Complex{Float64}}(hcat(val))
+  matrixval(val::Number) = matrixval(hcat(val))
+	matrixval(val::Matrix) = Matrix{ComplexF64}(val)
+	
 
   Zero = zeros(Complex{Float64},d0,d0)
 
@@ -726,7 +739,7 @@ function Add_Hopping_Terms(d0::Int,hopp_cutoff::Float64=1e-8)
     small(value) && return hoppings
   
 
-    return [hoppings; Hopping_Term(matrixval(value),Zero,args...)]
+    return [hoppings; Hopping_Term(matrixval(value), Zero, args...)]
 
   end
 
@@ -754,7 +767,8 @@ end
 
 	# ------------ General case, matrix ------------ #
 
-function Hopping_Term(value::AbstractMatrix,Zero::AbstractMatrix,condition::Function,fun::Function)
+function Hopping_Term(value::AbstractMatrix,
+											Zero::AbstractMatrix,condition::Function,fun::Function)
 
     return function f(ri::AbstractVector,rj::AbstractVector)
 
@@ -779,9 +793,12 @@ end
 
 	# ------------ Always return the hopping, function ------------ #
 
-function Hopping_Term(value::AbstractMatrix,Zero::AbstractMatrix,condition::Bool,fun::Function)
+function Hopping_Term(value::AbstractMatrix,
+											Zero::AbstractMatrix,
+											condition::Bool,
+											fun::Function)::Function
 
-  return function f(ri::AbstractVector,rj::AbstractVector)
+  function f(ri::AbstractVector, rj::AbstractVector)
   
     value .* fun(ri,rj)
 

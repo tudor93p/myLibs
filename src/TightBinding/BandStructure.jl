@@ -207,7 +207,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Diagonalize_oneK(k::AbstractVector{Float64},
+function Diagonalize_oneK(k::AbstractVector{<:Real},
 													Hk::AbstractMatrix{<:Number},
 													lab,
 													operators::Tuple{Vector,Vector},
@@ -227,7 +227,7 @@ function Diagonalize_oneK(k::AbstractVector{Float64},
 end  
 
 
-function Diagonalize_oneK(k::AbstractVector{Float64}, H::Function,
+function Diagonalize_oneK(k::AbstractVector{<:Real}, H::Function,
 													args...; kwargs...)::Dict{String,Any}
 
 	Diagonalize_oneK(k, H(k), args...; kwargs...)
@@ -243,7 +243,7 @@ end
 
 
 function Diagonalize(H::Function, 
-										 kPoints::AbstractMatrix{Float64}, 
+										 kPoints::AbstractMatrix{<:Real}, 
 										 filename::Nothing=nothing; 
 										 filemethod::AbstractString="new", 
 										 parallel::Bool=false, 

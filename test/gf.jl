@@ -1,10 +1,16 @@
-import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF
+import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure
+import PyPlot
 
-P1 = (length = 40, Barrier_height = 1.75, Barrier_width = 0.03, SCDW_phasediff = 0.78, SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = 20, SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
+PyPlot.close(1)
+PyPlot.close(2)
+
+LENGTH = 60 
+
+P1 = (length = LENGTH, Barrier_height = 2.25, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = div(LENGTH,2), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
 
 P2 = (Attached_Leads = "AB",)
 
-P3 = [(ChemPot = 0.0, Hopping = 1.0, Label = "A", Direction = -1, Contact = (-1, 1), Lead_Width = 10, Lead_Coupling = 1.0, SCbasis = true), (ChemPot = 0.0, Hopping = 1.0, Label = "B", Direction = 1, Contact = (1, -1), Lead_Width = 10, Lead_Coupling = 1.0, SCbasis = true)]
+P3 = [(ChemPot = 0.0, Hopping = 1.0, Label = "A", Direction = -1, Contact = (-1, 1), Lead_Width = div(P1.width,2), Lead_Coupling = 1.0, SCbasis = true), (ChemPot = 0.0, Hopping = 1.0, Label = "B", Direction = 1, Contact = (1, -1), Lead_Width = div(P1.width,2), Lead_Coupling = 1.0, SCbasis = true)]
 
 
 
@@ -104,7 +110,7 @@ LeadLatts = map(P3) do lead_params
 	Lattices.Align_toAtoms!(L, SurfaceAtoms)
 	
 
-	@show Lattices.PosAtoms(L)[:,1]
+	@show Lattices.PosAtoms(L)[:,1]  Lattices.PosAtoms(L)[:,2]
 
 	return L
 
@@ -191,22 +197,53 @@ dev_Hparam = (Hopping = P1[:Hopping],
 							#LocalPotential = local_potential(dev_params),
 							SC_Gap = (chiral_gap, 1))
 
-dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[0,1])
+dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
+
+@assert maximum(abs, dev_Hopping[:Hopping]([1,0],[0,0])) > 0  
+
 
 @show size(dev_Hparam.SC_Gap[1]([10,0],[11,0])) 
 
 @show size(lead_Hparam[1].SC_Gap[1]([10,0],[11,0])) 
 
+DevH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(Dev,1); dev_Hopping...)
+
+DevEns = BandStructure.Diagonalize(DevH, hcat(0), dim=2)["Energy"]
+
+spectra = Dict{String,Any}("Device" => (LinRange(0,1,length(DevEns)),DevEns))
+
 leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 											label, latt, coupling_HP, lead_HP, lp)
 
-	hopp_c, hopp_l = map([coupling_HP, lead_HP]) do Params 
+	hopps = hopp_c, hopp_l = map([coupling_HP, lead_HP]) do Params 
 
-		H_Superconductor.SC_Domain(Params,	[0,1])
+		hopp = H_Superconductor.SC_Domain(Params,	[1])
+
+		@assert hopp[:Hopping]([20.5, -9.5], [20.5, -8.5])[1]==Params.Hopping
+
+		return  hopp 
 
 	end 
 
-	hc, hl = map([hopp_c, hopp_l]) do hopp
+
+	if !haskey(spectra, "Lead")
+		
+		@show length(DevEns)
+
+		@show Lattices.BrillouinZone(latt)
+
+		kPoints, = Utils.PathConnect(Lattices.BrillouinZone(latt), 100, dim=2)
+
+		LeadH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(latt,1); argH="k", hopp_l...)
+
+		LeadDiag = BandStructure.Diagonalize(LeadH, kPoints, dim=2)
+
+		spectra["Lead"] = (LeadDiag["kLabels"],LeadDiag["Energy"])
+
+	end 
+	
+
+	hc, hl = map(hopps) do hopp
 
 		function hm(args...) 
 			
@@ -237,7 +274,18 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 
 end 
 
-observables = ["QP-BondVectorTransmission",
+PyPlot.figure(1) 
+
+for (k,xy) in spectra
+
+	PyPlot.scatter(xy...,label=k)
+
+end 
+
+
+
+observables = ["QP-Caroli",
+							 "QP-BondVectorTransmission",
 								"QP-SiteVectorTransmission",]
 
 @show keys(leads[1])
@@ -262,6 +310,9 @@ G = GreensFunctions.GF_Decimation(
 					)
 
 
+
+
+
 hoppings = LayeredSystem.get_hoppings(dev_Hopping[:Hopping], Slicer, VirtLeads)
 
 
@@ -269,37 +320,50 @@ BondHoppings = [hoppings(iR...)' for iR in zip(inds_DevBonds, Rs_DevBonds)]
 
 #G, Energy, observables, Slicer, VirtLeads 
 
-trace_bond = Operators.Trace("atoms", [1,1,1,1]; dim=2, nr_orb=4,
-																	sum_up=true, nr_at=1)
+trace_bond = Operators.Trace("atoms", 1; dim=2, nr_orb=4, sum_up=true, nr_at=1)
+trace_atoms = Operators.Trace("atoms", 1; dim=2, nr_orb=4, sum_up=true)
 
 
+ENERGIES = LinRange(-0.5,0.5,200)|>collect 
 
-ENERGIES = LinRange(-1,1,100)|>collect 
+out = Utils.RecursiveMerge(ENERGIES; dim=2) do Energy 
 
-out = Utils.RecursiveMerge(ENERGIES.+0.002im; dim=2) do Energy 
+	print("\rEnergy=",round(Energy,digits=3),"      ")
 
-	print("\rEnergy=",real(round(Energy,digits=3)),"      ")
+	g = G(Energy + P1.delta*im)
 
-	g = G(Energy)
-
+	
+	d = Dict()
 #	@show size(g("Atom",1,"Atom",2))
 
 	self_energy = GreensFunctions.SelfEn_fromGDecim(g, VirtLeads, Slicer)
 
-	return Dict(map(leadlabels) do lead
+	k,l = leadlabels
 
-		bvt = ObservablesFromGF.BondTransmission(
-																		i -> g("Atom", i, lead, 2),
-																		self_energy(lead, 2),
-																		inds_DevBonds, Rs_DevBonds, BondHoppings;
-																		f=trace_bond) 
+#	println(maximum(abs, g(l,2,k,2) ))
 
-#out["QP-BondVectorTransmission"][lead] 
+	d["Energy"] = Energy
 
-		return lead => ObservablesFromGF.SiteTransmission(bvt, inds_DevBonds, Rs_DevBonds)
+	d["QP-Caroli"] = ObservablesFromGF.CaroliConductance(
+												g(l, 2, k, 2), 
+												self_energy(l, 2), 
+												self_energy(k, 2);
+												f=trace_atoms,
+												)
 
-	end)
+#	d["QP-BondVectorTransmission"] = ObservablesFromGF.BondTransmission(
+#																		i -> g("Atom", i, l, 2),
+#																		self_energy(l, 2),
+#																		inds_DevBonds, Rs_DevBonds, BondHoppings;
+#																		f=trace_bond) 
+#
+##out["QP-BondVectorTransmission"][l
+#
+#		return lead => ObservablesFromGF.SiteTransmission(bvt, inds_DevBonds, Rs_DevBonds)
+#
+#	end)
 
+	return d 
 
 end  
 
@@ -311,4 +375,38 @@ println("\r                             ")
 
 @show size.(values(out))
 
-@show [maximum(abs, v) for v in values(out)]
+@show [maximum(abs, v) for v in values(out)] 
+
+println() 
+
+
+xlabel = "QP-Caroli"
+ylabel = "Energy" 
+
+@assert maximum(abs, imag(out[ylabel]))<1e-12
+
+
+PyPlot.figure(2)
+
+
+PyPlot.plot(out[xlabel],real(out[ylabel]))
+
+PyPlot.xlabel(xlabel);PyPlot.ylabel(ylabel)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
