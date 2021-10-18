@@ -270,15 +270,22 @@ function Diagonalize(H::Function,
 
 	DoK(k,h,l) = Diagonalize_oneK(k,h,l, operators, nr_bands; tol=tol, sigma=sigma)
 
-	DoK((k,l)) = DoK(k,H,l)
 
 
-	isempty(rest_ks) && return DoK(k1, H1, klab1)
+	DoK1 = DoK(k1, H1, klab1)
+
+	if isempty(rest_ks) 
+
+		return setindex!(DoK1, collect(LinRange(0,1,length(DoK1["kLabels"]))), "kLabels")
+
+	end 
+
+	DoK((k,l)) = DoK(k,H,l) 
 
 
 	D = Utils.RecursiveMerge(
 														 
-				DoK(k1, H1, klab1),
+				DoK1,
 
 				Utils.RecursiveMerge(DoK, zip(rest_ks, rest_klab); dim=dim);
 

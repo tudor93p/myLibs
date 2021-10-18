@@ -4,7 +4,7 @@ import PyPlot
 PyPlot.close(1)
 PyPlot.close(2)
 
-LENGTH = 60 
+LENGTH = 10
 
 P1 = (length = LENGTH, Barrier_height = 2.25, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = div(LENGTH,2), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
 
@@ -208,9 +208,11 @@ dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 
 DevH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(Dev,1); dev_Hopping...)
 
-DevEns = BandStructure.Diagonalize(DevH, hcat(0), dim=2)["Energy"]
+DevDiag = BandStructure.Diagonalize(DevH, hcat(0), dim=2) 
 
-spectra = Dict{String,Any}("Device" => (LinRange(0,1,length(DevEns)),DevEns))
+
+
+spectra = Dict{String,Any}("Device" => (DevDiag["kLabels"],DevDiag["Energy"]))
 
 leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 											label, latt, coupling_HP, lead_HP, lp)
@@ -228,8 +230,6 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 
 	if !haskey(spectra, "Lead")
 		
-		@show length(DevEns)
-
 		@show Lattices.BrillouinZone(latt)
 
 		kPoints, = Utils.PathConnect(Lattices.BrillouinZone(latt), 100, dim=2)
