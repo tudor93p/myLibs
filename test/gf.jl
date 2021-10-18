@@ -1,5 +1,5 @@
 import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure
-import PyPlot
+import PyPlot, JLD 
 
 PyPlot.close(1)
 PyPlot.close(2)
@@ -208,11 +208,15 @@ dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 
 DevH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(Dev,1); dev_Hopping...)
 
+fname(x::String) = joinpath("testData",x) 
+
 DevDiag = BandStructure.Diagonalize(DevH, 
 																		Lattices.BrillouinZone(Dev),
+																		fname,
 																		dim=2) 
 
 @show extrema(DevDiag["kLabels"])
+
 
 spectra = Dict{String,Any}("Device" => (DevDiag["kLabels"],DevDiag["Energy"]))
 

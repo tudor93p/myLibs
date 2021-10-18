@@ -138,6 +138,9 @@ function Write_NamesVals(filename::Function,
 
 #	writable(matrix::Char, name) = matrix
 
+	writable(s::AbstractString, name)::String = s
+
+
 	writable(x::Number, name) = writable(vcat(x), name) 
 
 	function writable(D::AbstractDict, name) 
