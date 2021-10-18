@@ -993,7 +993,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function LayeredSystem_toGraph(HoppMatr, NrLayers::Int;
+function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int;
 															 LeftLead=nothing, RightLead=nothing)
 					"""			 
 	HoppMatr(unit_cell_n,unit_cell_m) = Hamiltonian between the two layers
@@ -1023,6 +1023,8 @@ function LayeredSystem_toGraph(HoppMatr, NrLayers::Int;
 
 #	NrLeadUCs = 5
 
+@show NrLayers NrLeadUCs 
+
   g = Graph.MetaDiPath(NrLayers)
 
 	Graph.set_props!(g,Dict(:NrLayers=>NrLayers,
@@ -1031,7 +1033,7 @@ function LayeredSystem_toGraph(HoppMatr, NrLayers::Int;
 											 ))
 
 	for i in 1:NrLayers
-
+@show i 
 		Graph.set_props!(g,i,Dict(:type=>"Layer",
 														 	:name=>("Layer",i),
 														 	:H=>HoppMatr(i))

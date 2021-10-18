@@ -19,8 +19,14 @@ filter_vertices = MetaGraphs.filter_vertices
 
 filter_edges = MetaGraphs.filter_edges
 
-function MetaDiPath(n)
+function MetaDiPath(n::Int)
 
+	@show n 
+
+	@show LightGraphs.path_digraph(n)
+
+	@show MetaGraphs.MetaDiGraph(LightGraphs.path_digraph(n))
+	
 	return MetaGraphs.MetaDiGraph(LightGraphs.path_digraph(n))
 
 end
