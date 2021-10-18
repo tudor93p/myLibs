@@ -1186,6 +1186,8 @@ function FullVelocity(L::NTuple{3,AbstractArray};
 
 	V = Velocity.(TBmodel.Bloch_FullVelocity(L; kwargs...); kwargs...) 
 
+	@assert !isempty(V) "Local Hamiltonian"
+
 	length(V)==1 && return only(V)
 
 

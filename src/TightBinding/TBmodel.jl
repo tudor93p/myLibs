@@ -430,7 +430,8 @@ function Bloch_FullVelocity(Lattice::NTuple{3,AbstractArray};
 			
 	intra, inter = Compute_Hopping_Matrices(Lattice; Hopping...)
 
-	isnothing(inter) && return Function[]
+	@assert !isnothing(inter) "Local Hamiltonian"
+#	isnothing(inter) && return Function[]
 
 #		ms,Rms = map(iter_matrix, Lattice[1:2])
 #
