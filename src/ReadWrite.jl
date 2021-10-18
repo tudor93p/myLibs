@@ -262,9 +262,11 @@ function good_data(D::T)::T where T<:AbstractDict
 
 	for v in values(D)
 		
-		v isa Union{<:Number, <:AbstractDict,<:AbstractArray} && continue 
+		v isa Union{<:Number, <:AbstractDict,<:AbstractArray, <:AbstractString} && continue 
 
-		error("JLD data is not read as a dict! 'import JLD' in the script using ReadWrite should solve the problem")
+		@show typeof(v) 
+
+		error("JLD data is not read correctly! 'import JLD' in the script using ReadWrite should solve the problem")
 
 	end 
 

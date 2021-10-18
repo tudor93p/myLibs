@@ -250,7 +250,7 @@ function Diagonalize(H::Function,
 										 storemethod::AbstractString="jld",
 										 dim::Int,
 										 tol::Float64=1e-8,
-										 sigma::Float64=tol/10, kwargs...)
+										 sigma::Float64=tol/10, kwargs...)::Dict{String,Any}
 	
 	operators = prep_operators(;kwargs...)  
 
@@ -274,13 +274,10 @@ function Diagonalize(H::Function,
 
 	DoK1 = DoK(k1, H1, klab1)
 
-	@show isempty(rest_ks) 
-
 	if isempty(rest_ks) 
 
 
 		DoK1["kLabels"] = collect(LinRange(0,1,length(DoK1["kLabels"])))
-		@show length(DoK1["kLabels"])
 		
 		DoK1["kLabel"] = "Eigenvalue index"
 
