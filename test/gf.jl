@@ -208,9 +208,11 @@ dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 
 DevH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(Dev,1); dev_Hopping...)
 
-DevDiag = BandStructure.Diagonalize(DevH, hcat(0), dim=2) 
+DevDiag = BandStructure.Diagonalize(DevH, 
+																		Lattices.BrillouinZone(Dev),
+																		dim=2) 
 
-
+@show extrema(DevDiag["kLabels"])
 
 spectra = Dict{String,Any}("Device" => (DevDiag["kLabels"],DevDiag["Energy"]))
 

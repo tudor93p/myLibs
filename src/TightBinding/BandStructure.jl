@@ -274,9 +274,17 @@ function Diagonalize(H::Function,
 
 	DoK1 = DoK(k1, H1, klab1)
 
+	@show isempty(rest_ks) 
+
 	if isempty(rest_ks) 
 
-		return setindex!(DoK1, collect(LinRange(0,1,length(DoK1["kLabels"]))), "kLabels")
+
+		DoK1["kLabels"] = collect(LinRange(0,1,length(DoK1["kLabels"])))
+		@show length(DoK1["kLabels"])
+		
+		DoK1["kLabel"] = "Eigenvalue index"
+
+		return DoK1 
 
 	end 
 
@@ -306,6 +314,8 @@ function Diagonalize(H::Function,
 	end 
 
 	haskey(kwargs, :kTicks) && setindex!(D, kwargs[:kTicks], "kTicks")
+
+	D["kLabel"] = "Momentum" 
 
 	return D
 
@@ -361,7 +371,7 @@ end
 
 function Read_Bands(filename::Function, operators, args...)::Dict 
 
-	names = prep_oper_names_rw(operators, ["kLabels", "kTicks", "Energy"])
+	names = prep_oper_names_rw(operators, ["kLabel", "kLabels", "kTicks", "Energy"])
 	
 	return ReadWrite.Read_NamesVals(filename, names, args...)
 
