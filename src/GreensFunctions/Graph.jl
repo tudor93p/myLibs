@@ -1,13 +1,14 @@
 module Graph
 #############################################################################
 
-import LightGraphs, MetaGraphs, TikzGraphs,TikzPictures
+import Graphs, MetaGraphs, TikzGraphs,TikzPictures
+import ..Utils
 
 
 
 #===========================================================================#
 #
-#	Bring together functions from LightGraphs and MetaGraph
+#	Bring together functions from Graphs and MetaGraph
 #
 #---------------------------------------------------------------------------#
 
@@ -21,13 +22,7 @@ filter_edges = MetaGraphs.filter_edges
 
 function MetaDiPath(n::Int)
 
-	@show n 
-
-	@show LightGraphs.path_digraph(n)
-
-	@show MetaGraphs.MetaDiGraph(LightGraphs.path_digraph(n))
-	
-	return MetaGraphs.MetaDiGraph(LightGraphs.path_digraph(n))
+	MetaGraphs.MetaDiGraph(Graphs.path_digraph(n))
 
 end
 
@@ -36,24 +31,24 @@ set_prop! = MetaGraphs.set_prop!
 
 set_props! =	MetaGraphs.set_props!
 
-add_vertex! = LightGraphs.add_vertex!
+add_vertex! = Graphs.add_vertex!
 			
-add_edge! = LightGraphs.add_edge!
+add_edge! = Graphs.add_edge!
 
-nv = LightGraphs.nv
-ne = LightGraphs.ne
+nv = Graphs.nv
+ne = Graphs.ne
 
-edges = LightGraphs.edges 
-vertices = LightGraphs.vertices
-
-
-all_neighbors = LightGraphs.all_neighbors
+edges = Graphs.edges 
+vertices = Graphs.vertices
 
 
+all_neighbors = Graphs.all_neighbors
 
-neighbors =  LightGraphs.neighbors
-in_neighbors =  LightGraphs.inneighbors
-out_neighbors =  LightGraphs.outneighbors
+
+
+neighbors =  Graphs.neighbors
+in_neighbors =  Graphs.inneighbors
+out_neighbors =  Graphs.outneighbors
 
 get_prop = MetaGraphs.get_prop
 has_prop = MetaGraphs.has_prop
@@ -72,32 +67,46 @@ function node_by_prop!(g,key)
 end
 
 
-function get_edges(a::T) where {T}
+function get_edges(a::Graphs.AbstractGraph)
 
-	T <: LightGraphs.AbstractGraph && return LightGraphs.edges(a)
+	Graphs.edges(a)
 
-	typeof(collect(a)[1]) <: LightGraphs.SimpleGraphs.SimpleEdge && return a
+end 
 
+
+function get_edges(a::T)::T where T<:Graphs.AbstractEdgeIter
+
+	a
+
+end 
+
+function get_edges(a::Utils.List)::Vector{Graphs.Edge}
+
+	@assert Utils.isList(a, Graphs.AbstractEdge) 
+
+	return collect(a)
 
 end
 
 
+
+
 function SimpleDiGraph(a)
 
-	return LightGraphs.SimpleDiGraphFromIterator(get_edges(a))
+	Graphs.SimpleDiGraphFromIterator(get_edges(a))
 
 end
 
 function SimpleGraph(a)
 
-	return LightGraphs.SimpleGraphFromIterator(get_edges(a))
+	Graphs.SimpleGraphFromIterator(get_edges(a))
 	
 end
 
 
 function FindPath(g,n1,n2)
 
-	return LightGraphs.a_star(g,n1,n2)
+	Graphs.a_star(g,n1,n2)
 
 end
 
@@ -144,7 +153,7 @@ end
 
 function PlotAtoms_asGraph(Atoms,isbond;kwargs...)
 
-	Plot_Graph(LightGraphs.SimpleGraph(isbond(Atoms,Atoms));kwargs...)
+	Plot_Graph(Graphs.SimpleGraph(isbond(Atoms,Atoms));kwargs...)
 	
 
 end

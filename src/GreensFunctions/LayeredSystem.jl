@@ -1023,8 +1023,6 @@ function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int;
 
 #	NrLeadUCs = 5
 
-@show NrLayers NrLeadUCs 
-
   g = Graph.MetaDiPath(NrLayers)
 
 	Graph.set_props!(g,Dict(:NrLayers=>NrLayers,
@@ -1033,7 +1031,6 @@ function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int;
 											 ))
 
 	for i in 1:NrLayers
-@show i 
 		Graph.set_props!(g,i,Dict(:type=>"Layer",
 														 	:name=>("Layer",i),
 														 	:H=>HoppMatr(i))
