@@ -564,7 +564,7 @@ jx0_ = ObservablesFromGF.SiteTransmission0(g_,
 close_to_dw = isapprox.(DevAtoms[1,:], minimum(abs,DevAtoms[1,:]))  
 
 
-jx = ObservablesFromGF.SiteTransmission_fromBondT(bvt, inds_DevBonds, Rs_DevBonds)
+jx = ObservablesFromGF.SiteTransmission_fromBondT(bvt, inds_DevBonds, Rs_DevBonds; dim=1)
 
 jx_ = ObservablesFromGF.SiteTransmission(g_, 
 																				 BondHoppings,
@@ -576,7 +576,7 @@ jx_ = ObservablesFromGF.SiteTransmission(g_,
 jx = jx[close_to_dw,1] 
 
 
-jx0 = ObservablesFromGF.SiteTransmission_fromBondT(bvt0, inds_DevBonds, Rs_DevBonds)
+jx0 = ObservablesFromGF.SiteTransmission_fromBondT(bvt0, inds_DevBonds, Rs_DevBonds; dim=1)
 
 
 
@@ -590,7 +590,8 @@ jx0 = jx0[close_to_dw,1]
 
 
 
-
+@show ObservablesFromGF.TunnelingConductance_LeeFisher(g_, "A", 2)
+@show ObservablesFromGF.TunnelingConductance_LeeFisher(g_, "B", 2)
 
 
 
@@ -612,7 +613,6 @@ PyPlot.legend()
 
 
 
-error()
 
 
 
@@ -646,6 +646,10 @@ out = Utils.RecursiveMerge(ENERGIES; dim=2) do Energy
 												self_energy(k, 2);
 												f=trace_atoms,
 												)
+
+	@assert isapprox(d["QP-Caroli"],
+									 ObservablesFromGF.CaroliConductance(g, self_energy,
+																											 l, k, 2))
 
 	return d 
 

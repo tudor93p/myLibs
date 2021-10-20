@@ -183,10 +183,18 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function TunnelingConductance_LeeFisher(GD::Function, i::Int, j::Int=i;
-																				f::Function=LA.tr)
+function TunnelingConductance_LeeFisher(GD::Function, 
+																				lead, 
+																				i::Int=2, j::Int=i;
+																				f::Function=LA.tr)::ComplexF64
 
-	G(n,m) = (g -> (g' - g)/(2im))(GD(n,m))
+	function G(n::Int,m::Int)::AbstractMatrix{ComplexF64}
+																					
+		g = GD(lead, n, lead, m)
+
+		return (g' - g)/(2im)
+
+	end
 
   return f(	G(i,j)*G(j-1,i-1) 
 									+ G(i-1,j-1)*G(j,i) 
@@ -212,28 +220,31 @@ end
 #---------------------------------------------------------------------------#
 
 
-function CaroliConductance(G1, source, drain, G2=G1; f=LA.tr)
+function CaroliConductance(G::Function, get_SE::Function,
+													 source, drain, uc::Int;
+													 kwargs...
+													 )::ComplexF64
 
-#  sp(A) = SpA.dropzeros(SpA.sparse(A))
-#
+	CaroliConductance(G(source, uc, drain, uc),
+										get_SE(source, uc), get_SE(drain, uc);
+										kwargs...)
+
+end 
+
+
+
+
+
+function CaroliConductance(G1::AbstractMatrix, 
+													 source::AbstractMatrix, drain::AbstractMatrix, 
+													 G2::AbstractMatrix=G1; 
+													 f::Function=LA.tr)::ComplexF64
+
 	GammaS = GreensFunctions.DecayWidth(source)
 	
 	GammaD = GreensFunctions.DecayWidth(drain)
 
-
-#  out = f(LA.diag(sp(GammaS)*sp(G1)*sp(GammaD)*sp(G2)'))
-##  out = LA.tr(GammaS*G1*GammaD*G2')
-	
 	return f(GammaS*G1*GammaD*G2')
-
-#  Im = sum(abs.(imag(out)) ./ (abs.(out) .+1e-12))/length(out)
-
-#  Im > 1e-6 && println("Caroli T has imaginary part. mean(imag/abs)=",round(Im,digits=7))
-
-#  any(abs.(imag(out)) .> 1e-9) && println("T has imaginary part")
-
-
-#  return real(out)
 
 end
 
@@ -460,13 +471,16 @@ end
 
 
 function SiteTransmission_fromBondT(BondT::AbstractVector{<:Real},
-																	 Bonds, RBonds)::Matrix{Float64}
+													 Bonds::AbstractVector{NTuple{2,Int}},
+													 RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}};
+													 dim::Int)::Matrix{Float64}
 
-	siteT = zeros(Float64, maximum(maximum, Bonds), length(RBonds[1][1]))
+	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
+															[2,1][dim] => length(RBonds[1][1]))
 
 	for BRT in zip(Bonds, RBonds, BondT)
 
-		addSiteTiTj!(siteT, 1, BRT...)
+		addSiteTiTj!(siteT, dim, BRT...)
 
 	end
 
