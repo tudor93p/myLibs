@@ -3,7 +3,7 @@ test/savefile
 Data 
 pyqt_figures 
 test/Data 
-
+testData
 .*.swp
 
 */.*.swp

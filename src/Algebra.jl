@@ -48,7 +48,7 @@ const EPSILON = 1e-20
 
 
 
-function fft(x::AbstractMatrix{<:Number}, w::Real=0; 
+function fft(x::AbstractMatrix{<:Real}, w::Real=0; 
 						 dim::Int, addup=true)::Array{ComplexF64}
 	
 	Y = ArrayOps.multiply_elementwise(exp.(-1im*w*(axes(x,dim).-1)), x, dim)
@@ -58,14 +58,14 @@ function fft(x::AbstractMatrix{<:Number}, w::Real=0;
 end 
 
 
-function fft(x::AbstractVector{<:Number}; kwargs...)::Array{ComplexF64}
+function fft(x::AbstractVector{<:Real}; kwargs...)::Array{ComplexF64}
 	
 	fft(x, 2pi*(axes(x,1).-1)/length(x); kwargs...)
 
 end 
 
 
-function fft(x::AbstractVector{<:Number}, 
+function fft(x::AbstractVector{<:Real}, 
 						 w::Union{Real,AbstractVector{<:Real}};
 						 addup::Bool=true, kwargs...)::Array{ComplexF64}
 
@@ -89,7 +89,7 @@ function Interp1D(x, y, k::Int)::Union{Function,Dierckx.Spline1D}
 
 		get_ind = Interp1D(vcat(x...), 1:length(x), 1)
 
-		out(X::Number) = y[Int(round(get_ind(X)))]
+		out(X::Real) = y[Int(round(get_ind(X)))]
 
 		out(X::AbstractArray) = y[Int.(round.(get_ind(X)))]
 		
@@ -1442,7 +1442,7 @@ end
 
 
 
-function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, bondlength::Number; tol=1e-8,dim=1, kwargs...)
+function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, bondlength::Real; tol=1e-8,dim=1, kwargs...)
 
 	get_Bonds(atoms1, atoms2, EuclDistEquals(bondlength; tol=tol, dim=dim); dim=dim, kwargs...)
 
@@ -1494,9 +1494,9 @@ end
 
 
 function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 
-												 atoms1::AbstractMatrix{<:Number}, 
-												 atoms2::AbstractMatrix{<:Number}=atoms1; 
-												 dim::Int)::Vector{Vector{Vector{<:Number}}}
+												 atoms1::AbstractMatrix{<:Real}, 
+												 atoms2::AbstractMatrix{<:Real}=atoms1; 
+												 dim::Int)::Vector{Vector{Vector{<:Real}}}
 
 	map(bond_indices) do (a,b)
 
@@ -1529,16 +1529,7 @@ function get_Bonds_toMatrix(X; inds=false, pos=false, dim=1)::Matrix
 
 	xor(inds,pos) || error("Specify either 'inds' or 'pos'")
 
-
-	shape = [0,0]
-
-	shape[dim] = length(X)
-
-	shape[[2,1][dim]] = sum(length, X[1])
-
-#	shape  = ArrayOps.Array_from_ListIndsVals([dim,dim2],[length(X),sum(length, X[1])])
-
-	M = zeros(eltype(X[1][1]), shape...)
+	M = ArrayOps.init_zeros(X, dim=>length(X), [2,1][dim]=>sum(length, X[1]))
 
 	for (i,x) in enumerate(X)
 

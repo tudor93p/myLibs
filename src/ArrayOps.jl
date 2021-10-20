@@ -7,6 +7,60 @@ import ..Utils
 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function init_zeros(A::Union{AbstractArray,Tuple},
+										d_to_n::Vararg{Pair{Int,Int}},
+										)::Array
+
+	init_zeros(rand(A), d_to_n...)
+
+end  
+
+function init_zeros(x::T,
+										d_to_n::Vararg{Pair{Int,Int},N},
+										)::Array{T,N} where {T<:Number,N}
+
+	init_zeros(T, d_to_n...)
+
+end 
+
+
+function init_zeros(T::DataType,
+										d_to_n::Vararg{Pair{Int,Int},N},
+										)::Array{T,N} where N
+
+	shape = zeros(Int, N) 
+
+	for (d,n) in d_to_n 
+
+		shape[d] = n 
+
+	end 
+
+	return zeros(T, shape...)
+
+end 
+
+
+
+function init_zeros(d_to_n::Vararg{Pair{Int,Int},N}
+									 )::Array{Float64,N} where N 
+	
+	init_zeros(Float64, d_to_n...)
+
+end
+
+
+
 #===========================================================================#
 #
 #

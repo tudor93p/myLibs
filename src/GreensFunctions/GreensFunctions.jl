@@ -19,7 +19,7 @@ import ..Graph, ..LayeredSystem
 
 """ gives the GF at energy E of an isolated system S with Hamiltonian H """
 
-GF(E::Number,H::AbstractMatrix) = inv(Array(E*LA.I - H))
+GF(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
 
 
 """ the system S is now coupled to another system S'
@@ -329,7 +329,11 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 
 	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g)
 
-	return Energy -> GF_Decimation_fromGraph(Energy, g, translate)
+	return function gf(Energy::Number)
+		
+		GF_Decimation_fromGraph(Energy, g, translate)
+
+	end 
 
 end
 
@@ -379,11 +383,11 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
 																			coupling_toSystem(n,dir)...)
 	
-	 	return GF( Energy, H(n), coupling(n,dir)... )
+		return GF(Energy, H(n), coupling(n,dir)... ) #real( Energy)
 	
 	end
 
-	function Gnm(n,m,dir)
+	function Gnm(n,m,dir)::Matrix{ComplexF64}
 
 		isnleft, n1, m1  = bring_closer(n,m)
 	
