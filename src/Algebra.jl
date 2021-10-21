@@ -20,6 +20,29 @@ const EPSILON = 1e-20
 #
 #---------------------------------------------------------------------------#
 
+function InvPartRatio(P::AbstractVector{<:Real})::Float64
+	# ipr=1 means perfectly localized on one atom; 
+	# ipr=length(P) means equally distributed on all sites
+
+	1.0/mapreduce(abs2, +, LA.normalize(P, 1), init=0) 
+
+end  
+
+function InvPartRatio(Ps::AbstractArray{<:Real,N},
+										 dim::Int)::Array{Float64,N-1} where N
+
+	dropdims(mapslices(InvPartRatio, Ps, dims=dim), dims=dim)
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 #	dist = Utils.Unique(diff(sort(x)), tol=1e-6)
 #
