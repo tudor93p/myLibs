@@ -1,15 +1,6 @@
 import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure
 import PyPlot, JLD ,SparseArrays , LinearAlgebra
 
-
-
-
-error() 
-
-
-
-
-
 colors = hcat(["brown","red","coral","peru"],["gold","olive","forestgreen","lightseagreen"],["dodgerblue","midnightblue","darkviolet","deeppink"]) 
 
 

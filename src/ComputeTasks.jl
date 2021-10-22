@@ -102,7 +102,7 @@ function CompTask(C::Parameters.Calculation;
 				end  
 
 
-		mute && return F(p...; kwargs...)
+		mute && return F(p...; kwargs..., check_data=!force_comp)
 
 		println()
 
@@ -119,8 +119,8 @@ function CompTask(C::Parameters.Calculation;
 		end 
 
 	
-		out = @time F(p...; kwargs...)
-	
+		out = @time F(p...; kwargs..., check_data=!force_comp)
+
 	  println("Finished.\n")
 	
 	  return out
