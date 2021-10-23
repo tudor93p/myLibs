@@ -555,11 +555,12 @@ bvt0 = ObservablesFromGF.BondTransmission0(g_,
 																	f=trace_bond) 
 
 
+
 jx0_ = ObservablesFromGF.SiteTransmission0(g_, 
 																BondHoppings,
 																	inds_DevBonds, Rs_DevBonds;
 																	f=trace_bond, dim=1)
-
+#@show size(jx0_)
 
 close_to_dw = isapprox.(DevAtoms[1,:], minimum(abs,DevAtoms[1,:]))  
 
