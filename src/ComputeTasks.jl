@@ -101,11 +101,6 @@ function CompTask(C::Parameters.Calculation;
 
 				end  
 
-		@warn "here" 
-
-		@show force_comp 
-
-		haskey(kwargs, :check_data) && @show kwargs[:check_data]
 
 
 		mute && return F(p...; kwargs..., check_data=!force_comp)
@@ -164,9 +159,6 @@ function CompTask(C::Parameters.Calculation;
 
 		@assert !fromPlot  
 
-		@warn "here"
-		@show force_comp  
-		haskey(kwargs, :check_data) && @show kwargs[:check_data]
 
 		good_P = fill_internal(P)  
 
@@ -181,15 +173,6 @@ function CompTask(C::Parameters.Calculation;
 
 	function get_data(P::AbstractDict; fromPlot::Bool=false, kwargs...)
 
-		for k in [:force_comp, :check_data]
-
-			haskey(kwargs, k) || continue 
-			
-			@warn "here"
-			@show k kwargs[k]
-			
-		end 
-		
 		fromPlot || return get_data([P]; fromPlot=false, kwargs...)
 
 		return get_data(Parameters.convertParams_fromPlot(C, P); 

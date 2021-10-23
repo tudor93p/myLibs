@@ -1639,22 +1639,7 @@ function add_kwargs(PF::ParamFlow, F::Function; kwargs...)::Function
 
 	return function f(args...; kwa...)
 
-		@warn "here"
-
-		for (i,kw) in enumerate((kwargs, kwa1, kwa2, kwa))
-
-			for k in [:force_comp, :check_data]
-
-				haskey(kw, k) || continue 
-				
-				@show i k kw[k]
-				
-			end 
-
-		end 
-
-
-		return F(args...; kwa1..., kwa2..., kwa...)
+		F(args...; kwa1..., kwa2..., kwa...)
 
 	end 
 
