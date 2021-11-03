@@ -270,9 +270,31 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Commutator(A,B)
+function Commutator(A::AbstractMatrix, B::AbstractMatrix)::Matrix
+
+	@assert size(A)==size(B) 
 
 	A*B-B*A
+
+end
+
+
+function Commutator(A::AbstractMatrix, B::AbstractMatrix,
+										args::Vararg{Pair{Int,<:Function}}
+										)::Matrix 
+
+	@assert size(A)==size(B) 
+
+	#a1,b1,b2,a2 = indexin(1:4, map(first,args))
+
+	fs = Dict(args)
+
+	return -(*(haskey(fs, 1) ? fs[1](A) : A,
+						 haskey(fs, 2) ? fs[2](B) : B),
+					 *(haskey(fs, 3) ? fs[3](B) : B,
+						 haskey(fs, 4) ? fs[4](A) : A)
+					 )
+
 
 end
 

@@ -308,11 +308,11 @@ function get_LeadContacts(Atoms; Leads=[], isBond=nothing,
 																			LeadContacts=nothing, 
 																			kwargs...)::Vector{Vector{Int}}
 
-!isnothing(LeadContacts) && return LeadContacts
+	isnothing(LeadContacts) || return LeadContacts
 
-isempty(Leads) | isnothing(Atoms) && return []
+	isempty(Leads) | isnothing(Atoms) && return []
 
-return [findall(any.(eachcol(isBond(L[:head][1],Atoms)))) for L in Leads]
+	return [findall(any.(eachcol(isBond(L[:head][1],Atoms)))) for L in Leads]
 
 end
 

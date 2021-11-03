@@ -25,7 +25,7 @@ GF(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
 """ the system S is now coupled to another system S'
  									such that the self-energy is SE			"""
 
-GF(E::Number,H::AbstractMatrix,SE::AbstractMatrix) = GF(E,H+SE)
+GF(E::Number,H::AbstractMatrix,SE::AbstractMatrix)::Matrix = GF(E,H+SE)
 
 
 """
@@ -36,18 +36,18 @@ GF(E::Number,H::AbstractMatrix,SE::AbstractMatrix) = GF(E,H+SE)
 				args[i] = (	H( S_i -> S ), g_i )  ---> as required by SelfEn
 """
 
-GF(E::Number,H::AbstractMatrix,args...) = GF(E,H+SelfEn(args...))
+GF(E::Number,H::AbstractMatrix,args...)::Matrix = GF(E,H+SelfEn(args...))
 
 
 """ the Hamiltonian of S is null """
  
-GF(E::Number,args...) = GF(E, SelfEn(args...))
+GF(E::Number,args...)::Matrix = GF(E, SelfEn(args...))
 
 
 """ the GF of isolated S is already known, g = inv(E-H)
 							with or without coupling, the total GF is, respectively:"""
 
-GF(g::AbstractMatrix,args...) = GF(0.0,-inv(g),SelfEn(args...))
+GF(g::AbstractMatrix,args...)::Matrix = GF(0.0,-inv(g),SelfEn(args...))
 
 GF(g::AbstractMatrix) = g
 
@@ -67,18 +67,21 @@ GF(g::AbstractMatrix) = g
 
 	"""
 
-SelfEn(U::AbstractMatrix,g::AbstractMatrix) =  U'*g*U
+SelfEn(U::AbstractMatrix,g::AbstractMatrix)::Matrix =  U'*g*U
 
-SelfEn((U,g)::Tuple{AbstractMatrix,AbstractMatrix}) = SelfEn(U,g)
+SelfEn((U,g)::Tuple{AbstractMatrix,AbstractMatrix})::Matrix = SelfEn(U,g)
 			# if one tuple is given
 			
-SelfEn(args...) = sum(SelfEn.(args))
+SelfEn(args...)::Matrix = sum(SelfEn.(args))
 			#	if more than one tuple is give
 
 
-function SelfEn_fromGDecim(G, VirtLeads, LeadLayerSlicer)
+function SelfEn_fromGDecim(G::Function, 
+													 VirtLeads::AbstractDict, 
+													 LeadLayerSlicer::Function
+													 )::Function
 
-	function (k,i=1)  
+	function self_en(k,i=1)  
 
 		(K,i),slice = LeadLayerSlicer(k,i)
 
@@ -103,9 +106,18 @@ end
 #---------------------------------------------------------------------------#
 
 
-DecayWidth(SE::AbstractMatrix) = 1im*(SE-SE')
+function DecayWidth(SE::AbstractMatrix{<:Number})::LA.Hermitian  
+	
+	LA.Hermitian(1im*(SE-SE'))
 
-DecayWidth(U::AbstractMatrix,g::AbstractMatrix) = DecayWidth(SelfEn(U,g))
+end 
+
+function DecayWidth(U::AbstractMatrix{<:Number}, g::AbstractMatrix{<:Number}
+									 )::LA.Hermitian 
+	
+	DecayWidth(SelfEn(U,g))
+
+end
 
 
 #===========================================================================#
@@ -361,7 +373,7 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 
 
 
-	function G(n,m,dir) 
+	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix
 	
 		n==m && islead(n) && !meets_layer(n,dir) && return SemiInfLeadGF(n)
 
@@ -378,7 +390,7 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 
 	# ----- methods to calculate the GF ------- #	
 
-	function Gnn(n,dir)
+	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
 	
 		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
 																			coupling_toSystem(n,dir)...)
@@ -387,7 +399,7 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 	
 	end
 
-	function Gnm(n,m,dir)::Matrix{ComplexF64}
+	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
 
 		isnleft, n1, m1  = bring_closer(n,m)
 	
@@ -483,13 +495,94 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function SanchoRubio_converged!(Errors::AbstractVector{<:Real},
+																iter::Int, 
+																matrices::Vararg{<:AbstractMatrix};
+																tol::Float64=1e-8,
+																)::Bool
+
+	for M in matrices 
+		
+		Errors[iter] += LA.norm(M)
+
+	end  
+
+	nr_last = 3 
+
+	last_few = view(Errors, max(1,iter-nr_last+1):iter)
+
+
+	if (iter==length(Errors) || isinf(Errors[iter]) || isnan(Errors[iter])
+			) || (iter>=nr_last && all(>(1e10), last_few))
+
+		@warn "The Sancho-Rubio algorithm did not converge after $iter iterations. The errors are:\n $(Errors[1:iter])"
+
+		return true
+		
+	end 
+
+
+
+	return iter>=nr_last && all(<(tol), last_few)
+
+
+end
+
+function SanchoRubio_recursion(
+								Energy::Number,
+
+								max_iter::Int, 
+								alpha::AbstractMatrix{<:Number},
+								epsBulk::AbstractMatrix{<:Number},
+
+								beta::AbstractMatrix{<:Number}=alpha',
+								epsSurf::AbstractMatrix{<:Number}=epsBulk,
+								epsDualSurf::AbstractMatrix{<:Number}=epsBulk,
+
+								Errors::AbstractVector{Float64}=zeros(max_iter),
+								iter::Int=1;
+								kwargs...)::NTuple{3,Matrix{ComplexF64}}
+
+
+	if SanchoRubio_converged!(Errors, iter, alpha, beta; kwargs...)
+
+		return (epsBulk, epsSurf, epsDualSurf)
+
+	end 
+
+
+  gBulk = GF(Energy, epsBulk)
+																	# auxiliary vars
+  agb = alpha*gBulk*beta 
+
+	bga = beta*gBulk*alpha
+
+
+  return SanchoRubio_recursion(
+															 Energy,
+															 max_iter,
+															 
+															 alpha*gBulk*alpha, # new alpha 
+															 epsBulk + agb + bga, #new epsBulk 
+
+															 beta*gBulk*beta,	# new beta 
+															 epsSurf + agb,				#new epsSurf
+															 epsDualSurf + bga,		#new epsDualSurf
+
+															 Errors,
+															 iter+1;			#next iteration 
+															 kwargs...
+															 )
+
+end 
 
 function GF_SanchoRubio(Energy::Number, 
-												H_intracell::AbstractMatrix{ComplexF64},
-												H_intercell::AbstractMatrix{ComplexF64};
+												H_intracell::AbstractMatrix{<:Number},
+												H_intercell::AbstractMatrix{<:Number};
 												target::AbstractString="bulk+-",
 												max_iter::Int=50,
-												tol::Float64=1e-8)::Dict{String,Matrix{ComplexF64}}
+												kwargs...
+												)::Dict{String,Matrix{ComplexF64}}
 
 				# The system is assumed homogeneous
 				# in general, H(cell_i,cell_j) and H(cell_i)
@@ -501,81 +594,26 @@ function GF_SanchoRubio(Energy::Number,
 
 	input_keys = [["bulk"],["+","plus","positive"],["-","minus","negative"]]
 
-	desired_keys = [any(occursin.(k,[string(target)])) for k in input_keys]
+	desired_keys = [any(occursin.(k,[target])) for k in input_keys]
+
 
 	if !any(desired_keys) 
-	  println("Target not understood. Returning all.")
-		desired_keys = [true,true,true]
-	else
-		output_keys = output_keys[desired_keys]
-	end
 
+	  @warn "Target not understood. Returning all."
 
-	# ------ error calculation and convergence criterion ------ #
-
-  Errors = zeros(max_iter)
-
-
-	function updateErrors!(iter, alpha, beta)
-
-    Errors[iter] = LA.norm(alpha) + LA.norm(beta)
-
-  end
-
-	function converged(iter::Int)::Bool
-
-		if iter>=3 && all(<(tol), Errors[iter-3+1:iter])
-
-			return true
-
-		elseif iter==max_iter 
-
-			@warn "The Sancho-Rubio algorithm did not converge after $max_iter iterations. The errors are:\n $Errors"
-
-			return true
-			
-		end
-
-		return false
+		desired_keys .= true 
 
 	end
 
+	# ----- performing the iterations ------ # 
+	
+	hs = SanchoRubio_recursion(Energy, max_iter, 
+														 Matrix(H_intercell), Matrix(H_intracell);
+														 kwargs...)
 
-	# ------ performing the iterations of the algorithm ----- # 
+	# ----- return the desired GF ------- #
 
-
-	function SR_iter(alpha::AbstractMatrix{ComplexF64}=Array(H_intercell),
-									 beta::AbstractMatrix{ComplexF64}=alpha',
-									 epsBulk::AbstractMatrix{ComplexF64}=Array(H_intracell),
-									 epsSurf::AbstractMatrix{ComplexF64}=epsBulk,
-									 epsDualSurf::AbstractMatrix{ComplexF64}=epsBulk,
-									 i::Int=1)
-
-		updateErrors!(i, alpha, beta)
-
-		converged(i) && return GF.(Energy, [epsBulk,epsSurf,epsDualSurf][desired_keys])
-			
-    gBulk = GF(Energy,epsBulk)
-																		# auxiliary vars
-    agb,bga = alpha*gBulk*beta, beta*gBulk*alpha
-
-    return SR_iter( alpha*gBulk*alpha,
-										beta*gBulk*beta,
-										epsBulk + agb + bga,
-										epsSurf + agb,
-										epsDualSurf + bga,
-										i+1
-									)
-  end 
-
-	# -------- returning the desired target GF --------- #
-
-
-#	length(output_keys)==1 && return SR_iter()[1]
- 
-	return Dict(zip(output_keys, SR_iter()))
-
-
+	return Dict(k => GF(Energy, h) for (k,h,d) in zip(output_keys, hs, desired_keys) if d)
 
 end
 

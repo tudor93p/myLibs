@@ -222,12 +222,24 @@ end
 
 function CaroliConductance(G::Function, get_SE::Function,
 													 source, drain, uc::Int;
-													 kwargs...
+														f::Function=LA.tr
 													 )::ComplexF64
 
-	CaroliConductance(G(source, uc, drain, uc),
-										get_SE(source, uc), get_SE(drain, uc);
-										kwargs...)
+	gSS = G(source, uc, source, uc)
+	
+	gSD = source==drain ? gSS : G(source, uc, drain, uc) 
+
+	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
+
+	@assert isapprox(0, real(f(Algebra.Commutator(gSS,SigmaS))), atol=1e-14)
+
+	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)
+
+	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)
+
+	@assert isapprox(out1, out2, atol=1e-14) 
+
+	return out1 
 
 end 
 
@@ -236,19 +248,68 @@ end
 
 
 function CaroliConductance(G1::AbstractMatrix, 
-													 source::AbstractMatrix, drain::AbstractMatrix, 
+													 sigma_source::AbstractMatrix, 
+													 sigma_drain::AbstractMatrix, 
 													 G2::AbstractMatrix=G1; 
 													 f::Function=LA.tr)::ComplexF64
 
-	GammaS = GreensFunctions.DecayWidth(source)
-	
-	GammaD = GreensFunctions.DecayWidth(drain)
+	# formula (7) of Meir+Wingreen, PRL 68, 2512 (1992)  
+	# or formula 
+	#
+	# of Caroli et al, J.Phys.C: Solid State Phys. 4 916 (1971)
 
-	return f(GammaS*G1*GammaD*G2')
+	f(*(GreensFunctions.DecayWidth(sigma_source),
+			G1,
+			GreensFunctions.DecayWidth(sigma_drain),
+			G2'
+			)
+		)
 
 end
 
 
+
+function CaroliConductance2(G::Function, get_SE::Function,
+														source, drain, uc::Int;
+														f::Function=LA.tr
+#														kwargs...
+														)::ComplexF64
+
+
+	gSS = G(source, uc, source, uc)
+	
+	gSD = source==drain ? gSS : G(source, uc, drain, uc) 
+
+	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
+
+
+	@assert isapprox(0, real(f(Algebra.Commutator(gSS,SigmaS))), atol=1e-14)
+
+
+	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)#kwargs...)
+
+	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)#kwargs...)
+
+
+	@assert isapprox(out1, out2, atol=1e-14)
+
+	return out2
+
+end  
+
+
+
+
+
+function CaroliConductance2(gSD::AbstractMatrix,
+														SigmaS::AbstractMatrix, 
+														SigmaD::AbstractMatrix;
+														f::Function=LA.tr)::ComplexF64 
+
+	f(longitudinal_conductance_matrix(gSD, SigmaS, SigmaD))
+
+
+end 
 
 
 #===========================================================================#
@@ -258,13 +319,69 @@ end
 #---------------------------------------------------------------------------#
 
 
-function addSiteTiTj!(siteT::AbstractMatrix{<:Real}, 
+#function LongitudinalBondTransmission(gSD::AbstractMatrix,
+#																		 SigmaS::AbstractMatrix,
+#																		 SigmaD::AbstractMatrix;
+#																			)
+
+#	[(i,i+1) for 
+#	(1,2)
+#	(2,3)
+#	...
+#	(nr_at-1,nr_at)
+
+#	tr_orb = if haskey(kwargs,:f) 
+#
+#							kwargs[:f]::Function 
+#
+#					elseif haskey(kwargs, :nr_orb) 
+#
+#							kwargs[:nr_orb]::Int 
+#
+#							Operators.Trace(:orbitals; size_H=size(SigmaS,1), kwargs...)
+#
+#					else error() end 
+#
+
+
+
+#end  
+
+
+
+
+
+function longitudinal_conductance_matrix(gSD::AbstractMatrix,
+																				 SigmaS::AbstractMatrix,
+																				 SigmaD::AbstractMatrix,
+																				 )::Matrix{ComplexF64}
+
+#	left: source, SigmaS, GammaS
+#	right: drain, SigmaD, GammaD 
+	# formula (10) of PRB 68, 075306 (2003) -- or (A21)
+
+	1im*Algebra.Commutator(SigmaS,
+												 gSD*GreensFunctions.DecayWidth(SigmaD)*gSD',
+												 4=>adjoint)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function addSiteTiTj!(siteT::T,
 											dim::Int,
-											inds::NTuple{2,Int}, 
+											inds::Tuple{Vararg{Int}}, 
 											(Ri,Rj),
-											Tij::Float64)::Nothing 
+											Tij::Float64)::T where T<:AbstractMatrix{<:Real}
 
 	t = Tij .* (Rj-Ri)
+
 
 	for i in inds 
 
@@ -272,9 +389,10 @@ function addSiteTiTj!(siteT::AbstractMatrix{<:Real},
 
 	end 
 
-	return 
+	return siteT 
 
 end 
+
 
 #===========================================================================#
 #
@@ -294,7 +412,7 @@ function BondTij(Gi::AbstractMatrix{ComplexF64},
 # 
 # "im" comes already from the difference (i->j) - (j->i)! 
 
-	BondTij(Gi*W, Gj, Hji; kwargs...)
+	BondTij(Gi*W*Gj', Hji; kwargs...)
 
 end 
 
@@ -302,9 +420,17 @@ end
 function BondTij(GiW::AbstractMatrix{ComplexF64},
 								 Gj::AbstractMatrix{ComplexF64},
 								 Hji::AbstractMatrix{ComplexF64};
+								 kwargs...)::Float64
+
+	BondTij(GiW*Gj',Hji; kwargs...)
+
+end 
+
+function BondTij(Gi_W_Gjdagg::AbstractMatrix{ComplexF64},
+								 Hji::AbstractMatrix{ComplexF64};
 								 f::Function=LA.tr, kwargs...)::Float64
 
-	-2.0*imag(f(GiW*Gj'*Hji))
+	-2.0*imag(f(Gi_W_Gjdagg*Hji))
 
 end 
 

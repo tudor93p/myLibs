@@ -79,7 +79,7 @@ mutable struct Lattice
 
 
 
-		for k in [keys(sl);keys(va)], odict in [sl,va]
+		for k in vcat(keys(sl)...,keys(va)...), odict in [sl,va]
 
 			if haskey(odict, k)
 
@@ -128,6 +128,21 @@ function SquareLattice(name="A")::Lattice
 	Lattice(ArrayOps.UnitMatrix(2), name=>0)
 
 end 
+
+
+
+function HoneycombLattice()::Lattice
+
+	s3 = sqrt(3) 
+
+#	Lattice([[1, s3] [-1, s3]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
+	Lattice([[s3, 1] [s3, -1]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
+#	Lattice([[0, 1] [s3, 1]/2], ["A"=>0, "B"=> 1/3]; mode=:fractional) 
+
+
+end 
+
+
 
 
 #===========================================================================#
@@ -1415,7 +1430,7 @@ function Labels_ManyUCs(atom_labels::AbstractVector,
 #												kwargs...
 												)::Vector{String}
 
-	Algebra.OuterBinary(atom_labels, 
+	Algebra.OuterBinary(string.(atom_labels), 
 											componentToLabel.(uc_labels),
 											*, flat=true)
 end 
@@ -1510,6 +1525,7 @@ function new_atoms_dict(latt::Lattice,
 												Labels::Function)::Function 
 
 	labels_ucs = Labels.(eachvec(Int.(ns_ucs))) 
+
 
 	return function out(atoms::AbstractMatrix{<:Float64}, k)::OrderedDict
 		

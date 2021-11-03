@@ -115,7 +115,8 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Vecs(A::AbstractMatrix{T})::Matrix{T} where T<:Number 
+function Vecs(A::AbstractMatrix{T}, ::Nothing=nothing
+						 )::Matrix{T} where T<:Number 
 	
 	A
 
