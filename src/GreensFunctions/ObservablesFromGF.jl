@@ -25,12 +25,13 @@ end
 
 
 function DOS(Gr::AbstractMatrix{ComplexF64}; 
-						 Op=[1], kwargs...)::Float64
+						 Op=1, kwargs...)::Float64
 
-	trace = Operators.Trace("orbitals", Op; sum_up=true, kwargs...)
-	
-	return trace(-1/pi*imag(LA.diag(Gr)))
+	D = -1/pi*imag(LA.diag(Gr)) 
 
+	length(Op)==1 && return only(Op)*sum(D) 
+
+	return Operators.Trace("orbitals", Op; sum_up=true, kwargs...)(D)
 
 end
 
@@ -235,9 +236,9 @@ function CaroliConductance(G::Function, get_SE::Function,
 
 	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)
 
-	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)
+#	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)
 
-	@assert isapprox(out1, out2, atol=1e-14) 
+#	@assert isapprox(out1, out2, atol=1e-14) 
 
 	return out1 
 
@@ -286,12 +287,12 @@ function CaroliConductance2(G::Function, get_SE::Function,
 	@assert isapprox(0, real(f(Algebra.Commutator(gSS,SigmaS))), atol=1e-14)
 
 
-	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)#kwargs...)
+#	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)#kwargs...)
 
 	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)#kwargs...)
 
 
-	@assert isapprox(out1, out2, atol=1e-14)
+#	@assert isapprox(out1, out2, atol=1e-14)
 
 	return out2
 
@@ -310,6 +311,26 @@ function CaroliConductance2(gSD::AbstractMatrix,
 
 
 end 
+
+function FanoFactor2(G::Function, get_SE::Function,
+														source, drain, uc::Int;
+														kwargs...
+														)::ComplexF64 
+
+	FanoFactor2(G(source, uc, drain, uc), 
+							get_SE(source, uc), 
+							get_SE(drain, uc);
+							kwargs...)
+
+end
+
+function FanoFactor2(args...; f::Function=LA.tr)::ComplexF64 
+
+	X = longitudinal_conductance_matrix(args...)
+
+	return 1 - f(X*X)/f(X)
+
+end
 
 
 #===========================================================================#

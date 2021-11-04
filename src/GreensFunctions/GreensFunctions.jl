@@ -302,6 +302,7 @@ function GF_Decimation(Hopping::AbstractDict,
 	# will be called as 'HoppMatr(layer_n, layer_m)' or just 'HoppMatr(layer_n)'
 
 
+
 	return GF_Decimation(HoppMatr, NrLayers;
 											 VirtLeads..., 
 											 translate=LeadLayerSlicer,
@@ -596,6 +597,7 @@ function GF_SanchoRubio(Energy::Number,
 
 	desired_keys = [any(occursin.(k,[target])) for k in input_keys]
 
+	@assert LA.ishermitian(H_intracell)
 
 	if !any(desired_keys) 
 

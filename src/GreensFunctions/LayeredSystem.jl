@@ -399,11 +399,14 @@ function LayerAtomRels(Atoms::AbstractMatrix, LayerAtom_;
 																				get_leadcontacts=true, kwargs...)
 
 	PlotLayerAtoms_asGraph(Atoms, LayerAtom; 
-																	 kwargs..., LeadContacts=LeadContacts)
+												 kwargs..., LeadContacts=LeadContacts)
 
 	return get_leadcontacts ? out : LayerAtom
 
 end
+
+
+
 
 
 
@@ -416,12 +419,14 @@ end
 #---------------------------------------------------------------------------#
 
 function PlotLayerAtoms_asGraph(Atoms, LayerAtom;
-																isBond, dim::Int,
+																isBond=nothing, dim::Int,
 																Leads=[], LeadContacts=nothing,
 																graph_fname="",
 																kwargs...) 
 
 	isempty(graph_fname) | isnothing(Atoms) && return 
+
+	isBond::Function 
 
 	LeadContacts = get_LeadContacts(Atoms; Leads=Leads, isBond=isBond,
 																	LeadContacts=LeadsContacts,dim=dim)
@@ -499,7 +504,9 @@ end
 
 
 
-function LayerSlicer(;LayerOfAtom, IndsAtomsOfLayer, nr_orb, kwargs...)
+function LayerSlicer(;LayerOfAtom::Function, 
+										 IndsAtomsOfLayer::Function, 
+										 nr_orb::Int, kwargs...)
 
 	T = Tuple{Tuple{AbstractString,Int},
 						Tuple{Union{Colon, Vector{Int}}}}

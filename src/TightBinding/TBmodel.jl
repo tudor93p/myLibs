@@ -144,13 +144,16 @@ function BlochHamilt_Perpendicular_(Latt::Lattices.Lattice,
 	
         # Remove from Latt all dimensions != "surface" 
 				# the resulting lattice has dimension 1
-			
+	
+				error(" make sure first KeepDim works well!")
+
 	TBL = arg1_BH(Lattices.KeepDim(Latt, surface))
-
-
+	
 	ms = [length(m)==1 ? first(m) : error() for m in iter_matrix(TBL[1])]
 
+
 	Rms = Utils.VecAsMat.(iter_matrix(TBL[2]), 2)
+
 
 	AtomsUC = TBL[3] 
 

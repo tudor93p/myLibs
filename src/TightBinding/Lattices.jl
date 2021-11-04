@@ -108,7 +108,7 @@ mutable struct Lattice
 
 
 
-		return new(lv, Utils.Assign_Value(LD, 1:nr_vec), sl, va)
+		return new(lv, vcat(Utils.Assign_Value(LD, 1:nr_vec)), sl, va)
 
 	end 
 
@@ -123,20 +123,36 @@ end
 #---------------------------------------------------------------------------#
 
 
-function SquareLattice(name="A")::Lattice
 
-	Lattice(ArrayOps.UnitMatrix(2), name=>0)
+function SquareLattice(a0::Real,
+											 atoms::Union{AbstractArray,Real},
+											 args...;
+											 kwargs...
+											 )::Lattice  
+
+	SquareLattice(a0, "A", atoms, args...; kwargs...)
+
+end 
+
+function SquareLattice(a0::Real=1.0,
+											 name::Union{Symbol,AbstractString,Int}="A",
+											 atoms::Union{AbstractArray,Real}=0,
+											 args...;
+											 kwargs...
+											 )::Lattice 
+
+	Lattice(ArrayOps.UnitMatrix(2)*a0, name=>atoms, args...; kwargs...)
 
 end 
 
 
 
-function HoneycombLattice()::Lattice
+function HoneycombLattice(a0::Real=1.0)::Lattice
 
 	s3 = sqrt(3) 
 
 #	Lattice([[1, s3] [-1, s3]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
-	Lattice([[s3, 1] [s3, -1]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
+	Lattice(a0*[[3, sqrt(3)] [3, -sqrt(3)]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
 #	Lattice([[0, 1] [s3, 1]/2], ["A"=>0, "B"=> 1/3]; mode=:fractional) 
 
 
@@ -305,6 +321,7 @@ function LattVec(latt::Lattice, mode::Symbol)::Matrix{Float64}
 
 end 
 
+
 function LattVec(latt::Lattice, i::Union{Int,<:AbstractVector{Int}}, args...
 								 )::Matrix{Float64}
 
@@ -419,30 +436,46 @@ function LattDims(latt::Lattice, mode::Symbol)::Vector{Int}
 end 
 
 
-
 # check if indices make sense and return them back 
  
-function LattDims(latt::Lattice, d::Union{Int,AbstractVector{Int}}, 
-									args...; complement::Bool=false)::Vector{Int} 
+function LattDims(latt::Lattice, 
+									d::Union{Int,<:AbstractVector{Int}}, 
+									mode_d::Symbol; # how the input is meant
+									complement::Bool=false)::Vector{Int} 
 
-	D = LattDims(latt, args...)
+	D = LattDims(latt, mode_d) # all possibilities for mode_d 
 
-	d_ = IndsVecs(D, d)
+	d_ = IndsVecs(D, d) # check if the required d is valid 
 
 	return complement ? setdiff(D, d_) : d_ 
-
+	
 end 
 
+function LattDims(latt::Lattice, 
+									d::Union{Int,<:AbstractVector{Int}}, 
+									mode_d::Symbol, mode_out::Symbol;
+									kwargs...)::Vector{Int} 
 
+	d_ = LattDims(latt, d, mode_d; kwargs...)
+
+	(mode_d==:relative && mode_out==:absolute) || return d_ 
+
+	return LattDims(latt, mode_out)[d_] 
+
+#	error("Other cases not yet implemented")
+
+end  
 
 
 
 function LattDims(f::Function, latt::Lattice, args...; 
 									complement::Bool=false)::Vector{Int}
 
+	@assert count((a isa Symbol for a in args))<=1 "input-output mode?"
+
 	D = LattDims(latt, args...)
 
-	d_ = applicable(f, D) ? IndsVecs(D, f(D))  : D 
+	d_ = applicable(f, D) ? IndsVecs(D, f(D)) : D 
 
 	return complement ? setdiff(D, d_) : d_ 
 
@@ -486,11 +519,23 @@ function is_mode_rel(args...)::Bool
 end 
 
 
-function new_LattDims(ld::Vector{Int}, latt::Lattice, args...)::Vector{Int}
-	
-	is_mode_rel(latt, args...) ? latt.LattDims[ld] : ld 
-
-end 
+#function new_LattDims(latt::Lattice, 
+#											ld::Union{Int,<:AbstractVector{Int}},
+#											output_mode::Symbol,
+#											args...)::Vector{Int}
+#
+#	output_mode 
+#
+#	is_mode_rel(latt, args...) || return ld 
+#	
+#	latt.LattDims[ld] 
+#
+#	@assert q in [:stored, :absolute] 
+#
+#LattDims(latt, q)  
+#
+#end 
+#
 
 #===========================================================================#
 #
@@ -498,24 +543,28 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function LattDims!(latt::Lattice, args...; kwargs...)::Vector{Int} 
+function LattDims!(latt::Lattice,
+									 d::Union{Int,<:AbstractVector{Int}},
+									 mode::Symbol;
+									kwargs...)::Vector{Int} 
 
-	ld = LattDims(latt, args...; kwargs...)
-
-	latt.LattDims = new_LattDims(ld, latt, args...)
-
-end 
-
-function LattDims!(f::Function, latt::Lattice, args...; kwargs...
-									 )::Vector{Int}
-
-	hasmethod(f, (AbstractVector{Int},)) || return latt.LattDims  
-
-	D = LattDims(latt, args...; kwargs...)
-		
-	latt.LattDims = new_LattDims(IndsVecs(D, f(D)), latt, args...)
+	latt.LattDims = LattDims(latt, d, mode, :absolute; kwargs...)
 
 end 
+
+#function LattDims!(f::Function, latt::Lattice, 
+#									 d::Union{Int,<:AbstractVector{Int}}=latt.LattDims,
+#									 mode::Symbol=:absolute;
+#									 kwargs...
+#									 )::Vector{Int}
+#
+#	hasmethod(f, (AbstractVector{Int},)) || return LattDims(latt, :absolute)
+#
+#	d_ = LattDims(latt, d, mode; kwargs...)
+#		
+#	latt.LattDims = LattDims(IndsVecs(d_, f(d_)), latt, mode)
+#
+#end 
 
 
 
@@ -1069,10 +1118,11 @@ FlatOuterSum = OuterOp(:FlatOuterSum)
 
 
 
-function Distances(latt::Lattice, nr_neighbors::Int; 
+function Distances(latt_or_at::Union{Lattice,AbstractMatrix}, 
+									 nr_neighbors::Int; 
 									 nr_uc::Int=nr_neighbors, kwargs...)
 
-	Distances(latt, :all; nr_uc=nr_uc, kwargs...)[1:nr_neighbors]
+	Distances(latt_or_at, :all; nr_uc=nr_uc, kwargs...)[1:nr_neighbors]
 
 end 
 
@@ -1097,6 +1147,29 @@ function Distances(latt::Lattice, nr_neighbors::Symbol=:all;
 #	return nr_neighbors=="all" ? Ds : Ds[1:min(nr_neighbors,end)]
   
 end 
+
+function Distances(AtomsUC::AbstractMatrix, nr_neighbors::Symbol=:all; 
+									 kwargs...)
+
+	Ds = FlatOuterDist(AtomsUC, AtomsUC) 
+
+	Unique!(Ds; sorted=true)
+
+	deleteat!(Ds, Ds.<TOLERANCE)
+
+	nr_neighbors==:all && return Ds 
+
+	error("Not understood: 'nr_neighbors'=$nr_neighbors")
+
+end 
+
+
+
+
+									 
+
+
+
 
 
 function BondDirs(latt::Lattice, neighbor_index::Int64=1; 
@@ -1995,9 +2068,10 @@ end
 
 # 
 
-function KeepDim(latt::Lattice, args...)::Lattice 
+function KeepDim(latt::Lattice, i::Union{Int,<:AbstractVector{Int}},
+								 mode_i::Symbol)::Lattice 
 
-	act(::AbstractVector{Int}) = LattDims(latt, args...) 
+	act(::AbstractVector{Int}) = LattDims(latt, i, mode_i, :absolute) 
 
 	return Lattice(latt, :stored; act_on_vectors=act) 
 
@@ -2051,16 +2125,16 @@ end
 
 
 
-function ReduceDim(latt::Lattice, d::Union{Int,AbstractVector{Int}}, 
-										args...)::Lattice 
-
-	ld = LattDims(latt, d, args...; complement=true)
-
-	act(::AbstractVector{Int})::Vector{Int} = new_LattDims(ld, latt, args...)
-	
-	return Lattice(latt, :stored; act_on_vectors=act) 
-
-end 
+#function ReduceDim(latt::Lattice, d::Union{Int,AbstractVector{Int}}, 
+#										args...)::Lattice 
+#
+#	ld = LattDims(latt, d, args...; complement=true)
+#
+#	act(::AbstractVector{Int})::Vector{Int} = new_LattDims(ld, latt, args...)
+#	
+#	return Lattice(latt, :stored; act_on_vectors=act) 
+#
+#end 
 
 
 
