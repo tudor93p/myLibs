@@ -1,7 +1,7 @@
 module GreensFunctions
 #############################################################################
 
-import ..LA 
+import ..LA, ..ArrayOps
 
 
 import ..Utils, ..TBmodel 
@@ -423,7 +423,7 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 
 	function coupling(src::Int64,dir::String)
 	
-		return filter(!isempty,map(["right","left"]) do d
+		filter(!isempty, map(["right","left"]) do d
 	
 										dst = (dir in [d,"both"]) ? next(src,d) : nothing
 	
@@ -500,11 +500,12 @@ function SanchoRubio_converged!(Errors::AbstractVector{<:Real},
 																iter::Int, 
 																matrices::Vararg{<:AbstractMatrix};
 																tol::Float64=1e-8,
+																kwargs...
 																)::Bool
 
 	for M in matrices 
 		
-		Errors[iter] += LA.norm(M)
+		Errors[iter] += LA.norm(M, Inf)
 
 	end  
 
@@ -576,11 +577,133 @@ function SanchoRubio_recursion(
 															 )
 
 end 
+ 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function SanchoRubio_inplace(
+								Energy::Number,
+								max_iter::Int,  
+
+								H_intracell::AbstractMatrix{<:Number},
+								H_intercell::AbstractMatrix{<:Number},
+
+								k::Int;
+
+								kwargs...)::Matrix{ComplexF64}
+
+	SanchoRubio_inplace(Energy, max_iter, H_intracell, H_intercell,
+											k==1, k==2, k==3; kwargs...)[k]
+
+end  
+
+
+
+
+function SanchoRubio_inplace(
+								Energy::Number,
+								max_iter::Int,  
+
+								H_intracell::AbstractMatrix{<:Number},
+								H_intercell::AbstractMatrix{<:Number},
+
+								e1::Bool, e2::Bool, e3::Bool;	
+
+								kwargs...)::NTuple{3,AbstractMatrix{ComplexF64}}
+
+	@assert LA.ishermitian(H_intracell)  
+
+	Errors = zeros(max_iter)
+
+
+	alpha = copy(Matrix(H_intercell))
+	beta = copy(alpha')
+
+
+	eps = cat((H_intracell for i in 0:(e2|e3))..., dims=3)
+
+	gBulk = GF(Energy, selectdim(eps, 3, 1))
+
+
+	for iter in 1:max_iter  
+
+		SanchoRubio_converged!(Errors, iter, alpha, beta; kwargs...) && break  
+
+		ga = gBulk*alpha  
+
+		gb = gBulk*beta
+		
+		selectdim(eps, 3, 1) .+= beta*ga 
+
+		eps .+= (alpha * gb)[:,:,:] 
+
+		alpha *= ga  
+
+		beta *= gb 
+
+		gBulk = GF(Energy, selectdim(eps, 3, 1))
+
+	end 
+
+
+	return (gBulk, 
+					e2 ? GF(Energy, selectdim(eps,3,2)) : gBulk,
+					e3 ? GF(Energy, -(eachslice(eps,dims=3)...) + H_intracell) : gBulk
+					)
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function understand_target_GF(target::AbstractString
+															)::Tuple{Vector{String},BitVector}
+
+	input_keys = [["bulk"],["+","plus","positive"],["-","minus","negative"]]
+
+	desired_keys = [any(occursin.(k,[target])) for k in input_keys]
+
+	any(desired_keys) || return understand_target_GF()
+
+	return ["bulk","+","-"], desired_keys
+
+end  
+
+
+
+function understand_target_GF(::Nothing)::Tuple{Vector{String},BitVector}
+
+	@warn "Target not understood. Returning all."
+
+	return ["bulk","+","-"], [true,true,true] 
+
+end 
+
+
+function understand_target_GF(;target=nothing, kwargs...
+														 )::Tuple{Vector{String},BitVector}
+
+	understand_target_GF(target)
+
+end 
+
+
+	
+
+
 
 function GF_SanchoRubio(Energy::Number, 
 												H_intracell::AbstractMatrix{<:Number},
 												H_intercell::AbstractMatrix{<:Number};
-												target::AbstractString="bulk+-",
 												max_iter::Int=50,
 												kwargs...
 												)::Dict{String,Matrix{ComplexF64}}
@@ -591,24 +714,64 @@ function GF_SanchoRubio(Energy::Number,
 
 	# ------ understanding target ------ #
 	
-	output_keys = ["bulk","+","-"]
+	output_keys, desired_keys = understand_target_GF(;kwargs...)
 
-	input_keys = [["bulk"],["+","plus","positive"],["-","minus","negative"]]
 
-	desired_keys = [any(occursin.(k,[target])) for k in input_keys]
+	# ----- performing the iterations ------ # 
 
-	@assert LA.ishermitian(H_intracell)
 
-	if !any(desired_keys) 
+	gs = SanchoRubio_inplace(Energy, max_iter, H_intracell, H_intercell,
+													 desired_keys...; kwargs...)
 
-	  @warn "Target not understood. Returning all."
 
-		desired_keys .= true 
+	# ----- return the desired GF ------- #
 
-	end
+
+	return Dict(k=>g for (k,g,d) in zip(output_keys, gs, desired_keys) if d)
+
+end
+
+
+
+
+function GF_SanchoRubio(Energy::Number, 
+												H_intracell::AbstractMatrix{<:Number},
+												H_intercell::AbstractMatrix{<:Number},
+												target::AbstractString;
+												max_iter::Int=50,
+												kwargs...
+												)::Matrix{ComplexF64}
+
+	SanchoRubio_inplace(Energy, max_iter, H_intracell, H_intercell,
+											only(findall(understand_target_GF(target)[2]));
+											kwargs...)
+
+end
+
+
+
+
+function GF_SanchoRubio_rec(Energy::Number, 
+												H_intracell::AbstractMatrix{<:Number},
+												H_intercell::AbstractMatrix{<:Number};
+												max_iter::Int=50,
+												kwargs...
+												)::Dict{String,Matrix{ComplexF64}}
+
+				# The system is assumed homogeneous
+				# in general, H(cell_i,cell_j) and H(cell_i)
+
+#	@warn "Obsolete implementation"
+
+	# ------ understanding target ------ #
+
+	output_keys, desired_keys = understand_target_GF(;kwargs...)
+
 
 	# ----- performing the iterations ------ # 
 	
+	@assert LA.ishermitian(H_intracell)
+
 	hs = SanchoRubio_recursion(Energy, max_iter, 
 														 Matrix(H_intercell), Matrix(H_intracell);
 														 kwargs...)

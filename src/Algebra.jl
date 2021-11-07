@@ -1479,7 +1479,8 @@ end
 
 
 
-function get_Bonds(atoms::AbstractMatrix, len_or_f::Union{<:Function,<:Real}; kwargs...)
+function get_Bonds(atoms::AbstractMatrix, 
+									 len_or_f::Union{<:Function,<:Real}; kwargs...)
 
 	get_Bonds(atoms, atoms, len_or_f; order_pairs=true, kwargs...)
 						
@@ -1487,9 +1488,14 @@ end
 
 
 
-function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, bondlength::Real; tol=1e-8,dim=1, kwargs...)
+function get_Bonds(atoms1::AbstractMatrix,
+									 atoms2::AbstractMatrix, 
+									 bondlength::Real;
+									 tol::Float64=1e-8, dim::Int, kwargs...)
 
-	get_Bonds(atoms1, atoms2, EuclDistEquals(bondlength; tol=tol, dim=dim); dim=dim, kwargs...)
+	get_Bonds(atoms1, atoms2, 
+						EuclDistEquals(bondlength; tol=tol, dim=dim); 
+						dim=dim, kwargs...)
 
 end 
 
@@ -1497,8 +1503,8 @@ end
 
 function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix, 
 									 isBond::Function; 
-									 dim=1, order_pairs=false, N=5000,
-										)::Vector{Tuple{Int,Int}}
+									 dim::Int, order_pairs::Bool=false, N::Int=5000,
+										)::Vector{NTuple{2,Int}}
 
 	nr_at = [size(atoms1,dim), size(atoms2,dim)]
 
@@ -1516,18 +1522,27 @@ function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix,
 	I = ((b,c) for b=1:nr_batches[1]  
 								for c=UnitRange(1, order_pairs ? b : nr_batches[2])	)
 
-	function get_pairs((b,c))
+
+
+
+	function get_pairs((b,c)::NTuple{2,Int})
 
 		x0 = [batch_offsets[1][b], batch_offsets[2][c]]
+
 
 		d = isBond(selectdim(atoms1, dim, batches[1][b]),
 							 selectdim(atoms2, dim, batches[2][c]),
 							 dim=dim)
 
+
 		return sort(map(findall(order_pairs && b==c ? LA.triu(d,1) : d)) do x
 
-							Tuple(sort(x.I.+x0)) 
+							xi = x.I .+ x0 
+							
+							order_pairs && sort!(xi)  
 
+							return Tuple(xi)
+							
 						end)
 
 	end

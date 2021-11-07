@@ -147,16 +147,18 @@ end
 
 
 
-function HoneycombLattice(a0::Real=1.0)::Lattice
+function HoneycombLattice(a0::Real=1.0;
+												 )::Lattice
 
 	s3 = sqrt(3) 
 
-#	Lattice([[1, s3] [-1, s3]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
 	Lattice(a0*[[3, sqrt(3)] [3, -sqrt(3)]]/2, ["A"=>0, "B"=> 1/3]; mode=:fractional) 
-#	Lattice([[0, 1] [s3, 1]/2], ["A"=>0, "B"=> 1/3]; mode=:fractional) 
 
 
 end 
+
+
+
 
 
 
@@ -420,12 +422,11 @@ end
 #
 #---------------------------------------------------------------------------#
 
-LattDims(latt::Lattice)::Vector{Int} = 1:LattDim(latt) 
 
 
-function LattDims(latt::Lattice, mode::Symbol)::Vector{Int} 
+function LattDims(latt::Lattice, mode::Symbol=:relative)::Vector{Int} 
 
-	mode==:relative && return LattDims(latt) # DEFAULT
+	mode==:relative && return 1:LattDim(latt)  # DEFAULT
 
 	(mode==:stored || isintact(latt)) && return IndsVecs(latt.LattVec)
 
@@ -440,7 +441,7 @@ end
  
 function LattDims(latt::Lattice, 
 									d::Union{Int,<:AbstractVector{Int}}, 
-									mode_d::Symbol; # how the input is meant
+									mode_d::Symbol=:relative; # how the input is meant
 									complement::Bool=false)::Vector{Int} 
 
 	D = LattDims(latt, mode_d) # all possibilities for mode_d 
@@ -519,23 +520,6 @@ function is_mode_rel(args...)::Bool
 end 
 
 
-#function new_LattDims(latt::Lattice, 
-#											ld::Union{Int,<:AbstractVector{Int}},
-#											output_mode::Symbol,
-#											args...)::Vector{Int}
-#
-#	output_mode 
-#
-#	is_mode_rel(latt, args...) || return ld 
-#	
-#	latt.LattDims[ld] 
-#
-#	@assert q in [:stored, :absolute] 
-#
-#LattDims(latt, q)  
-#
-#end 
-#
 
 #===========================================================================#
 #
@@ -545,7 +529,7 @@ end
 
 function LattDims!(latt::Lattice,
 									 d::Union{Int,<:AbstractVector{Int}},
-									 mode::Symbol;
+									 mode::Symbol=:relative;
 									kwargs...)::Vector{Int} 
 
 	latt.LattDims = LattDims(latt, d, mode, :absolute; kwargs...)
@@ -1018,7 +1002,11 @@ function parse_input_labels(latt::Lattice, kind::Symbol, labels_contain, label):
 end 
 
 
-PosAtoms(X::AbstractArray; kwargs...)::Array = X
+function PosAtoms(X::AbstractArray{T,N}; kwargs...
+								 )::Array{T,N} where {T<:Real,N} 
+	X
+
+end
 
 function PosAtoms(latt::Lattice;
 									labels_contain=nothing,
@@ -1242,10 +1230,9 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function ucsUC_Polygon(#v::AbstractMatrix{Int}, 
-											 mM::AbstractMatrix{Int}, 
+function ucsUC_Polygon(mM::AbstractMatrix{Int}, 
 											 polygon::AbstractMatrix{Int},
-											 )::Tuple{Int,Function}#; asfunction=false)
+											 )::Tuple{Int,Function}
 
 
 	is_inside = if VecLen(polygon)==1
@@ -1263,7 +1250,8 @@ function ucsUC_Polygon(#v::AbstractMatrix{Int},
 							end 
 
 
-	uc_candidates = vectors_of_integers(VecLen(mM), Vecs(mM, 2)[:].+1, Vecs(mM, 1)[:].-1)
+	uc_candidates = vectors_of_integers(VecLen(mM), 
+																			Vecs(mM, 2)[:].+1, Vecs(mM, 1)[:].-1)
 
 
 
@@ -1285,9 +1273,9 @@ function ucsUC_Polygon(#v::AbstractMatrix{Int},
 
 			s = Vecs(shifts, i)
 	
-			v = TOLERANCE * s / (LA.norm(s) + TOLERANCE/100)
+			v = TOLERANCE * s / (LA.norm(s) + TOLERANCE/100) #small vector 
 
-			return out(v .+ uc_candidates)
+			return out(uc_candidates .- v) # easily displace  
 
 		end )
 
@@ -1325,7 +1313,8 @@ ucs_in_UC(N::Real; kwargs...) = ucs_in_UC(hcat(N); kwargs)
 ucs_in_UC(N::Utils.List; kw...) = ucs_in_UC(LA.Diagonal(vcat(N...)); kw...) 
 
 
-function ucs_in_UC(N::AbstractMatrix{Int};  method2D_cells=:Polygon, kwargs...) where T
+function ucs_in_UC(N::AbstractMatrix{Int};  
+									 method2D_cells::Symbol=:Polygon, kwargs...) 
 
 	nr_vecs = LA.checksquare(N)
 
@@ -1626,7 +1615,6 @@ function Superlattice!(latt::Lattice, n, args...;
 											 Labels=nothing, kwargs...)::Lattice
 
 	n = SquareInt_LattCoeff(latt, n, args...)
-
 
 	new_atoms = new_atoms_dict(latt, ucs_in_UC(n; kwargs...), Labels)
 
@@ -2058,20 +2046,27 @@ end
 
 
 
-function KeepDim!(latt::Lattice, args...)::Lattice 
+function KeepDim!(latt::Lattice, 
+									d::Union{Int,<:AbstractVector{Int}},
+									mode::Symbol=:relative;
+									complement::Bool=false
+									)::Lattice 
 
-	LattDims!(latt, args...)
+	LattDims!(latt, d, mode; complement=complement)
 
 	return latt 
 
 end 
 
-# 
 
-function KeepDim(latt::Lattice, i::Union{Int,<:AbstractVector{Int}},
-								 mode_i::Symbol)::Lattice 
+function KeepDim(latt::Lattice, 
+								 d::Union{Int,<:AbstractVector{Int}},
+								 mode::Symbol=:relative;
+								 complement::Bool=false)::Lattice 
+	
+	ld = LattDims(latt, d, mode, :absolute; complement=complement)
 
-	act(::AbstractVector{Int}) = LattDims(latt, i, mode_i, :absolute) 
+	act(::AbstractVector{Int})::Vector{Int} = ld
 
 	return Lattice(latt, :stored; act_on_vectors=act) 
 
@@ -2098,7 +2093,7 @@ function ReduceDim(latt::Lattice)::Lattice
 	
 	act(::AbstractVector{Int})::Vector{Int} = Int[] 
 
-	return Lattice(latt, :stored; act_on_vectors=act)
+	return Lattice(latt; act_on_vectors=act)
 
 end  
 
@@ -2111,30 +2106,19 @@ end
 #---------------------------------------------------------------------------#
 
 
-function ReduceDim!(latt::Lattice, d::Union{Int,AbstractVector{Int}}, 
-										args...)::Lattice 
+function ReduceDim!(args...; complement::Bool=true)::Lattice 
 
-	ld = LattDims(latt, d, args...; complement=true)
-
-	LattDims!(latt, ld, args...)
-
-	return latt
+	KeepDim!(args...; complement=complement)
 
 end  
 
 
 
+function ReduceDim(args...; complement::Bool=true)::Lattice 
 
-#function ReduceDim(latt::Lattice, d::Union{Int,AbstractVector{Int}}, 
-#										args...)::Lattice 
-#
-#	ld = LattDims(latt, d, args...; complement=true)
-#
-#	act(::AbstractVector{Int})::Vector{Int} = new_LattDims(ld, latt, args...)
-#	
-#	return Lattice(latt, :stored; act_on_vectors=act) 
-#
-#end 
+	KeepDim(args...; complement=complement)
+
+end 
 
 
 

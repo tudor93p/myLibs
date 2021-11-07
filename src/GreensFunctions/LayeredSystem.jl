@@ -312,9 +312,19 @@ function get_LeadContacts(Atoms; Leads=[], isBond=nothing,
 
 	isempty(Leads) | isnothing(Atoms) && return []
 
-	return [findall(any.(eachcol(isBond(L[:head][1],Atoms)))) for L in Leads]
+	return [get_LeadContacts(Atoms,L[:head][1],isBond) for L in Leads]
 
 end
+
+function get_LeadContacts(device::Union{Lattices.Lattice, AbstractMatrix},
+													lead::Union{Lattices.Lattice, AbstractMatrix},
+													isBond::Function)::Vector{Int} 
+
+	findall(any.(eachcol(isBond(Lattices.PosAtoms(lead),
+															Lattices.PosAtoms(device)))))
+														 
+end 
+
 
 
 

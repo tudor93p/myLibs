@@ -15,7 +15,13 @@ import ..Utils, ..Algebra, ..Lattices
 #---------------------------------------------------------------------------#
 
 
-default_surface(Latt::Lattices.Lattice)::Int = min(1,Lattices.LattDim(Latt))
+function default_surface(Latt::Lattices.Lattice)::Int 
+	
+	@assert Lattices.LattDim(Latt)>0
+
+	return 1
+
+end 
 
 
 
@@ -145,8 +151,6 @@ function BlochHamilt_Perpendicular_(Latt::Lattices.Lattice,
         # Remove from Latt all dimensions != "surface" 
 				# the resulting lattice has dimension 1
 	
-				error(" make sure first KeepDim works well!")
-
 	TBL = arg1_BH(Lattices.KeepDim(Latt, surface))
 	
 	ms = [length(m)==1 ? first(m) : error() for m in iter_matrix(TBL[1])]

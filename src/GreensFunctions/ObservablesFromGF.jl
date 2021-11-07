@@ -232,7 +232,9 @@ function CaroliConductance(G::Function, get_SE::Function,
 
 	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
 
-	@assert isapprox(0, real(f(Algebra.Commutator(gSS,SigmaS))), atol=1e-14)
+	A = real(f(Algebra.Commutator(gSS,SigmaS)))
+
+	@assert isapprox(0, A, atol=1e-10) A
 
 	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)
 
@@ -284,7 +286,9 @@ function CaroliConductance2(G::Function, get_SE::Function,
 	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
 
 
-	@assert isapprox(0, real(f(Algebra.Commutator(gSS,SigmaS))), atol=1e-14)
+	A = real(f(Algebra.Commutator(gSS,SigmaS)))
+
+	@assert isapprox(0, A, atol=1e-10) A
 
 
 #	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)#kwargs...)
@@ -298,16 +302,42 @@ function CaroliConductance2(G::Function, get_SE::Function,
 
 end  
 
+function CaroliConductance2(Gr::Function, Ga::Function,
+														get_SE::Function,
+														source, drain, uc::Int;
+														f::Function=LA.tr
+#														kwargs...
+														)::ComplexF64
+
+	gSD_ret = Gr(source, uc, drain, uc) 
+
+	gDS_adv = Ga(drain, uc, source, uc) 
+
+	@assert isapprox(gDS_adv,gSD_ret') "NO TRS"
+
+	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
+
+#	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)
+
+	out2 = CaroliConductance2(gSD_ret, SigmaS, SigmaD, gDS_adv; f=f)
+
+
+#	@assert isapprox(out1, out2, atol=1e-14)
+
+	return out2
+
+end  
 
 
 
 
-function CaroliConductance2(gSD::AbstractMatrix,
+function CaroliConductance2(gSD_ret::AbstractMatrix,
 														SigmaS::AbstractMatrix, 
-														SigmaD::AbstractMatrix;
+														SigmaD::AbstractMatrix,
+														gDS_adv...;
 														f::Function=LA.tr)::ComplexF64 
 
-	f(longitudinal_conductance_matrix(gSD, SigmaS, SigmaD))
+	f(longitudinal_conductance_matrix(gSD_ret, SigmaS, SigmaD, gDS_adv...))
 
 
 end 
@@ -372,9 +402,10 @@ end
 
 
 
-function longitudinal_conductance_matrix(gSD::AbstractMatrix,
+function longitudinal_conductance_matrix(gSD_ret::AbstractMatrix,
 																				 SigmaS::AbstractMatrix,
 																				 SigmaD::AbstractMatrix,
+																				 gDS_adv::AbstractMatrix=gSD_ret',
 																				 )::Matrix{ComplexF64}
 
 #	left: source, SigmaS, GammaS
@@ -382,7 +413,7 @@ function longitudinal_conductance_matrix(gSD::AbstractMatrix,
 	# formula (10) of PRB 68, 075306 (2003) -- or (A21)
 
 	1im*Algebra.Commutator(SigmaS,
-												 gSD*GreensFunctions.DecayWidth(SigmaD)*gSD',
+												 gSD_ret*GreensFunctions.DecayWidth(SigmaD)*gDS_adv,
 												 4=>adjoint)
 
 end 
