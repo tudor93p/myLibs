@@ -1,7 +1,6 @@
 import myLibs: GreensFunctions, Lattices, H_Superconductor,TBmodel, LayeredSystem,Algebra, ObservablesFromGF,Utils, BandStructure
 import PyPlot, LinearAlgebra
 
-PyPlot.close.(1:10)
 
 # tests as in
 # J Comput Electron (2013) 12:203–231 
@@ -9,8 +8,7 @@ PyPlot.close.(1:10)
 # Caio H. Lewenkopf · Eduardo R. Mucciolo
 
 
-# Armchair # edges, M = 360 and N = 70 (aspect ratio W/L = 5.2) 
- 
+
 
 function plot_atoms(n::Int, atoms::AbstractMatrix; kwargs...)
 
@@ -21,7 +19,7 @@ function plot_atoms(n::Int, atoms::AbstractMatrix; kwargs...)
 end  
 
 function plot_atoms(ax, atoms::AbstractMatrix; 
-										max_atoms::Int = 30,
+										max_atoms::Int=9999,#40,
 										kwargs...)
 	
 	nr_atoms =  Lattices.NrVecs(atoms)
@@ -37,13 +35,13 @@ function plot_atoms(ax, atoms::AbstractMatrix;
 	if nr_atoms>max_atoms 
 
 		ax.scatter(Lattices.Vecs(atoms, max_atoms+1)...;
-							 kwargs..., color="red")
-
+							 Utils.dict_diff(kwargs,:c,:color)...,
+							c="red")
 	end 
 
 end  
 
-function plot_layers(ax_or_n; max_nr_layers::Int=20, 
+function plot_layers(ax_or_n; max_nr_layers::Int=999,#30, 
 										 AtomsOfLayer::Function,
 										 NrLayers::Int,
 										 IndsAtomsOfLayer=nothing,
@@ -62,7 +60,8 @@ function plot_layers(ax_or_n; max_nr_layers::Int=20,
 	
 		plot_atoms(ax_or_n, atoms;
 							 color = layer>max_nr_layers ? "red" : color,
-							 kw..., kwargs...)
+							 Utils.dict_diff(kwargs,:c,:color)...,
+							 kw...)
 	
 		layer>max_nr_layers && break 
 
@@ -180,34 +179,139 @@ end
 
 
 
+function square_latt_lead(contact::Int, dir::Int, label::AbstractString;
+													AtomsOfLayer::Function, 
+													square_uc::Int=1,
+													kwargs...)
+
+	atoms = AtomsOfLayer(contact) 
 
 
+	a = dir * (if Lattices.NrVecs(atoms)>1 
+							 
+							 only(Lattices.Distances(atoms,1))
+
+							else 1
+
+							end)
+
+	atoms[1,:] .+= a
+
+	latt = Lattices.SquareLattice(a, label, atoms, nothing, 1)
+
+	square_uc==4 && Lattices.Superlattice!(latt, 4)
+	
+	return latt, abs(a)
+
+end  
+
+
+function honeycomb_latt_lead(contact::Int, dir::Int, label::AbstractString;
+														 AtomsOfLayer::Function, 
+														 kwargs...)
+
+	atoms = mapreduce(AtomsOfLayer, Lattices.Cat,
+										contact+dir :dir: contact+4dir)
+
+	L = ribbon_x_armchair2(Lattices.NrVecs(AtomsOfLayer(1)))
+
+	a = only(Lattices.Distances(atoms,1))
+
+	return Lattices.Lattice(dir*L.LattVec,atoms,
+													nothing,
+													L.LattDims), a
+end 
+
+function lead_contacts(contact::Int,
+											 lead::Lattices.Lattice, a::Real; 
+											 AtomsOfLayer::Function, IndsAtomsOfLayer::Function, 
+											 kwargs...)
+
+
+	isBond = Algebra.EuclDistEquals(a; tol=1e-5, dim=2)
+
+	lc = LayeredSystem.get_LeadContacts(AtomsOfLayer(contact), lead, isBond)
+
+	return IndsAtomsOfLayer(contact)[lc]
+
+end 
+
+two_lead_args(;NrLayers::Int, kwargs...) =  [(1, -1, "Left"), (NrLayers, 1, "Right")] 
+
+
+
+function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, kwargs...)
+
+	mapreduce(AtomsOfLayer, hcat, 1:NrLayers)
+
+end 
+
+dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,),	[1]) 
+
+get_TBL(l::Lattices.Lattice) = Lattices.NearbyUCs(l, 1)
+
+
+function prep_lead(label, latt, lead_hopp, del=delta)
+
+	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, get_TBL, lead_hopp)
+	
+	function gf(E::Real; k=[])::Matrix{ComplexF64}
+	
+		GreensFunctions.GF_SanchoRubio(E + del, intra(k), only(values(inter)), "+")
+	
+	end
+	
+	
+	lead_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; lead_hopp...)
+
+	return LayeredSystem.PrepareLead(label, latt, lead_hopp_matr, lead_hopp_matr, gf)
+	
+end 
+
+function get_lead_hopp(latt) 
+	
+	H_Superconductor.SC_Domain((ChemicalPotential=0,),
+														 Lattices.Distances(latt,1))
+
+end
+
+
+colors = [["orange","green"],["blue","gold"]]
+
+
+nr_atoms_layer = 1+ 3*2
+
+#nr_layers = Int(ceil(nr_atoms_layer*5.2))
+
+#nr_layers = Int(ceil(nr_atoms_layer*2))
 #
-#NrLayers =  360#N
-#
-#NrAtomsPerLayer = 1 + 3*23 # M 
-#
-#delta = 0.005im 
-#
-#
-#default_LayerAtomRels = Dict(
-#
-#			:NrLayers=> NrLayers,
-#
-#			:LayerOfAtom => LayerOfAtom,
-#
-#			:IndsAtomsOfLayer => IndsAtomsOfLayer,
-#
-#			:AtomsOfLayer => AtomsOfLayer
-#
-#			)
-#
-#
-#
-#
-#
-#
-##PyPlot.figure(7)
+
+nr_layers = 120 
+
+
+delta = 0.01im
+
+@show nr_layers nr_atoms_layer
+
+LayerAtomRels = slices_armchair(nr_layers, nr_atoms_layer) 
+
+
+
+
+
+
+function set_title(fig,nr_layers=nr_layers,nr_atoms_layer=nr_atoms_layer)
+
+	fig.suptitle(string("Figure ",
+										 fig.number,
+										 ": $nr_layers slices x $nr_atoms_layer atoms"))
+
+end
+
+
+
+
+
 #
 #inds_bonds = NTuple{2,Int}[] 
 #Rs_bonds = Vector{Vector{Float64}}[]
@@ -247,255 +351,46 @@ end
 #inds_bonds=inds_bonds[order]
 #Rs_bonds=Rs_bonds[order]
 #
-#
-#leadlabels = ["Left","Right"]
-#
-#
-#
-#
-#LeadLatts,LeadContacts = honeycomb_LLC 
-#
-#@show length.(LeadContacts)
-#
-#
-#lead_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,),
-#																			 Lattices.Distances(rand(LeadLatts),1))
-#
-#@show lead_hopp[:Hopping]([1,0],[0,0])
-#@show lead_hopp[:Hopping]([0,0],[0,1]) 
-#
-#
-#
-#
-#println()
-#
-#@show lead_hopp[:Hopping]([sqrt(3),0],[0,0])
-#@show lead_hopp[:Hopping]([0,0],[0,sqrt(3)])
-#
-#println() 
-#
-#
-#
-#
-#
-#
-##===========================================================================#
-##
-##
-##
-##---------------------------------------------------------------------------#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,),	[1]) 
 #		
 #
-#isBond = Algebra.EuclDistEquals(1; tol=1e-5,dim=2)
 #
-#
-#
-#
-#
-#
-#lead_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; lead_hopp...)
-#
-##@show lead_hopp_matr(AtomsOfLayer(1),Lattices.PosAtoms(LeadLatts[1]))
-##@show lead_hopp_matr(AtomsOfLayer(NrLayers),Lattices.PosAtoms(LeadLatts[2]))
-#
-#get_TBL(l::Lattices.Lattice) = Lattices.NearbyUCs(l, 1)
-#
-#leads_ret,leads_adv = map([delta,-delta]) do del
-#
-#	map(zip(leadlabels, LeadLatts)) do (label, latt)
-#
-#		intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, get_TBL, lead_hopp)
-#	
-#		function gf(E::Real; k=[])::Matrix{ComplexF64}
-#	
-#			GreensFunctions.GF_SanchoRubio(E + del, intra(k), only(values(inter)), "+")
-#		
-#		end
-#	
-#	
-#		return LayeredSystem.PrepareLead(label, latt, lead_hopp_matr, lead_hopp_matr, gf)
-#	
-#	end 
-#
-#end
-#
-#
-#
-#println()
-#
-#
-##===========================================================================#
-##
-## Lead lattice, spectrum and DOS 
-##
-##---------------------------------------------------------------------------#
-#
-#for l in LeadLatts 
-#
-#	k  = only(keys(l.Atoms))
-#
-#	v = Lattices.Atoms_ManyUCs(l,StopStart=(0,0))
-#
-#	plot_atoms(3, v; label=k, alpha=0.3, s=70)
-#
-#end 
-#
-#if false 
-#
-#	PyPlot.figure(6) 
-#	
-#	lead_Energies = LinRange(-4.2,4.2, 100) 
-#	
-#	lead_gf_labels = ["+","bulk"] 
-#	
-#	DOS = zeros(2, 2,length(lead_Energies))
-#
-#	dev_TBi = ([0],[[0,0]],mapreduce(AtomsOfLayer, hcat, 1:NrLayers))
-#
-#	spectrum_device = BandStructure.Diagonalize(TBmodel.Bloch_Hamilt(dev_TBi; dev_hopp...),zeros(0,1);dim=2)
-#
-#	PyPlot.scatter(spectrum_device["kLabels"], spectrum_device["Energy"], alpha=0.5, label= "Device",s=10,zorder=4)
-#
-#
-#
-#	for (il,(l1,L1)) in enumerate(zip(leads_ret,LeadLatts))
-#	
-#		H = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(L1,1);
-#														 argH="k",
-#														 lead_hopp...)
-#	
-#		kPoints, kTicks = Utils.PathConnect(Lattices.BrillouinZone(L1), 150; dim=2)
-#	
-#		spectrum = BandStructure.Diagonalize(H, kPoints; dim=2)
-#	
-#		PyPlot.scatter(spectrum["kLabels"], spectrum["Energy"], alpha=0.5,
-#									 label= only(Lattices.sublatt_labels(L1)),s=10)
-#	
-#	
-#		PyPlot.xlabel(spectrum["kLabel"])
-#		PyPlot.ylabel("Energy")
-#	
-#		intra, inter = TBmodel.BlochHamilt_ParallPerp(L1, get_TBL, lead_hopp)
-#	
-#		intra_,inter_ = intra(), only(values(inter))
-#	
-#	
-#	#	il==1 && @show intra_ inter_ 
-#	
-##		for e0 in LinearAlgebra.eigvals(Matrix(intra_))
-#	
-#	#		PyPlot.plot([0,1.7],[e0,e0],linestyle=":",c="gray")
-#	
-##		end 
-#
-#
-#
-##		@time begin 
-#		for (ie,E) in enumerate(lead_Energies)
-#		
-#			gfs = GreensFunctions.GF_SanchoRubio(E + delta, intra_, inter_; 
-#																					 target=join(lead_gf_labels))
-#
-##			@assert isapprox(GreensFunctions.GF_SanchoRubio(E + delta, intra_, inter_, "-"),
-##											 GreensFunctions.GF_SanchoRubio_rec(E + delta, intra_, inter_;																			 target="-")["-"],
-##											 rtol=1e-8)
-##
-##@assert isapprox(gfs["+"], l1[:GF](E)[1], rtol=1e-8)
-#
-#
-#			for (igf,gflab) in enumerate(lead_gf_labels)
-#
-#				DOS[il,igf,ie] = ObservablesFromGF.DOS(gfs[gflab])
-#		
-#			end 
-#		
-#	
-#			print("\r",round(100ie/length(lead_Energies),digits=1),"%     ") 
-#
-##		end 
-#		end 
-#
-#		println()#"\r                     ")
-#
-#	
-#	end 
-#
-#
-#	DOS = Utils.Rescale(DOS, [1,1.7], [0, maximum(DOS)])  
-#	
-#	
-#		
-#	for (igf,gflab) in enumerate(lead_gf_labels)
-#	
-#		dos0 = DOS[1, igf, :]
-#	
-#		if all((isapprox(DOS[il, igf, :],dos0) for il in 2:length(leads_ret)))
-#	
-#			PyPlot.plot(dos0, lead_Energies; label=gflab, alpha=0.8)
-#	
-#		else 
-#	
-#			for (il,l1) in enumerate(leads_ret)
-#			
-#				PyPlot.plot(DOS[il, igf, :], lead_Energies;
-#										label=string(l1[:label]," ",gflab), alpha=0.5)
-#	
-#			end 
-#	
-#		end 
-#	
-#	end 
-#	
-#	PyPlot.xlim(0,1.7)
-#	PyPlot.legend() 
-#	
-#end 
-##===========================================================================#
-##
-##
-##
-##---------------------------------------------------------------------------#
-#
-#														
-#
-#
-#NG_ret = LayeredSystem.NewGeometry(rand(0,0), 
-#															 default_LayerAtomRels; 
-#															 LeadContacts=LeadContacts,
-#															 Leads=leads_ret, dim=2, 
-#															 dev_hopp...)
-#
-#NG_adv = LayeredSystem.NewGeometry(rand(0,0), 
-#															 default_LayerAtomRels; 
-#															 LeadContacts=LeadContacts,
-#															 Leads=leads_adv, dim=2, 
-#															 dev_hopp...)
-#
-#@assert length(NG_ret)==length(NG_adv)==4 
-#
-#
-#LayerAtom_ret, Slicer_ret, LeadRels_ret, VirtLeads_ret = NG_ret
+function NewGeometry(LayerAtomRels, LeadContacts, leads)
+
+	NG = LayeredSystem.NewGeometry(rand(0,0), 
+															 LayerAtomRels; 
+															 LeadContacts=LeadContacts,
+															 Leads=leads, dim=2, 
+															 dev_hopp...)
+
+	@assert length(NG)==4 
+	
+	return NG  
+
+end
+
+
 #LayerAtom_adv, Slicer_adv, LeadRels_adv, VirtLeads_adv = NG_adv
-#
-#
-#Gr = GreensFunctions.GF_Decimation(dev_hopp, VirtLeads_ret, Slicer_ret;
-#																			 LayerAtom_ret...)
-#
-#Ga = GreensFunctions.GF_Decimation(dev_hopp, VirtLeads_adv, Slicer_adv;
-#																			 LayerAtom_adv...)
-#
-#
-#if false 
+
+function GF((LayerAtom,Slicer,LeadRels,VirtLeads))
+
+	GreensFunctions.GF_Decimation(dev_hopp, VirtLeads, Slicer;
+																			 LayerAtom...)
+
+end 
+
+function get_SE(g, (LayerAtom,Slicer,LeadRels,VirtLeads))
+
+	GreensFunctions.SelfEn_fromGDecim(g, VirtLeads, Slicer)
+
+end 
+function setIndRe!(X,x,inds...)
+
+	@assert imag(x)<1e-10  x
+
+	X[inds...] = real(x)
+
+end 
+
 #
 #
 ##ga = Ga(Energy) 
