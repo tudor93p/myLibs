@@ -1488,16 +1488,85 @@ end
 
 
 
-function get_Bonds(atoms1::AbstractMatrix,
-									 atoms2::AbstractMatrix, 
-									 bondlength::Real;
+function get_Bonds(atoms1::Union{Function,AbstractMatrix},
+									 atoms2::Union{Function,AbstractMatrix}, 
+									 bondlength::Real,
+									 args...;
 									 tol::Float64=1e-8, dim::Int, kwargs...)
 
 	get_Bonds(atoms1, atoms2, 
-						EuclDistEquals(bondlength; tol=tol, dim=dim); 
+						EuclDistEquals(bondlength; tol=tol, dim=dim),
+						args...;
 						dim=dim, kwargs...)
 
 end 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function get_Bonds(get_atoms_batch::Function,
+									 len_or_f::Union{Function,Real},
+									 output_index::Function,
+									 batches::AbstractVector{NTuple{2,Int}};
+									kwargs...)
+
+	get_Bonds(get_atoms_batch, get_atoms_batch,
+						len_or_f,
+						output_index, output_index,
+						batches;
+						kwargs...)
+
+end 
+
+
+
+function get_Bonds(get_atoms_batch_1::Function,
+									 get_atoms_batch_2::Function,
+									 isBond::Function,
+									 output_index_1::Function,
+									 output_index_2::Function,
+									 batches::AbstractVector{NTuple{2,Int}};
+									 order_pairs::Bool=false,
+									kwargs...)
+
+	Utils.flatmap(batches) do (b,c)
+
+		order = order_pairs && b==c 
+
+		d = isBond(get_atoms_batch_1(b), get_atoms_batch_2(c); kwargs...)
+
+		inds_batch_1, inds_batch_2 = output_index_1(b), output_index_2(c)
+
+		return sort(map(findall(order ? LA.triu(d,1) : d)) do bond
+
+			(i,j) = bond.I 
+
+			I = inds_batch_1[i]
+			J = inds_batch_2[j]
+
+			return (!order || I<J) ? (I,J) : (J,I)
+							
+		end)
+
+	end |> sort 
+
+end 
+
+
+
+function split_in_bathces(n::Int, N::Int)::Vector{OrdinalRange{Int,Int}}
+
+	Utils.EqualDistributeBallsToBoxes_cumulRanges(n, Int(ceil(n/N)))
+
+end 
+
+
 
 
 
@@ -1506,51 +1575,41 @@ function get_Bonds(atoms1::AbstractMatrix, atoms2::AbstractMatrix,
 									 dim::Int, order_pairs::Bool=false, N::Int=5000,
 										)::Vector{NTuple{2,Int}}
 
-	nr_at = [size(atoms1,dim), size(atoms2,dim)]
-
-	nr_batches = Int.(ceil.(nr_at/N))
-
-	batches = map(zip(nr_at,nr_batches)) do n 
-	
-		Utils.EqualDistributeBallsToBoxes_cumulRanges(n...)
-
-	end 
-		
-
-	batch_offsets = [cumsum([0;map(length, B[1:end-1])]) for B in batches]
-
-	I = ((b,c) for b=1:nr_batches[1]  
-								for c=UnitRange(1, order_pairs ? b : nr_batches[2])	)
+	batches1 = split_in_bathces(size(atoms1,dim), N)
+	batches2 = split_in_bathces(size(atoms2,dim), N)
 
 
+	I = [(b,c) for b=axes(batches1,1)
+			 for c=UnitRange(1, order_pairs ? b : length(batches2))]
+
+	output_index_1(b::Int)::Vector{Int} = batches1[b]
+	output_index_2(c::Int)::Vector{Int} = batches2[c]
 
 
-	function get_pairs((b,c)::NTuple{2,Int})
-
-		x0 = [batch_offsets[1][b], batch_offsets[2][c]]
-
-
-		d = isBond(selectdim(atoms1, dim, batches[1][b]),
-							 selectdim(atoms2, dim, batches[2][c]),
-							 dim=dim)
-
-
-		return sort(map(findall(order_pairs && b==c ? LA.triu(d,1) : d)) do x
-
-							xi = x.I .+ x0 
-							
-							order_pairs && sort!(xi)  
-
-							return Tuple(xi)
-							
-						end)
-
-	end
-
-
-	return sort(Utils.flatmap(get_pairs, I))
+	return get_Bonds(Utils.sel(atoms1, dim) ∘ output_index_1,
+									 Utils.sel(atoms2, dim) ∘ output_index_2,
+									 isBond,
+									 output_index_1,
+									 output_index_2,
+									 I;
+									 order_pairs=order_pairs,
+									 dim=dim)
 
 end 
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 
 function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 

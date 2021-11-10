@@ -19,7 +19,7 @@ function plot_atoms(n::Int, atoms::AbstractMatrix; kwargs...)
 end  
 
 function plot_atoms(ax, atoms::AbstractMatrix; 
-										max_atoms::Int=9999,#40,
+										max_atoms::Int=40,
 										kwargs...)
 	
 	nr_atoms =  Lattices.NrVecs(atoms)
@@ -41,7 +41,7 @@ function plot_atoms(ax, atoms::AbstractMatrix;
 
 end  
 
-function plot_layers(ax_or_n; max_nr_layers::Int=999,#30, 
+function plot_layers(ax_or_n; max_nr_layers::Int=30, 
 										 AtomsOfLayer::Function,
 										 NrLayers::Int,
 										 IndsAtomsOfLayer=nothing,
@@ -276,22 +276,59 @@ function get_lead_hopp(latt)
 end
 
 
+function get_Bonds(;NrLayers::Int, AtomsOfLayer::Function,
+									 IndsAtomsOfLayer::Function,
+										kwargs...)
+
+	dev_at = device_atoms(;NrLayers=NrLayers, AtomsOfLayer=AtomsOfLayer,
+												IndsAtomsOfLayer=IndsAtomsOfLayer,
+												kwargs...)
+
+#	N = min(NrLayers, Int(ceil(max_atoms/length(IndsAtomsOfLayer(1)))))
+
+
+	inds_bonds = Algebra.get_Bonds(AtomsOfLayer, 1.0, 
+																IndsAtomsOfLayer, 
+																[(l1,l2) for l1 in 1:NrLayers for l2 in l1:min(l1+1,NrLayers)];
+																dim=2)
+
+	Rs_bonds = Algebra.bondRs_fromInds(inds_bonds, dev_at; dim=2)
+
+
+	return inds_bonds, Rs_bonds
+
+end 
+function plot_bonds(ax, Rs_bonds; max_atoms::Int=500, kwargs...)
+
+	ax.set_aspect(1)
+
+	for (a1,a2) in Rs_bonds[1:min(max_atoms,end)]
+
+		ax.plot([a1[1],a2[1]], [a1[2],a2[2]]; kwargs...)
+	
+	end 
+
+end 
+
+
+
 colors = [["orange","green"],["blue","gold"]]
 
 
-nr_atoms_layer = 1+ 3*2
+nr_layers = 25 
+
+nr_atoms_layer = 1+ 3*3
 
 #nr_layers = Int(ceil(nr_atoms_layer*5.2))
 
 #nr_layers = Int(ceil(nr_atoms_layer*2))
 #
 
-nr_layers = 120 
 
 
-delta = 0.01im
+delta = 0.003im
 
-@show nr_layers nr_atoms_layer
+#@show nr_layers nr_atoms_layer
 
 LayerAtomRels = slices_armchair(nr_layers, nr_atoms_layer) 
 
@@ -310,39 +347,31 @@ end
 
 
 
+function xy_PHS( E::AbstractVector{<:Real},
+									f::AbstractVector{<:Real},
+									E_on_axis::Int=1)
 
 
-#
-#inds_bonds = NTuple{2,Int}[] 
-#Rs_bonds = Vector{Vector{Float64}}[]
-#
-#for l1 in 1:NrLayers 
-#
-#	NrAtomsPerLayer > 50 && continue 
-#
-#	I1,A1 = IndsAtomsOfLayer(l1), AtomsOfLayer(l1)
-#
-#	for l2 in l1:min(l1+1,NrLayers)
-#
-#		I2,A2 = IndsAtomsOfLayer(l2), AtomsOfLayer(l2)
-#
-#		for (i1,i2) in Algebra.get_Bonds(A1,A2,1.0;dim=2,order_pairs=(l1==l2))
-#
-#			a1,a2 = A1[:,i1], A2[:,i2] 
-#
-#
-#			PyPlot.plot([a1[1],a2[1]], [a1[2],a2[2]], c="k")
-#
-#			@assert isapprox(1, LinearAlgebra.norm(a1-a2))
-#
-#			push!(inds_bonds, (I1[i1],I2[i2]))
-#			push!(Rs_bonds, [a1,a2])
-#
-#
-#		end 
-#
-#	end 
-#end 
+	E2 = vcat(-reverse(E),E)
+	f2 = vcat(reverse(f),f)
+
+	E_on_axis==1 && return E2,f2  
+
+	E_on_axis==2 && return f2,E2
+
+error()
+
+
+
+
+
+end 
+
+
+
+
+
+
 #
 #@show length(inds_bonds) 
 #
@@ -392,42 +421,6 @@ function setIndRe!(X,x,inds...)
 end 
 
 #
-#
-##ga = Ga(Energy) 
-#
-#	SVTs = map([0,0.3]) do Energy
-#	
-#		gr1 = Gr(Energy)
-#		
-#		get_SE_ret1 = GreensFunctions.SelfEn_fromGDecim(gr1, VirtLeads_ret, Slicer_ret)
-#		
-#		
-#		return ObservablesFromGF.SiteTransmission(gr1,
-#																						 [ones(ComplexF64,1,1) for b in inds_bonds],
-#																						 inds_bonds,
-#																						 Rs_bonds,
-#																						 get_SE_ret1,
-#																						 "Left",2; dim=2)
-#	end 
-#	
-#	@show size.(SVTs) 
-#	
-#	
-#	
-#	
-#	XY = zero(SVTs[1]) 
-#	
-#	
-#	for L in 1:NrLayers 
-#	
-#		for (i,r) in zip(IndsAtomsOfLayer(L), eachcol(AtomsOfLayer(L)))
-#	
-#			XY[:,i]=r
-#	
-#		end 
-#	
-#	end 
-#	
 #	
 #	
 #	fig,axes = PyPlot.subplots(1,2,num=8)

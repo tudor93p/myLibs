@@ -217,6 +217,6 @@ Ax2.legend()
 
 
 
-fig1.tight_layout()
-fig2.tight_layout()
+#fig1.tight_layout()
+#fig2.tight_layout()
 
