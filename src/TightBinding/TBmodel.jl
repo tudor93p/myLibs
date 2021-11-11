@@ -707,20 +707,29 @@ end
 
 
 
-function Update_Maxdist(dist_tol,hopp_cutoff)
+function Update_Maxdist(dist_tol::Float64,
+												hopp_cutoff::Float64)::Tuple{Float64,Function}
 
+  function update(maxdist::Real, param::Real, d::Real)::Float64
 
-  function update(maxdist,param,d)
-
-    abs(param) > hopp_cutoff && return max(maxdist,d)+2dist_tol
-  
-    return maxdist
+    abs(param)>hopp_cutoff ? max(maxdist,d)+2dist_tol : maxdist
 
   end
 
   return 2dist_tol,update
 
 end
+
+
+function Zero_Hopping_Term(Zero::T)::Function where T<:AbstractMatrix
+    
+	function f(ri::AbstractVector, rj::AbstractVector)::T 
+
+		copy(Zero)
+
+	end 
+
+end 
 
 
 #===========================================================================#
@@ -730,44 +739,110 @@ end
 #
 #---------------------------------------------------------------------------#
 
-
-function Add_Hopping_Terms(d0::Int,hopp_cutoff::Float64=1e-8)
-
-  small = Utils.fSame(hopp_cutoff)
-
-  matrixval(val::Number) = matrixval(hcat(val))
-	matrixval(val::Matrix) = Matrix{ComplexF64}(val)
+function matrixval(val::Number)::Matrix{ComplexF64}
 	
+	hcat(val)
 
-  Zero = zeros(Complex{Float64},d0,d0)
+end 
+
+function matrixval(val::AbstractMatrix)::Matrix{ComplexF64}
+
+	val 
+
+end 
 
 
-  function Append(hoppings::Vector{Function},value,args...)::Vector{Function}
+function matrixval(f::T)::T where T<:Function 
+
+	f
+
+end 
+
+
+function matrixval(v1::Union{Number,AbstractMatrix},
+									 v2::Union{Number,AbstractMatrix})::Matrix{ComplexF64}
+
+	matrixval(v1).*matrixval(v2)
+
+end
+
+
+function matrixval(v::Union{Number,AbstractMatrix},
+									 f::Function)::Function 
+
+	V = matrixval(v) 
+	
+	return F(args...)::Matrix{ComplexF64} = V .* f(args...) 
+
+end
+
+
+
+
+
+
+
+
+
+function Add_Hopping_Terms(d0::Int, hopp_cutoff::Float64=1e-8)
+
+	small = Utils.fSame(hopp_cutoff)(0)
+
+  Zero = zeros(Complex{Float64}, d0, d0)
+
+
+  #function Append(hoppings::T, value, args...
+	#								)::T where T<:AbstractVector{Function}
+
+  #  small(value) && return hoppings
+
+  #  return [hoppings; Hopping_Term(matrixval(value), Zero, args...)]
+  #end
+
+  function Append!(hoppings::T,
+									 value,args...
+									 )::T where T<:AbstractVector{Function}
 
     small(value) && return hoppings
-  
 
-    return [hoppings; Hopping_Term(matrixval(value), Zero, args...)]
-
-  end
-
-
-
-  function Sum(hoppings::Vector{Function},condition)
-
-    length(hoppings) == 0 && return (ri,rj) -> Zero
-
-#    f(ri,rj) = reduce(+, map(h -> h(ri,rj), hoppings))
-
-		f(ri,rj) = mapreduce(h->h(ri,rj), +, hoppings)
-
-    return Hopping_Term(matrixval(1), Zero, condition, f)
+		return push!(hoppings, Hopping_Term(matrixval(value), Zero, args...))
 
   end
 
 
 
-  return Append, Sum, Function[]
+	function Sum_(hoppings::AbstractVector{Function})::Function
+
+		length(hoppings)==1 && return only(hoppings)
+
+		return function total_hopp(ri::AbstractVector,
+															 rj::AbstractVector)::AbstractMatrix 
+			
+			out = copy(Zero)
+
+			for h in hoppings 
+
+				out += h(ri,rj)
+
+			end 
+
+			return out 
+
+		end 
+
+	end
+
+  function Sum(hoppings::AbstractVector{Function}, condition)::Function
+
+		isempty(hoppings) && return Zero_Hopping_Term 
+
+		Hopping_Term(matrixval(1), Zero, condition, Sum_(hoppings))
+
+  end
+
+
+
+  return Append!, Sum, Function[]
 
 
 end
@@ -776,25 +851,30 @@ end
 	# ------------ General case, matrix ------------ #
 
 function Hopping_Term(value::AbstractMatrix,
-											Zero::AbstractMatrix,condition::Function,fun::Function)
+											Zero::AbstractMatrix,
+											condition::Function,
+											fun::Function)::Function
 
-    return function f(ri::AbstractVector,rj::AbstractVector)
+  function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
 
-      condition(ri,rj) == true ? value .* fun(ri,rj) : Zero
+    condition(ri,rj) ? value .* fun(ri,rj) : Zero
 
-    end
+  end
 
 end
 
 	# ------------ Constant matrix if condition  ------------ #
 
-function Hopping_Term(value::AbstractMatrix,Zero::AbstractMatrix,condition::Function,fun::AbstractMatrix)
+function Hopping_Term(value::AbstractMatrix,
+											Zero::AbstractMatrix,
+											condition::Function,
+											fun::AbstractMatrix)::Function
 
-    return function f(ri::AbstractVector,rj::AbstractVector)
-
-      condition(ri,rj) == true ? value .* fun : Zero
-
-    end
+	function f(ri::AbstractVector,rj::AbstractVector)::AbstractMatrix
+	
+	  condition(ri,rj) ? value .* fun : Zero
+	
+	end
 
 end
 
@@ -806,7 +886,9 @@ function Hopping_Term(value::AbstractMatrix,
 											condition::Bool,
 											fun::Function)::Function
 
-  function f(ri::AbstractVector, rj::AbstractVector)
+	condition || return Zero_Hopping_Term(Zero)
+
+  return function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
   
     value .* fun(ri,rj)
 
@@ -816,9 +898,14 @@ end
 
 	# ------------ Always return the hopping, const ------------ #
 
-function Hopping_Term(value::AbstractMatrix,Zero::AbstractMatrix,condition::Bool,fun::AbstractMatrix)
+function Hopping_Term(value::AbstractMatrix,
+											Zero::AbstractMatrix,
+											condition::Bool,
+											fun::AbstractMatrix)::Function
 
-  return function f(ri::AbstractVector,rj::AbstractVector)
+	condition || return Zero_Hopping_Term(Zero)
+
+  return function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
   
     value .* fun
 
@@ -829,12 +916,13 @@ end
 	# ------------ Constant hopping, matrix  ------------- #
 
 
-function Hopping_Term(value::AbstractMatrix,Zero::AbstractMatrix,condition::Function)
+function Hopping_Term(value::AbstractMatrix,
+											Zero::AbstractMatrix,
+											condition::Function)::Function
 
+	function f(ri::AbstractVector,rj::AbstractVector)::AbstractMatrix
 
-  return function f(ri::AbstractVector,rj::AbstractVector)
-
-    condition(ri,rj) == true ? value : Zero
+    condition(ri,rj) ? value : Zero
 
   end
 
@@ -853,7 +941,7 @@ function Hopping_Term_fromTBfile(filename)
 end
 
 
-function Hopping_Term_fromTBmatr(ms,Rs,Ts)
+function Hopping_Term_fromTBmatr(ms,Rs,Ts)::Function
 
   function condition_value_maxdist(same,ax=axes(Rs,1))
 

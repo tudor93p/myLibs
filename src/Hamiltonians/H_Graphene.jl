@@ -183,7 +183,7 @@ function Sheet(param_H_,pyLatt,dist_tol=1e-5,hopp_cutoff=1e-6)#,partialH=false)
         # -------------- nearest neighbor ------------------------ #      
 
   Hoppings = Append(Hoppings, param_H[:Intralayer_Hopping],
-		(ri,rj) -> same(ri[1:2].-rj[1:2],dist[1]),
+#		(ri,rj) -> same(ri[1:2].-rj[1:2],dist[1]), REWRITE 
 							)
   maxdist = update(maxdist,param_H[:Intralayer_Hopping],dist[1])
   
@@ -192,27 +192,27 @@ function Sheet(param_H_,pyLatt,dist_tol=1e-5,hopp_cutoff=1e-6)#,partialH=false)
         # -------------- atom bias (lattice imbalance) ----------- #      
 
   Hoppings = Append(Hoppings, param_H[:Lattice_Imbalance],
-		(ri,rj) -> same(ri,rj),
-		(ri,rj) -> ri[sl],
+#		(ri,rj) -> same(ri,rj), #REWRITE
+#		(ri,rj) -> ri[sl], #REWRITE
 							)
 
         # ------------------- electric field -------------------- #      
 
   Hoppings = Append(Hoppings, param_H[:Electric_Field_x],
-		(ri,rj) -> same(ri,rj),
-		(ri,rj) -> ri[1],
+#		(ri,rj) -> same(ri,rj), #REWRITE
+#		(ri,rj) -> ri[1], #REWRITE
 							)
 
 
   Hoppings = Append(Hoppings, param_H[:Electric_Field_y],
-		(ri,rj) -> same(ri,rj),
-		(ri,rj) -> ri[2],
+#		(ri,rj) -> same(ri,rj),
+#		(ri,rj) -> ri[2],
 							)
 
 
   Hoppings = Append(Hoppings, param_H[:Electric_Field_z]*(dim==3),
-		(ri,rj) -> same(ri,rj),
-		(ri,rj) -> ri[3],
+#		(ri,rj) -> same(ri,rj),
+#		(ri,rj) -> ri[3],
 							)
 
         # -------------- anti-Haldane nnn imaginary hopping ------ #      

@@ -246,7 +246,9 @@ function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, kwargs...)
 
 end 
 
-dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,),	[1]) 
+dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,
+																			 Peierls=(0.1, 3sqrt(3)/2, :x),
+																			 ), [1]) 
 
 get_TBL(l::Lattices.Lattice) = Lattices.NearbyUCs(l, 1)
 
@@ -315,9 +317,9 @@ end
 colors = [["orange","green"],["blue","gold"]]
 
 
-nr_layers = 25 
+nr_layers = 80
 
-nr_atoms_layer = 1+ 3*3
+nr_atoms_layer = 1+ 3*10 
 
 #nr_layers = Int(ceil(nr_atoms_layer*5.2))
 
@@ -414,7 +416,7 @@ function get_SE(g, (LayerAtom,Slicer,LeadRels,VirtLeads))
 end 
 function setIndRe!(X,x,inds...)
 
-	@assert imag(x)<1e-10  x
+	@assert imag(x)<1e-9  x
 
 	X[inds...] = real(x)
 

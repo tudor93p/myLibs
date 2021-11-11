@@ -1231,7 +1231,7 @@ function Rescale(A::AbstractArray{<:Number,N}, mM0, mM1=A)::AbstractArray{<:Numb
 
   m0,M0 = extrema(mM0)
 
-	length(A)==1 && return fill(m0, size(A))
+#	length(A)==1 && return fill(m0, size(A))
 
 	m,M = extrema(mM1)
 	
@@ -1239,6 +1239,12 @@ function Rescale(A::AbstractArray{<:Number,N}, mM0, mM1=A)::AbstractArray{<:Numb
 
 end
 
+
+function Rescale(a::Real, mM0, mM1)::Float64
+
+	Rescale([a], mM0, mM1)[1]
+
+end 
 
 
 
@@ -2437,38 +2443,49 @@ end
 #---------------------------------------------------------------------------#
 
 
-function fSame(atol)
+function fSame(atol::Float64)::Function
 
-  function same(a::Number,b::Number=0.0,atol=atol)::Bool
+  function same(a::Number, b::Number; atol=atol)::Bool
 
-    return isapprox(a,b,atol=atol)
-
-  end
-
-
-
-  function same(a::AbstractArray,b::AbstractArray,atol=atol)::Bool
-
-    return isapprox(a,b,atol=atol)
+    isapprox(a, b, atol=atol)
 
   end
 
 
 
-  function same(a::AbstractArray,b::Number=0.0,atol=atol)::Bool
+	function same(a::AbstractArray{Ta,N}, b::AbstractArray{Tb,N}; atol=atol
+								)::Bool where {Ta,Tb,N}
 
-    return isapprox(LA.norm(a),b,atol=atol)
+    isapprox(a,b,atol=atol)
+
+  end
+
+
+
+  function same(a::AbstractArray, b::Number; atol=atol)::Bool
+
+    isapprox(LA.norm(a),b,atol=atol)
   
   end
 
 
 
-  function same(a::Number,b::AbstractArray,atol=atol)::Bool
+  function same(a::Number, b::AbstractArray; atol=atol)::Bool
 
-    return isapprox(LA.norm(b),a,atol=atol)
+    isapprox(LA.norm(b),a,atol=atol)
   
   end
 
+
+	function same(a::Union{Number,AbstractArray}; atol=atol)::Function
+
+		function same2(b::Union{Number, AbstractArray})::Bool 
+		
+			same(a,b,atol=atol)
+
+		end
+
+	end 
 
   return same
 

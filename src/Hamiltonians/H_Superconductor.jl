@@ -17,36 +17,110 @@ import ..Utils, ..TBmodel, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
-function ToBasis(Nambu::Bool=false,Zero=0)
+function ToBasis(Nambu::Bool=false, Z...)::Function 
 
-  Nambu ? h->[h Zero; Zero -conj(h)] : h->h 
+	#  Nambu ? h->[h Zero; Zero -conj(h)] : h->h  
+	
+	ToBasis(Val(Nambu), Z...)
+
 
 end
 
-function BasisInfo(using_SC_basis::Bool)::Function
+function ToBasis(::Val{false}, args...)::Function 
 
-	!using_SC_basis && return (label=nothing;kwargs...) -> [1.0]
+	TBmodel.matrixval 
 
-	function get_vector(label::AbstractString; kwargs...)::Vector{Float64}
-#			kwargs:#		charge=false, spin=false, electron=false, hole=false)
+end  
+
+function ToBasis(::Val{true}, Zero::Tz=0.0im
+								)::Function where Tz<:Union{Number, AbstractMatrix}
+
+	function tobasis(h::Union{Number,AbstractMatrix})::Matrix{ComplexF64}
+
+		[h Zero; Zero -conj(h)]
+		
+	end 
 	
+	tobasis(h::Function)::Function = tobasis ∘ h
 
-			label=="Charge" && return get_vector(;charge=true)
 
-			label=="QP" && return get_vector()
+	function tobasis(v::Union{Number, AbstractMatrix}, 
+									 h::Union{Number,AbstractMatrix})::Matrix{ComplexF64}
 
-			label=="E" && return get_vector(;electron=true)
+		tobasis(TBmodel.matrixval(v,h))
 
-			label=="H" && return get_vector(;hole=true)
+	end 
 
-			label=="Sz" && return get_vector(;spin=true)
+	function tobasis(v::Union{Number, AbstractMatrix}, 
+									 h::Function)::Function 
 
-			error("Label $label not understood")
+		tobasis∘TBmodel.matrixval(v, h)
 
 	end 
 
 
-	function get_vector(label::Nothing=nothing; kwargs...)::Vector{Float64}
+	return tobasis 
+
+	
+end 
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function BasisInfo(using_SC_basis::Bool)::Function
+
+	BasisInfo(Val(using_SC_basis))
+	
+end 
+
+
+function BasisInfo(using_SC_basis::Val{false})::Function
+
+	function One(label=nothing; kwargs...)::Vector{Float64} 
+		
+		[1.0]
+
+	end 
+
+end 
+
+function BasisInfo(using_SC_basis::Val{true})::Function
+
+	kw0 = Dict(
+						"Charge" => :charge,
+
+						"QP" =>  nothing,
+
+						"E" => :electron,
+
+						"H" => :hole, 
+
+						"Sz" => :spin
+
+						)
+
+
+	function get_vector(label::AbstractString; kwargs...)::Vector{Float64}
+
+		@assert haskey(kw0,label) "Label '$label' not understood" 
+
+		K = kw0[label]
+
+		return get_vector(; (isnothing(K) ? () : Dict(K=>true))...)
+
+	end 
+
+
+	function get_vector(; kwargs...)::Vector{Float64}
 
 		out = map([(1,1), (1,-1), (-1,1), (-1,-1)]) do (C,S)
 
@@ -58,7 +132,13 @@ function BasisInfo(using_SC_basis::Bool)::Function
 										)
 								) do (k,v)
 
-				get(kwargs, k, false) ? v : 1
+				use = get(kwargs, k, false) 
+			
+				isa(use,Bool) && use && return v 
+				
+				isa(use,Int) && use==1 && return v 
+
+				return 1 
 
 			end 
 
@@ -78,6 +158,114 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function args_local_potential(LocalPotential::Number, 
+						 ChemicalPotential::Number, 
+						 )::Tuple{Float64, Float64}
+
+	(LocalPotential + ChemicalPotential, 1.0)
+
+end 
+
+
+
+function args_local_potential(LocalPotential::Function, 
+															ChemicalPotential::Number,
+															)::Tuple{Float64, Function}
+
+	(1.0, 
+
+	 function total_local_pot(ri::AbstractVector, rj::AbstractVector
+																	 )::AbstractMatrix
+		 
+		 LocalPotential(ri,rj) + ChemicalPotential
+	 
+	 end 
+
+	 )
+
+end 
+
+function args_local_potential(;LocalPotential::Union{Number,Function},
+															 ChemicalPotential::Number,
+															 kwargs...)
+
+	args_local_potential(LocalPotential, ChemicalPotential)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function PeierlsIntegral(A::AbstractVector, B::AbstractVector,
+												 ::Val{:x})::Float64
+
+	# Landau gauge A = [-y, 0, 0] 
+	
+
+		(A[1]-B[1])*(A[2]+B[2])
+
+end 
+
+
+function PeierlsIntegral(A::AbstractVector, B::AbstractVector,
+												 ::Val{:y})::Float64
+	
+	#	Landau Gauge A = [0, x, 0]
+	
+	(A[1]+B[1])*(B[2]-A[2])
+
+end
+
+function PeierlsPhaseFactor(phi::Real, uc_area::Real, args...
+														)::Union{ComplexF64,Function}
+
+	PeierlsPhaseFactor(phi/uc_area, args...)
+
+end
+
+
+function PeierlsPhaseFactor(B::Real, 
+														transl::Union{AbstractString,Char},
+														args...
+														)::Union{ComplexF64,Function}
+
+	PeierlsPhaseFactor(B, Symbol(lowercase(translation)), args...)
+
+end 
+
+
+
+function PeierlsPhaseFactor(B::Real, translation::Symbol,
+														)::Union{ComplexF64,Function}
+
+	isapprox(B,0,atol=1e-14) && return 1.0 + 0.0im
+
+	vt = Val(translation)
+	
+	e = exp(0.5im*pi*B)
+
+	return function p_p_f(ri::AbstractVector,rj::AbstractVector)::ComplexF64
+
+		e^PeierlsIntegral(ri, rj, vt)
+
+	end 
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 
 function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real}; 
@@ -89,16 +277,17 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
         # ---------------- initialize parameters --------------------- #      
 
   default_param_H = (
-	Hopping			= 1.0,
-	ChemicalPotential	= 2.0,
-	LocalPotential 		= 0.0,
-        SC_Gap			= nothing,
-#	Electric_Field_x	= 0.0,
-#	Electric_Field_y	= 0.0,
-#	Electric_Field_z	= 0.0,
-	Lattice_Imbalance	= 0.0,
-#	Rashba_SOC		= 0.0,
-					)
+											Hopping			= 1.0,
+											ChemicalPotential	= 2.0,
+											LocalPotential 		= 0.0,
+										        SC_Gap			= nothing,
+														Peierls = (0.0,:x),
+										#	Electric_Field_x	= 0.0,
+										#	Electric_Field_y	= 0.0,
+										#	Electric_Field_z	= 0.0,
+											Lattice_Imbalance	= 0.0,
+										#	Rashba_SOC		= 0.0,
+															)
 
 
   param_H = Utils.Combine_NamedTuples(param_H_, default_param_H)
@@ -110,35 +299,35 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
   samplehopp =  using_SC_basis ? PM[0] : rand(Complex{Float64},1,1)
 
-  Zero,One = Base.zero(samplehopp),Base.one(samplehopp) 
+  Zero,One = zero(samplehopp),one(samplehopp) 
 
   toBasis = ToBasis(using_SC_basis,Zero)
 
-  d0 = size(toBasis(samplehopp),1)
+	d0 = LA.checksquare(toBasis(samplehopp))
 
   same = Utils.fSame(dist_tol)
 
         # ------------------- needed for the hoppings ----------------- #      
 
 
-  Append,Sum,Hoppings = TBmodel.Add_Hopping_Terms(d0,hopp_cutoff)
-		# value, condition, (function)
+  Append!,Sum,Hoppings = TBmodel.Add_Hopping_Terms(d0,hopp_cutoff)
+		# value, condition, (function )
   
-  maxdist,update = TBmodel.Update_Maxdist(dist_tol,hopp_cutoff)
+  maxdist,update = TBmodel.Update_Maxdist(dist_tol, hopp_cutoff)
 
   
         # -------------- nearest neighbor ------------------------ #      
 
-  if length(dist)>0
+  if length(dist)>=1
 
+		Append!(Hoppings, param_H[:Hopping], same(dist[1]) ∘ -, 
+						toBasis(One, PeierlsPhaseFactor(param_H[:Peierls]...)))
 
-    Hoppings = Append(Hoppings, param_H[:Hopping],
-  		(ri,rj) -> same(ri.-rj,dist[1]),
-  		toBasis(One),
-  							)
-    maxdist = update(maxdist,param_H[:Hopping],dist[1])
+    maxdist = update(maxdist, param_H[:Hopping], dist[1])
 
   end  
+
+
 
         # -------------- atom bias (lattice imbalance) ----------- #      
 
@@ -149,41 +338,22 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
         # ----------------- local potential --------------- #      
 
-  if isa(param_H[:LocalPotential],Number)
+	v0, vf = args_local_potential(; param_H...)
 
-    Hoppings = Append(Hoppings, param_H[:LocalPotential]
-				+ param_H[:ChemicalPotential],
-  		(ri,rj) -> same(ri,rj),
-  		toBasis(One),
-							)
-
-  else
-
-    Hoppings = Append(Hoppings, 1.0, 
-  		(ri,rj) -> same(ri,rj),
-  		(ri,rj) -> toBasis(One*(
-				param_H[:LocalPotential](ri,rj)
-				+ param_H[:ChemicalPotential]),
-					),
-							)
-    
-  end
-
+	Append!(Hoppings, v0, same(0), toBasis(One,vf))
 
 
         # -------------- superconducting pairing ----------------- #      
 
-
-  if using_SC_basis
+  if using_SC_basis 
 
     val, nmax = param_H[:SC_Gap]
 
-    Hoppings = Append(Hoppings, 1, true, val )
+    Append!(Hoppings, 1, true, val)
 
-    nr_uc = max(Int64(nmax),nr_uc)
+    nr_uc = max(Int64(nmax), nr_uc)
 
-    maxdist = update(maxdist,1,nmax)
-
+    maxdist = update(maxdist, 1, nmax)
 
   end
         # ------------------- electric field -------------------- #      
@@ -241,7 +411,11 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
         # -------------- compute max_dist and sum up ------------- #      
 
-  cond(ri,rj) = (isnothing(indomain) || indomain(ri,rj)) && LA.norm(ri.-rj) < maxdist
+  function cond(ri::AbstractVector,rj::AbstractVector)::Bool 
+
+		(isnothing(indomain) || indomain(ri,rj)) && LA.norm(ri-rj)<maxdist
+
+	end
   
 #  returnB_Input, (Sum(Hoppings,cond), hopp_cutoff)
 

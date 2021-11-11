@@ -142,7 +142,7 @@ for i=1:2
 
 	ax.set_xlim(maximum(ENERGIES)*[-1,1])
 
-	ax.set_ylim(-3,12)#extrema(Y))
+	ax.set_ylim(-3,5)#extrema(Y))
 
 
 end 
