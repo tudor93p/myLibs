@@ -14,7 +14,6 @@ set_title(fig2)
 
 sleep(0.1)
 
-inds_bonds,Rs_bonds = get_Bonds(;LayerAtomRels...)
 
 
 
@@ -22,10 +21,9 @@ inds_bonds,Rs_bonds = get_Bonds(;LayerAtomRels...)
 
 
 
-dev_at = device_atoms(;LayerAtomRels...)
 
 
-ENERGIES = LinRange(0.001,0.6,150)
+ENERGIES = LinRange(0.000,0.6,150)
 
 svt_En = [0,0.3] 
 
@@ -39,17 +37,28 @@ svt_En_ind = [argmin(abs.(e .- ENERGIES)) for e in svt_En]
 
 
 
-for i_latt_type  in 1:2 
+for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
-	latt_type, get_latt = [("square", square_latt_lead),
-										 ("honey", honeycomb_latt_lead)
-										 ][3-i_latt_type]
+
+#	latt_type, get_latt = [("square", square_latt_lead),
+#										 ("honey", honeycomb_latt_lead)
+#										 ][3-i_latt_type]
+
+
+
+	LayerAtomRels = slices_ribbon(latt_type, nr_layers, nr_atoms_layer)  
+
+	inds_bonds,Rs_bonds = get_Bonds(;LayerAtomRels...)
+
+	dev_at = device_atoms(;LayerAtomRels...)
+
 
 
 	Labels,LeadLatts,LeadContacts,LHopps = Utils.zipmap(
 					two_lead_args(;LayerAtomRels...)) do (contact,dir,lab)
 	
-		latt,a = get_latt(contact, dir, lab; LayerAtomRels...)
+	latt,a = honeycomb_latt_lead(contact, dir, lab; 
+															 LayerAtomRels..., term_x=latt_type)
 	
 		lc = lead_contacts(contact, latt, a; LayerAtomRels...)
 	

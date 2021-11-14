@@ -379,23 +379,20 @@ end
 
 
 
-function LayerAtomRels_(Atoms::AbstractMatrix{<:Number}, 
+function LayerAtomRels_(Atoms::AbstractMatrix{<:Real}, 
 												LayerAtom::AbstractDict;
-											 get_leadcontacts::Bool=false, kwargs...)
+											 kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 
 	if Check_AtomToLayer(LeadContacts; LayerAtom...)
 	
-		!get_leadcontacts && return LayerAtom
-
 		return LayerAtom, LeadContacts
-
 
 	else 
 
 		return LayerAtomRels_(Atoms, "forced";
-									 					get_leadcontacts=get_leadcontacts,
 				 										LeadContacts=LeadContacts, kwargs...)
 	end
 
@@ -403,8 +400,8 @@ end
 
 
 function LayerAtomRels_(Atoms, LayerAtom::AbstractString;
-												kwargs...)::Tuple{Dict{Symbol,Any},
-																					Vector{Vector{Int}}}
+												kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
 	@assert !haskey(kwargs,:get_leadcontacts) "Obsolete kwarg" 
 
@@ -414,53 +411,19 @@ end
 
 																#	all atoms belong to the same layer 
 																
-function LayerAtomRels_(Atoms::AbstractMatrix, ::Val{:trivial}; dim::Int,
-												kwargs...)::Tuple{Dict{Symbol,Any},
-																					Vector{Vector{Int}}}
+function LayerAtomRels_(Atoms::AbstractMatrix, ::Val{:trivial}; 
+												kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
-	s = size(Atoms,dim)
-
-	function loa(i::Int)::Int 
-
-		@assert 1<=i<=s 
-	
-		return 1 
-
-	end 
-
-
-	function iaol(l::Int)::Vector{Int}
-
-		@assert l==1 
-
-		return UnitRange(1,s) 
-
-	end
-
-	function aol(l::Int)::Matrix{Float64} 
-
-		@assert l==1 
-														
-		return Atoms 
-
-	end 
-
-
-	return (Dict{Symbol,Any}( :NrAtoms=>s,
-														:NrLayers=> 1, 
-														:LayerOfAtom => loa, 
-														:IndsAtomsOfLayer => iaol,
-														:AtomsOfLayer => aol,	),
-
-					get_LeadContacts(Atoms; kwargs...))
+	LayerAtomRels_(([Atoms],zeros(1,1),1), Val(:sublatt); kwargs...) 
 
 end 
 
 
 function LayerAtomRels_(Atoms::AbstractMatrix, ::Val{:forced}; 
 												dim::Int, isBond::Function,
-												kwargs...)::Tuple{Dict{Symbol,Any},
-																					Vector{Vector{Int}}}
+												kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 
@@ -474,8 +437,8 @@ end
 
 function LayerAtomRels_((latt,nr_layers)::Tuple{Lattices.Lattice, Int},
 												method::Val{:sublatt};
-											kwargs...)::Tuple{Dict{Symbol,Any},
-																				Vector{Vector{Int}}}
+											kwargs...
+											)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
 	LayerAtomRels_((collect(values(latt.Atoms)), 
 									Lattices.LattVec(latt), nr_layers),
@@ -489,8 +452,8 @@ end
 function LayerAtomRels_((at_uc, R_, nr_layers)::Tuple{AbstractVector{<:AbstractMatrix}, <:AbstractVecOrMat, Int},
 												::Val{:sublatt}; 
 												dim::Int, test::Bool=false,
-												kwargs...)::Tuple{Dict{Symbol,Any},
-																					Vector{Vector{Int}}}
+												kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
 	R = Utils.VecAsMat(R_, dim) 
 
@@ -602,7 +565,8 @@ end
 
 
 
-function LayerAtomRels(latt::Lattices.Lattice, LayerAtom_; kwargs...)
+function LayerAtomRels(latt::Lattices.Lattice, LayerAtom_; kwargs...
+											 )::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
 	LayerAtomRels(Lattices.PosAtoms(latt), LayerAtom_; kwargs...)
 
@@ -610,20 +574,29 @@ end
 
 
 function LayerAtomRels(Atoms::AbstractMatrix, LayerAtom_; 
-											 get_leadcontacts=false, kwargs...)
+											 kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
-	out = (LayerAtom, LeadContacts) = LayerAtomRels_(
-																				Atoms, LayerAtom_; 
-																				get_leadcontacts=true, kwargs...)
+	@assert !haskey(kwargs,:get_leadcontacts) "Obsolete kwarg" 
+
+	(LayerAtom, LeadContacts) = LayerAtomRels_(Atoms, LayerAtom_; kwargs...)
 
 	PlotLayerAtoms_asGraph(Atoms, LayerAtom; 
 												 kwargs..., LeadContacts=LeadContacts)
 
-	return get_leadcontacts ? out : LayerAtom
+	return (LayerAtom, LeadContacts)
+
+#	return get_leadcontacts ? out : LayerAtom
 
 end
 
 
+function LayerAtomRels(Atoms::Tuple, args...; kwargs...
+											 )::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
+
+	LayerAtomRels_(Atoms, args...; kwargs...)
+
+end
 
 #===========================================================================#
 #
@@ -631,11 +604,12 @@ end
 #
 #---------------------------------------------------------------------------#
 
+
 function PlotLayerAtoms_asGraph(Atoms, LayerAtom;
 																isBond=nothing, dim::Int,
 																Leads=[], LeadContacts=nothing,
 																graph_fname="",
-																kwargs...) 
+																kwargs...)::Nothing
 
 	isempty(graph_fname) | isnothing(Atoms) && return 
 
@@ -658,6 +632,9 @@ function PlotLayerAtoms_asGraph(Atoms, LayerAtom;
 														colorrule = colorrule, 
 														nodelabel = i->labels[i],
 														fname = graph_fname)
+
+	return 
+
 end
 
 
@@ -674,10 +651,7 @@ end
 
 function NewGeometry(args...; Leads=[], nr_orb=nothing, kwargs...)
 
-	LayerAtom, LeadContacts = LayerAtomRels(args...;
-													get_leadcontacts=true, Leads=Leads, kwargs...)
-
-#	LayerAtom[:NrLayers]
+	LayerAtom, LeadContacts = LayerAtomRels(args...; Leads=Leads, kwargs...)
 
 
 

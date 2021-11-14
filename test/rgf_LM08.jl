@@ -69,16 +69,3 @@ end
 
 
 
-
-
-
-
-
-
-#
-#println()#"\r                     ")
-#
-#PyPlot.figure(4)
-#
-#
-#fig.tight_layout()

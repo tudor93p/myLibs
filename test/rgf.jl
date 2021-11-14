@@ -19,7 +19,7 @@ function plot_atoms(n::Int, atoms::AbstractMatrix; kwargs...)
 end  
 
 function plot_atoms(ax, atoms::AbstractMatrix; 
-										max_atoms::Int=40,
+										max_atoms::Int=100,
 										kwargs...)
 	
 	nr_atoms =  Lattices.NrVecs(atoms)
@@ -113,9 +113,8 @@ end
 
 function slices_ribbon(term_x::Symbol, NrLayers::Int, NrAtomsPerLayer::Int)
 
-	LayeredSystem.LayerAtomRels_((ribbon_x(term_x, NrAtomsPerLayer),
-																NrLayers), "sublatt")[1]
-
+	LayeredSystem.LayerAtomRels((ribbon_x(term_x, NrAtomsPerLayer),
+																NrLayers), "sublatt";test=true)[1]
 
 end
 
@@ -131,7 +130,7 @@ end
 
 function square_latt_lead(contact::Int, dir::Int, label::AbstractString;
 													AtomsOfLayer::Function, 
-													square_uc::Int=1,
+													four_uc::Bool=false,
 													kwargs...)
 
 	atoms = AtomsOfLayer(contact) 
@@ -149,7 +148,7 @@ function square_latt_lead(contact::Int, dir::Int, label::AbstractString;
 
 	latt = Lattices.SquareLattice(a, label, atoms, nothing, 1)
 
-	square_uc==4 && Lattices.Superlattice!(latt, 4)
+	four_uc && Lattices.Superlattice!(latt, 4)
 	
 	return latt, abs(a)
 
@@ -157,20 +156,34 @@ end
 
 
 function honeycomb_latt_lead(contact::Int, dir::Int, label::AbstractString;
+														 term_x::Symbol,
 														 AtomsOfLayer::Function, 
+														 four_uc::Bool=false,
 														 kwargs...)
+	
+	nr_uc = term_x==:armchair ? 4 : 2
 
 	atoms = mapreduce(AtomsOfLayer, Lattices.Cat,
-										contact+dir :dir: contact+4dir)
+										contact+dir :dir: contact+nr_uc*dir)
 
-	L = ribbon_x_armchair2(Lattices.NrVecs(AtomsOfLayer(1)))
+
+
+	L = ribbon_x(term_x, Lattices.NrVecs(AtomsOfLayer(1)))
 
 	a = only(Lattices.Distances(atoms,1))
 
-	return Lattices.Lattice(dir*L.LattVec,atoms,
+	latt = Lattices.Lattice(dir*L.LattVec,atoms,
 													nothing,
-													L.LattDims), a
+													L.LattDims)
+	
+	four_uc && term_x==:zigzag && Lattices.Superlattice!(latt, 2) 
+
+	return latt,a
+
+
 end 
+
+
 
 function lead_contacts(contact::Int,
 											 lead::Lattices.Lattice, a::Real; 
@@ -197,7 +210,7 @@ function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, kwargs...)
 end 
 
 dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,
-																			 Peierls=(0.01, 3sqrt(3)/2, :x),
+																			 Peierls=(0.0, 3sqrt(3)/2, :x),
 																			 ), [1]) 
 
 get_TBL(l::Lattices.Lattice) = Lattices.NearbyUCs(l, 1)
@@ -264,12 +277,14 @@ end
 
 
 
-colors = [["orange","green"],["blue","gold"]]
+colors = [["orange","green","peru","dodgerblue"],["blue","gold","darkviolet","forestgreen"]]
 
 
-nr_layers = 19
+nr_layers = 20
 
-nr_atoms_layer = 5
+nr_atoms_layer = 3*3+1 
+
+@assert iseven(nr_atoms_layer)
 
 #nr_layers = Int(ceil(nr_atoms_layer*5.2))
 
@@ -278,7 +293,7 @@ nr_atoms_layer = 5
 
 
 
-delta = 0.003im
+delta = 0.002im
 
 #@show nr_layers nr_atoms_layer
 
