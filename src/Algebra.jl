@@ -14,6 +14,107 @@ import Dierckx,FFTW
 const EPSILON = 1e-20
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function RotMat2!(R::AbstractMatrix{<:Real}, theta::Real; kwargs...)::Nothing 
+
+	@assert LA.checksquare(R)==2 
+
+	R[1,1] = cos(theta) 
+
+	R[2,2] = R[1,1]
+
+	R[2,1] = sin(theta) 
+	
+	R[1,2] = -R[2,1]
+
+	return 
+
+end 
+
+function RotMat(::Val{2}, theta::Real, args...; kwargs...)::Matrix{Float64}
+
+	R = zeros(2,2) 
+
+	RotMat2!(R, theta)
+
+	return R
+
+end 
+
+
+function RotMat(::Val{3}, theta::Real, Ax::Int; kwargs...)::Matrix{Float64}
+
+	@assert 1<=Ax<=3 "Choose 1==x, 2==y, 3==z"
+
+	inds = filter!(!isequal(Ax), [1,2,3]) 
+
+	R = zeros(3,3) 
+
+	R[Ax,Ax] = 1.0
+
+	RotMat2!(view(R,inds,inds), theta)
+
+	return R
+
+end
+
+function RotMat(D::Int, args...; kwargs...)::Matrix{Float64}
+
+	RotMat(Val(D), args...; kwargs...)
+
+end 
+
+
+function RotVecs(vecs::AbstractMatrix{<:Real}, 
+										rot::AbstractMatrix{Float64}; dim::Int
+										)::Matrix{Float64}
+
+	dim==2 && return rot*vecs 
+
+	dim==1 && return vecs*transpose(rot)
+
+	error()
+
+end
+
+#function RotVecs(v::AbstractVector{<:Real}, 
+#										rot::AbstractMatrix{Float64}; dim::Int
+#										)::Vector{Float64}
+#
+#	vec(RotVecs(Utils.VecAsMat(v, dim), rot; dim=dim))
+#
+#end 
+
+
+
+
+
+function RotVecs(R::AbstractMatrix{Float64}; dim::Int, kwargs...)::Function 
+
+	function rot_vecs(vecs::AbstractMatrix{<:Real})::Matrix{Float64} where N
+
+		RotVecs(vecs, R; dim=dim)
+
+	end
+
+end 
+
+function RotVecs(D::Int, args...; dim::Int, kwargs...)::Function 
+
+	RotVecs(RotMat(D, args...; kwargs...); dim=dim)
+
+end 
+
+
 #===========================================================================#
 #
 #
@@ -1433,8 +1534,8 @@ end
 
 
 
-function EuclDistEquals(d0::Real; tol::Float64=1e-8, dim::Int=1
-												)::Function
+function EuclDistEquals(d0::Real; tol::Float64=1e-8, dim::Int,
+											 kw...)::Function
 
 	isd0(dist) = isapprox(dist, d0, atol=tol)
 

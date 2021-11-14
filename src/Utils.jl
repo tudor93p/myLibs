@@ -871,7 +871,9 @@ end
 #---------------------------------------------------------------------------#
 
 
-function FindPartners(pairs12;sortfirst=nothing)
+function FindPartners(pairs12;sortfirst=nothing
+											)::Union{NTuple{2,Nothing},
+															 NTuple{2,Function}}
 
 	pairs12 = Dict(pairs12)
 
@@ -879,25 +881,24 @@ function FindPartners(pairs12;sortfirst=nothing)
 
 	pairs21 =	begin
 
-							local K = vcat(keys(pairs12)...)
+							local K = collect(keys(pairs12))
 					
 							isa(sortfirst,Bool) && sortfirst && sort!(K)
 
 							isa(sortfirst,Function) && sort!(K, by=sortfirst)
 
-							local V = unique(vcat(values(pairs12)...))
+							local V = unique(collect(values(pairs12)))
 
 							Dict(v=>filter(k->in(v,vcat(pairs12[k])),K) for v in V)
 
 						end
 
 
+	get1(key1) = get(pairs12, key1, nothing)
+	get2(key2) = get(pairs21, key2, nothing)
 
-	return (key1 -> get(pairs12, key1, nothing), 
-					key2 -> get(pairs21, key2, nothing))
+	return (get1,get2)
 
-
-#	return (key,label="") -> label==label1 ? pairs12[key] : pairs21[key]
 end
 
 
@@ -2337,6 +2338,22 @@ end
 #
 #---------------------------------------------------------------------------#
 
+
+#function CombsOfVecs(coeff::AbstractMatrix{Tc}; dim::Int
+#										 )::Function where Tc<:Number 
+#
+#	function cov(vecs::AbstractMatrix{Tv}
+#							 )::Matrix{promote_type(Tv,Tc)} where Tv<:Number
+#
+#		CombsOfVecs(vecs, coeff; dim=dim) 
+#
+#	end 
+#
+#end
+
+
+
+
 function CombsOfVecs(vecs::AbstractMatrix{Tv}, 
 										 coeff::AbstractMatrix{Tc}; dim::Int
 										 )::Matrix{promote_type(Tv,Tc)} where {Tv<:Number,
@@ -2349,6 +2366,12 @@ function CombsOfVecs(vecs::AbstractMatrix{Tv},
 	error()
 
 end
+
+
+
+
+
+
 
 
 

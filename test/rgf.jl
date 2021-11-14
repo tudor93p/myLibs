@@ -73,109 +73,59 @@ end
 
 
 
+function honeycomb_x(termination_x::Symbol)
 
-function honeycomb_x_armchair()
-
-	latt = Lattices.HoneycombLattice() 
-	
-	Lattices.Superlattice!(latt, [[1 1]; [-1 1]])  
-
-	return latt 
+	Lattices.HoneycombLattice_xy("x"; termination_x=termination_x)
 
 end 
+
 
 
 function make_y_ribbon!(latt::Lattices.Lattice, NrAtomsPerLayer::Int)
 
-	Lattices.Superlattice!(latt, [NrAtomsPerLayer,1])
+	Lattices.Superlattice!(latt, [1, NrAtomsPerLayer])
 	
-	Lattices.KeepDim!(latt, 2, :absolute)
+	Lattices.KeepDim!(latt, 1, :absolute)
 
-	return latt 
-end 
-
-
-function ribbon_x_armchair2(NrAtomsPerLayer::Int)
-
-	L0 = honeycomb_x_armchair()
-	
-	#four_atoms[:,argmin(four_atoms[1,:])] .+= latt.LattVec[:,2]
-
-	four_atoms = Lattices.sortvecs(Lattices.PosAtoms(L0);	
-																 by=LinearAlgebra.norm
-																 ) |> Lattices.eachvec
-
-
-	@assert length(four_atoms)==4
-
-	L = Lattices.Lattice(L0.LattVec,
-											 [string(i)=>v for (i,v) in enumerate(four_atoms)],
-											 nothing,
-											 L0.LattDims
-											 )
-
-	return make_y_ribbon!(L, NrAtomsPerLayer)
+	return latt  
 
 end 
 
 
-function slices_armchair(NrLayers::Int, NrAtomsPerLayer::Int) 
+function layer_width(term_x::Symbol, N::Int)::Int 
 
-	L = ribbon_x_armchair2(NrAtomsPerLayer)
+	term_x==:zigzag && return Int(round(N/2))
 
-
-	function AtomsOfLayer(layer::Int)::Matrix{Float64}
-
-		n = Int(floor((layer-1)/4))
-
-		return Lattices.Atoms_ManyUCs(L; Ns=n, label=string(layer-4n))
-	
-	end 
-	
-	
-	function IndsAtomsOfLayer(layer::Int)::Vector{Int}
-	
-		@assert 1<=layer<=NrLayers
-	
-		NrAtomsPerLayer*(layer-1) .+ (1:NrAtomsPerLayer)
-	
-	end 
-	
-	
-	function LayerOfAtom(atom::Int)::Int 
-	
-		@assert  1<=atom<=NrLayers*NrAtomsPerLayer
-	
-		div(atom-1,NrAtomsPerLayer) + 1 
-	
-	end 
-	
-	
-	for l in 1:NrLayers
-		
-		I = IndsAtomsOfLayer(l)
-		
-		@assert size(AtomsOfLayer(l),2)==length(I)
-	
-		for a in I 
-	
-		@assert LayerOfAtom(a)==l
-	end 
-	end  
-	
-	return Dict(
-
-			:NrLayers=> NrLayers,
-
-			:LayerOfAtom => LayerOfAtom,
-
-			:IndsAtomsOfLayer => IndsAtomsOfLayer,
-
-			:AtomsOfLayer => AtomsOfLayer
-
-			)
+	term_x==:armchair && return Int(3round((N-1)/3)+1)
 
 end
+
+
+function ribbon_x(term_x::Symbol, NrAtomsPerLayer::Int)
+
+	make_y_ribbon!(honeycomb_x(term_x), 
+								 layer_width(term_x, NrAtomsPerLayer))
+
+end 
+
+
+
+
+function slices_ribbon(term_x::Symbol, NrLayers::Int, NrAtomsPerLayer::Int)
+
+	LayeredSystem.LayerAtomRels_((ribbon_x(term_x, NrAtomsPerLayer),
+																NrLayers), "sublatt")[1]
+
+
+end
+
+
+
+
+
+
+
+
 
 
 
@@ -247,7 +197,7 @@ function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, kwargs...)
 end 
 
 dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,
-																			 Peierls=(0.1, 3sqrt(3)/2, :x),
+																			 Peierls=(0.01, 3sqrt(3)/2, :x),
 																			 ), [1]) 
 
 get_TBL(l::Lattices.Lattice) = Lattices.NearbyUCs(l, 1)
@@ -317,9 +267,9 @@ end
 colors = [["orange","green"],["blue","gold"]]
 
 
-nr_layers = 80
+nr_layers = 19
 
-nr_atoms_layer = 1+ 3*10 
+nr_atoms_layer = 5
 
 #nr_layers = Int(ceil(nr_atoms_layer*5.2))
 
@@ -332,10 +282,9 @@ delta = 0.003im
 
 #@show nr_layers nr_atoms_layer
 
-LayerAtomRels = slices_armchair(nr_layers, nr_atoms_layer) 
-
-
-
+#LayerAtomRels_armchair = slices_ribbon(:armchair, nr_layers, nr_atoms_layer)  
+#
+#LayerAtomRels_zigzag = slices_ribbon(:zigzag, nr_layers, nr_atoms_layer)
 
 
 

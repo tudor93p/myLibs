@@ -304,26 +304,76 @@ end
 #---------------------------------------------------------------------------#
 
 
+
+
 function get_LeadContacts(Atoms; Leads=[], isBond=nothing,
 																			LeadContacts=nothing, 
 																			kwargs...)::Vector{Vector{Int}}
 
 	isnothing(LeadContacts) || return LeadContacts
 
-	isempty(Leads) | isnothing(Atoms) && return []
+	isempty(Leads) | isnothing(Atoms) && return [Int[]]
 
-	return [get_LeadContacts(Atoms,L[:head][1],isBond) for L in Leads]
+	return [get_LeadContacts(Atoms, L[:head][1], isBond; kwargs...) for L in Leads]
 
 end
 
-function get_LeadContacts(device::Union{Lattices.Lattice, AbstractMatrix},
-													lead::Union{Lattices.Lattice, AbstractMatrix},
-													isBond::Function)::Vector{Int} 
 
-	findall(any.(eachcol(isBond(Lattices.PosAtoms(lead),
-															Lattices.PosAtoms(device)))))
+function get_LeadContacts(device, lead,
+													bond_len::Real; dim::Int, kwargs...
+												 )::Vector{Int}
+
+	get_LeadContacts(device, lead,
+									 EuclDistEquals(bond_len; dim=dim, kwargs...))
+
+end
+
+
+function get_LeadContacts(device,
+													lead::Lattices.Lattice,
+													isBond::Function;
+												 kwargs...)::Vector{Int} 
+
+	get_LeadContacts(device, Lattices.PosAtoms(lead), isBond)
+
+end 
+
+
+function get_LeadContacts(device::AbstractDict,
+													lead::AbstractMatrix,
+													isBond::Function;
+												 kwargs...)::Vector{Int}
+
+	Utils.flatmap(1:device[:NrLayers]) do layer 
+
+		i_relative = get_LeadContacts(device[:AtomsOfLayer](layer), lead, isBond)
+
+		return IndsAtomsOfLayer(layer)[i_relative]
+
+	end 
+
+end 
+
+
+
+
+
+function get_LeadContacts(device::Union{Lattices.Lattice, AbstractMatrix},
+													lead::AbstractMatrix,
+													isBond::Function;
+												 kwargs...)::Vector{Int} 
+
+	findall(any.(eachcol(isBond(lead, Lattices.PosAtoms(device)))))
 														 
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -335,7 +385,7 @@ function LayerAtomRels_(Atoms::AbstractMatrix{<:Number},
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 
-	if LayeredSystem.Check_AtomToLayer(LeadContacts; LayerAtom...)
+	if Check_AtomToLayer(LeadContacts; LayerAtom...)
 	
 		!get_leadcontacts && return LayerAtom
 
@@ -352,45 +402,203 @@ function LayerAtomRels_(Atoms::AbstractMatrix{<:Number},
 end
 
 
-function LayerAtomRels_(Atoms::AbstractMatrix, LayerAtom::String;
-											 get_leadcontacts=false, dim::Int, kwargs...)
+function LayerAtomRels_(Atoms, LayerAtom::AbstractString;
+												kwargs...)::Tuple{Dict{Symbol,Any},
+																					Vector{Vector{Int}}}
 
-															#	all atoms belong to the same layer 
-	if LayerAtom=="trivial" 
+	@assert !haskey(kwargs,:get_leadcontacts) "Obsolete kwarg" 
+
+	LayerAtomRels_(Atoms, Val(Symbol(lowercase(LayerAtom))); kwargs...)
+
+end 
+
+																#	all atoms belong to the same layer 
+																
+function LayerAtomRels_(Atoms::AbstractMatrix, ::Val{:trivial}; dim::Int,
+												kwargs...)::Tuple{Dict{Symbol,Any},
+																					Vector{Vector{Int}}}
+
+	s = size(Atoms,dim)
+
+	function loa(i::Int)::Int 
+
+		@assert 1<=i<=s 
 	
-		s = size(Atoms,dim)
+		return 1 
 
-		
-
-
-		out = Dict( :NrLayers=> 1,
-								
-								:LayerOfAtom => i -> (1<=i<=s ? 1 : nothing),
-								
-								:IndsAtomsOfLayer => l->(l==1 ? UnitRange(1,s) : nothing),
-								
-								:AtomsOfLayer => L->Atoms )
+	end 
 
 
-		!get_leadcontacts && return out
+	function iaol(l::Int)::Vector{Int}
 
-		return out, get_LeadContacts(Atoms; kwargs...)
+		@assert l==1 
+
+		return UnitRange(1,s) 
 
 	end
 
+	function aol(l::Int)::Matrix{Float64} 
 
-	@assert LayerAtom=="forced" "'LayerAtom' $LayerAtom not understood."
+		@assert l==1 
+														
+		return Atoms 
+
+	end 
+
+
+	return (Dict{Symbol,Any}( :NrAtoms=>s,
+														:NrLayers=> 1, 
+														:LayerOfAtom => loa, 
+														:IndsAtomsOfLayer => iaol,
+														:AtomsOfLayer => aol,	),
+
+					get_LeadContacts(Atoms; kwargs...))
+
+end 
+
+
+function LayerAtomRels_(Atoms::AbstractMatrix, ::Val{:forced}; 
+												dim::Int, isBond::Function,
+												kwargs...)::Tuple{Dict{Symbol,Any},
+																					Vector{Vector{Int}}}
 
 	LeadContacts = get_LeadContacts(Atoms; kwargs...)
 
-	out = Distribute_Atoms(Atoms, kwargs[:isBond], LeadContacts; dim=dim)
-
-	!get_leadcontacts && return out
+	out = Distribute_Atoms(Atoms, isBond, LeadContacts; dim=dim)
 
 	return out, LeadContacts
 
-
 end
+
+
+
+function LayerAtomRels_((latt,nr_layers)::Tuple{Lattices.Lattice, Int},
+												method::Val{:sublatt};
+											kwargs...)::Tuple{Dict{Symbol,Any},
+																				Vector{Vector{Int}}}
+
+	LayerAtomRels_((collect(values(latt.Atoms)), 
+									Lattices.LattVec(latt), nr_layers),
+								 method;
+								 dim=Lattices.VECTOR_STORE_DIM, kwargs...)
+
+end 
+
+
+
+function LayerAtomRels_((at_uc, R_, nr_layers)::Tuple{AbstractVector{<:AbstractMatrix}, <:AbstractVecOrMat, Int},
+												::Val{:sublatt}; 
+												dim::Int, test::Bool=false,
+												kwargs...)::Tuple{Dict{Symbol,Any},
+																					Vector{Vector{Int}}}
+
+	R = Utils.VecAsMat(R_, dim) 
+
+	@assert size(R,dim)==1
+
+	n = length(at_uc)
+
+
+	uc(layer::Int)::Int = (n-1 + layer - div(layer,n)*n)%n +1 
+ 
+	nr_at_uc = size.(at_uc,dim)
+
+	nr_at(layer::Int) = nr_at_uc[uc(layer)]
+
+
+	function AtomsOfLayer(layer::Int)::Matrix{Float64}
+
+#		@assert 1<=layer<=nr_layers 
+
+		return R * floor((layer-1)/n) .+ at_uc[uc(layer)]
+
+	end 
+
+	
+	function IndsAtomsOfLayer(layer::Int)::Vector{Int}
+
+		@assert 1<=layer<=nr_layers 
+
+		s = 0
+
+		for l in 1:layer-1 
+
+			s += nr_at(l)
+
+		end 
+
+		return UnitRange(s+1, s+ nr_at(layer))
+
+	end 
+	
+	
+	function LayerOfAtom(atom::Int)::Int 
+
+		s = 0 
+
+		for layer in 1:nr_layers#Int(1e10)
+
+			na = nr_at(layer)
+
+
+			1<=atom-s<=na && return layer 
+
+			s+=na
+
+		end 
+
+		error("Couldn't find atom in $nr_layers layers")
+	
+	end 
+
+
+
+
+
+	if test 
+
+		for l in 1:nr_layers
+			
+			I = IndsAtomsOfLayer(l)
+		
+			@assert size(AtomsOfLayer(l),dim) == length(I)
+	
+			for a in I 
+		
+				@assert LayerOfAtom(a)==l
+		
+			end 
+
+		end
+
+	end 
+	
+	out = Dict{Symbol,Any}(
+
+			:NrLayers=> nr_layers,
+
+			:LayerOfAtom => LayerOfAtom,
+
+			:IndsAtomsOfLayer => IndsAtomsOfLayer,
+
+			:AtomsOfLayer => AtomsOfLayer
+
+			)
+
+
+	return (out, get_LeadContacts(out; kwargs...))
+
+
+end 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -414,11 +622,6 @@ function LayerAtomRels(Atoms::AbstractMatrix, LayerAtom_;
 	return get_leadcontacts ? out : LayerAtom
 
 end
-
-
-
-
-
 
 
 

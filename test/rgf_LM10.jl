@@ -54,7 +54,7 @@ for i=1:2
 
 	test2 = isapprox(1,lead_hopp[:Hopping]([1,0],[0,0])[1]) && isapprox(1,lead_hopp[:Hopping]([0,0],[0,1])[1])
 
-	@assert [test1,test2][i]
+	@assert [test1,test2][i] [test1,test2]
 
 		return label,latt,lc,lead_hopp
 
@@ -98,11 +98,28 @@ for i=1:2
 
 
 
-		cc2 = ObservablesFromGF.CaroliConductance2(gr, G_adv(Energy), get_SE_ret,
+
+		ga = G_adv(Energy)
+		get_SE_adv = get_SE(ga, NG_adv) 
+
+		A,B = Labels 
+		uc=1 
+
+		a1,a2 = rand(1:100,2)
+
+		@assert isapprox(gr("Atom",a1,"Atom",a2),ga("Atom",a2,"Atom",a1)')
+
+
+#		println(isapprox(ga(A,uc,B,uc),gr(B,uc,A,uc)',rtol=1e-6))
+
+		cc2 = ObservablesFromGF.CaroliConductance2(gr, ga, get_SE_ret,
 																							Labels..., 2)
-	
-		setIndRe!(Y, cc2, 2, iE); ylabs[2] = "T2"
-	
+
+		if !isapprox(cc1,cc2)
+
+			setIndRe!(Y, cc2, 2, iE); ylabs[2] = "T2"
+
+		end
 	
 	
 		ff1 = ObservablesFromGF.FanoFactor2(gr, get_SE_ret, Labels..., 2)
@@ -142,7 +159,7 @@ for i=1:2
 
 	ax.set_xlim(maximum(ENERGIES)*[-1,1])
 
-	ax.set_ylim(-3,5)#extrema(Y))
+#	ax.set_ylim(-3,5)#extrema(Y))
 
 
 end 

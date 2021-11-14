@@ -13,7 +13,7 @@ set_title(fig1)
 sleep(0.05)
 
 
-inds_bonds,Rs_bonds = get_Bonds(;LayerAtomRels...)
+inds_bonds,Rs_bonds = get_Bonds(;LayerAtomRels..., NrLayers=10)
 
 
 

@@ -159,8 +159,137 @@ end
 
 
 
+function HoneycombLattice_xy_term(desired_k::Symbol; kwargs...)::Symbol
+
+	K = [:termination_x, :termination_y] 
+
+	@assert desired_k in K 
 
 
+	T = [:zigzag, :armchair]
+
+
+	t(v::AbstractString)::Symbol = t(Symbol(lowercase(v)))
+
+	function t(v::Symbol)::Symbol 
+
+		in(v,T) && return v 
+
+		v1 = Symbol(lowercase(string(v)))
+
+		@assert in(v1,T) "Termination $v1 not supported"
+
+		return v1
+
+	end
+
+
+	outT = Dict(k=>t(v) for (k,v) in kwargs if k in K)
+
+
+	isempty(outT) && return T[1]
+	
+	@assert allunique(values(outT))
+
+	haskey(outT,desired_k) && return outT[desired_k]
+
+	return only((v for (k,v) in outT if k!=desired_k))
+
+end
+
+
+function HoneycombLattice_xy_labels(::Val{:ab}, args...)
+
+	["A"=>[1,3], "B"=>[2,4]]
+
+end 
+
+
+function HoneycombLattice_xy_labels(::Val{:ba}, args...)
+
+	["B"=>[1,3], "A"=>[2,4]]
+
+end 
+
+function HoneycombLattice_xy_labels(::Val{:x}, x::Utils.List, args...)
+
+	["x$i"=>I for (i,I) in enumerate(Unique(x; inds=:all)[2])]
+
+end 
+
+function HoneycombLattice_xy_labels(::Val{:y},
+																		x::Utils.List, y::Utils.List)
+
+	["y$i"=>I for (i,I) in enumerate(Unique(y; inds=:all)[2])]
+
+end 
+
+
+function HoneycombLattice_xy_labels(label::AbstractString, args...)
+
+	HoneycombLattice_xy_labels(Val(Symbol(lowercase(label))), args...)
+
+end
+
+function HoneycombLattice_xy_labels(labels::Utils.List, args...)
+
+	length(labels)==4 ? EnumUnique(labels) : ["A"=>1:4]
+
+end
+
+
+function HoneycombLattice_xy(Labels;  kwargs...)::Lattice 
+
+	HoneycombLattice_xy(1.0, Labels; kwargs...)
+
+end 
+
+function HoneycombLattice_xy(a0::Real=1.0,
+														 Labels=[];
+														 kwargs...)::Lattice 
+
+	x_term = HoneycombLattice_xy_term(:termination_x; kwargs...)
+
+	(Lx,x),(Ly,y) = a0*[[1, [0, 1, 1, 0]/2]*sqrt(3), [3, [0, 1/2, 3/2, 2]]
+											][x_term==:zigzag ? Colon() : [2,1]]
+	
+
+
+#	iter = if Utils.isList(Labels) 
+#
+#						if length(Labels)==2 
+#				
+#							zip(Labels,([1,3],[2,4]))
+#				
+#						elseif length(Labels)==4
+#				
+#							zip(Labels,([1],[2],[3],[4]))
+#				
+#						elseif length(labels==1)
+#				
+#							zip(Labels,(Colon(),))
+#				
+#						else 
+#				
+#							error() 
+#				
+#						end 
+#			
+#				else 
+#
+#					((Labels,Colon()),)
+#
+#				end 
+
+
+	return Lattice(LA.diagm([Lx,Ly]),
+								 map(HoneycombLattice_xy_labels(Labels, x, y)) do (k,i)
+
+									 k=>Utils.VecsToMat(x[i], y[i]; dim=VECTOR_AXIS) 
+									 
+								end)
+
+end
 
 
 #===========================================================================#
@@ -536,19 +665,19 @@ function LattDims!(latt::Lattice,
 
 end 
 
-#function LattDims!(f::Function, latt::Lattice, 
-#									 d::Union{Int,<:AbstractVector{Int}}=latt.LattDims,
-#									 mode::Symbol=:absolute;
-#									 kwargs...
-#									 )::Vector{Int}
-#
-#	hasmethod(f, (AbstractVector{Int},)) || return LattDims(latt, :absolute)
-#
-#	d_ = LattDims(latt, d, mode; kwargs...)
-#		
-#	latt.LattDims = LattDims(IndsVecs(d_, f(d_)), latt, mode)
-#
-#end 
+function LattDims!(f::Function, latt::Lattice, 
+									 d::Union{Int,<:AbstractVector{Int}}=latt.LattDims,
+									 mode::Symbol=:absolute;
+									 kwargs...
+									 )::Vector{Int}
+
+	hasmethod(f, (AbstractVector{Int},)) || return LattDims(latt, mode) 
+
+	d_ = LattDims(latt, d, mode; kwargs...)
+
+	LattDims!(latt, IndsVecs(d_, f(d_)), mode; kwargs...)
+
+end 
 
 
 
@@ -2019,6 +2148,36 @@ function ShiftAtoms(latt::Lattice, args...; kwargs...)
 
 end 
 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function Rotate(latt::Lattice, args...)::Lattice
+
+	rot = RotVecs(VecLen(latt), args...)
+
+	return Lattice(latt; act_on_atoms=rot, act_on_vectors=rot)
+
+end 
+
+
+function Rotate!(latt::Lattice, args...)::Lattice 
+
+	rot = RotVecs(VecLen(latt), args...)
+
+	applyOnLattAtoms!(rot, latt) 
+
+	applyOnLattVec!(rot, latt)
+
+	return latt
+
+
+
+end 
 
 
 

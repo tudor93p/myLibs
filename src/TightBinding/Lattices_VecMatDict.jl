@@ -1,6 +1,7 @@
 
-const TOLERANCE = 1e-5 
-approx(args...) = isapprox(args...; atol=TOLERANCE)
+const TOLERANCE = 1e-5  
+
+approx(args...)::Bool = isapprox(args...; atol=TOLERANCE)
 
 
 
@@ -9,10 +10,12 @@ const VECTOR_AXIS = [2,1][VECTOR_STORE_DIM]
 
 
 Unique(args...;kwargs...) = Utils.Unique(args...; kwargs..., tol=TOLERANCE, dim=VECTOR_STORE_DIM)
+
 Unique!(args...;kwargs...) = Utils.Unique!(args...; kwargs..., tol=TOLERANCE, dim=VECTOR_STORE_DIM)
 
 
 EnumUnique(args...;kwargs...) = Utils.EnumUnique(args...; kwargs..., tol=TOLERANCE,dim=VECTOR_STORE_DIM)
+
 
 @assert Set([VECTOR_STORE_DIM,VECTOR_AXIS])==Set(1:2)
 
@@ -21,14 +24,14 @@ Cat = [vcat,hcat][VECTOR_STORE_DIM]
 eachvec = [eachrow,eachcol][VECTOR_STORE_DIM]
 
 
-function VecsOnDim(vecs::T; dim::Int)::T where T<:AbstractMatrix{<:Number}
+function VecsOnDim(vecs::AbstractMatrix; dim::Int)::AbstractMatrix
 
-	dim==VECTOR_STORE_DIM && return vecs 
-
-	return transpose(vecs)
+	dim==VECTOR_STORE_DIM ? vecs : transpose(vecs)
 
 end 
 
+	
+RotVecs(args...) = Algebra.RotVecs(args...; dim=VECTOR_STORE_DIM)
 
 
 
@@ -115,7 +118,7 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Vecs(A::AbstractMatrix{T}, ::Nothing=nothing
+function Vecs(A::AbstractMatrix{T}, ::Union{Nothing,Colon}=nothing
 						 )::Matrix{T} where T<:Number 
 	
 	A
@@ -335,10 +338,30 @@ end
 
 function CombsOfVecs(A::AbstractMatrix{Float64}, coeff)::Matrix{Float64}
 
-	Utils.CombsOfVecs(A, to_myMatrix(coeff, NrVecs(A)); dim=2)
+	Utils.CombsOfVecs(A, to_myMatrix(coeff, NrVecs(A));
+										dim=VECTOR_STORE_DIM)
 	
 end 
 
+#function CombsOfVecs(coeff::AbstractMatrix{Float64})::Function 
+#
+#
+#	Utils.CombsOfVecs(coeff; dim=VECTOR_STORE_DIM)
+#
+#end 
+#
+#function CombsOfVecs(coeff)::Function 
+#
+#
+#	function cov(A::AbstractMatrix)::Matrix{Float64}
+#
+#		CombsOfVecs(A, coeff)
+#
+#	end 
+#
+#end 
+#
+	
 
 #===========================================================================#
 #

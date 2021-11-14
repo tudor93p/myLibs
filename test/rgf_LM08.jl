@@ -3,42 +3,46 @@ include("rgf.jl")
 
 PyPlot.close(8)
 
-function ribbon_x_armchair(NrAtomsPerLayer::Int)
-
-	make_y_ribbon!(honeycomb_x_armchair(), NrAtomsPerLayer)
-
-end 
 
 
-
-
-
-fig,axes = PyPlot.subplots(1,3,num=8,figsize=(12,4))
+fig,Ax = PyPlot.subplots(2,2,num=8,figsize=(8,7))
 
 set_title(fig)
 
 
-L0 = make_y_ribbon!(Lattices.HoneycombLattice(),2)
 
-for n=1:4
+for (i_term,term_x) in enumerate([:armchair,:zigzag])
 
-	plot_atoms(axes[1], Lattices.Atoms_ManyUCs(L0;Ns=n), label="n=$n")
+	latt = ribbon_x(term_x, 3)
 
-	plot_atoms(axes[2], Lattices.Atoms_ManyUCs(ribbon_x_armchair(3),Ns=n),label="n=$n")
+	for n=0:1
+	
+		for sl in Lattices.sublatt_labels(latt)
+
+
+			plot_atoms(Ax[i_term,1], Lattices.Atoms_ManyUCs(latt; label=sl, Ns=n),label="$sl, n=$n")
+
+		end 
+
+	end 
 
 end
 
-axes[1].legend() 
-axes[2].legend() 
 
 
-for layer in 1:nr_layers
 
-	atoms = LayerAtomRels[:AtomsOfLayer](layer)
+[ax.legend() for ax in Ax[1:2,1]]
 
-	color = in(layer,1:nr_layers) ? (isodd(layer) ? "black" : "gray") : "red"
 
-	plot_atoms(axes[3], atoms; color=color)
+for (i_term,term_x) in enumerate([:armchair,:zigzag])
+
+	LAR = slices_ribbon(term_x, nr_layers, nr_atoms_layer)
+
+	plot_layers(Ax[i_term,2]; LAR...) 
+
+	plot_atoms(Ax[i_term,2], hcat(LAR[:AtomsOfLayer](0),
+																LAR[:AtomsOfLayer](nr_layers+1));
+						 label="+/-1",c="orange")
 
 end 
 
@@ -77,4 +81,4 @@ end
 #PyPlot.figure(4)
 #
 #
-#
+#fig.tight_layout()
