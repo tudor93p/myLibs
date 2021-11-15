@@ -282,9 +282,9 @@ colors = [["orange","green","peru","dodgerblue"],["blue","gold","darkviolet","fo
 
 nr_layers = 20
 
-nr_atoms_layer = 3*3+1 
+nr_atoms_layer = 3*4+1 
 
-@assert iseven(nr_atoms_layer)
+#@assert iseven(nr_atoms_layer)
 
 #nr_layers = Int(ceil(nr_atoms_layer*5.2))
 
@@ -293,7 +293,7 @@ nr_atoms_layer = 3*3+1
 
 
 
-delta = 0.002im
+delta = 0.005im
 
 #@show nr_layers nr_atoms_layer
 

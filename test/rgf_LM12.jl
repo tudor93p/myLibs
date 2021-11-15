@@ -6,8 +6,8 @@ PyPlot.close(121)
 PyPlot.close(122)
 
 
-fig1,Ax1 = PyPlot.subplots(2,2,num=121,figsize=(9,8))
-fig2,Ax2 = PyPlot.subplots(1,2,num=122,figsize=(9,5))
+fig1,Ax1 = PyPlot.subplots(2,2,num=121,figsize=(9,8),sharex=true,sharey=true)
+fig2,Ax2 = PyPlot.subplots(2,2,num=122,figsize=(9,8),sharex=true)
 
 set_title(fig1)
 set_title(fig2)
@@ -23,7 +23,7 @@ sleep(0.1)
 
 
 
-ENERGIES = LinRange(0.000,0.6,150)
+ENERGIES = LinRange(0.000,0.6,50)
 
 svt_En = [0,0.3] 
 
@@ -96,6 +96,15 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 		setIndRe!(y, cc1, iE)
 
 
+		gr(Labels[1],2,dir="left")
+
+
+
+
+
+
+
+
 		print("\r$latt_type leads, L=$nr_layers, W=$nr_atoms_layer: " ,
 							round(100iE/length(ENERGIES),digits=1),"%     ")
 		
@@ -107,7 +116,7 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
 		color=colors[i_svt][i_latt_type]
 
-		Ax2[i_latt_type].scatter(Energy, y[iE], c=color,zorder=10,s=50)
+		Ax2[1,i_latt_type].scatter(Energy, y[iE], c=color,zorder=10,s=50)
 		
 		SVT= ObservablesFromGF.SiteTransmission(
 												gr,
@@ -137,13 +146,13 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
 
 
-	Ax2[i_latt_type].plot(ENERGIES, y, c="k",alpha=0.3,zorder=-2)
+	Ax2[1,i_latt_type].plot(ENERGIES, y, c="k",alpha=0.3,zorder=-2)
 
-	Ax2[i_latt_type].set_ylim(0,5)
-	Ax2[i_latt_type].set_xlim(extrema(ENERGIES))
+	Ax2[1,i_latt_type].set_ylim(0,5)
+	Ax2[1,i_latt_type].set_xlim(extrema(ENERGIES))
 
 
-	Ax2[i_latt_type].set_title("Conductance $latt_type leads")
+	Ax2[1,i_latt_type].set_title("Conductance $latt_type leads")
 
 end 
 
