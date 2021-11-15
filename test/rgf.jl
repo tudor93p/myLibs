@@ -94,7 +94,7 @@ end
 
 function layer_width(term_x::Symbol, N::Int)::Int 
 
-	term_x==:zigzag && return Int(round(N/2))
+	term_x==:zigzag && return Int(round(N/2)) + 1
 
 	term_x==:armchair && return Int(3round((N-1)/3)+1)
 
@@ -203,9 +203,26 @@ two_lead_args(;NrLayers::Int, kwargs...) =  [(1, -1, "Left"), (NrLayers, 1, "Rig
 
 
 
-function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, kwargs...)
+function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, 
+											IndsAtomsOfLayer::Function, kwargs...)
 
-	mapreduce(AtomsOfLayer, hcat, 1:NrLayers)
+	iaol = IndsAtomsOfLayer.(1:NrLayers)
+
+	at = zeros(2, sum(length, iaol))
+
+	for (layer,inds) in enumerate(iaol)
+	
+		for (i,a) in zip(inds,eachcol(AtomsOfLayer(layer)))
+
+			at[:,i] = a 
+
+		end 
+	
+	end
+
+	@assert isapprox(at,mapreduce(AtomsOfLayer, hcat, 1:NrLayers))
+
+	return at 
 
 end 
 
@@ -216,16 +233,45 @@ dev_hopp = H_Superconductor.SC_Domain((ChemicalPotential=0,
 get_TBL(l::Lattices.Lattice) = Lattices.NearbyUCs(l, 1)
 
 
-function prep_lead(label, latt, lead_hopp, del=delta)
+function lead_gfs(L1::Lattices.Lattice,lead_gf_labels::AbstractVector,del::ComplexF64)
 
-	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, get_TBL, lead_hopp)
+	lead_gfs(L1, lead_gf_labels, get_lead_hopp(L1), del)
+
+end
+
+
+function lead_gfs(L1::Lattices.Lattice,
+									lead_gf_labels::AbstractVector,
+									lead_hopp::AbstractDict, 
+									del::ComplexF64
+									)
+
+	@assert del==1im*imag(del) 
+
+	intra, inter = TBmodel.BlochHamilt_ParallPerp(L1, get_TBL, lead_hopp)
 	
-	function gf(E::Real; k=[])::Matrix{ComplexF64}
+
+	intra_,inter_ = intra(), only(values(inter))
+		
 	
-		GreensFunctions.GF_SanchoRubio(E + del, intra(k), only(values(inter)), "+")
-	
+	return function gf(E::Real)
+
+			gfs = GreensFunctions.GF_SanchoRubio(E+del, intra_, inter_; 
+																							 target=join(lead_gf_labels))
+
+			return [gfs[gfl] for gfl in lead_gf_labels]
+
 	end
-	
+
+end
+
+
+
+
+
+function prep_lead(label, latt, lead_hopp, del)
+
+	gf = first∘lead_gfs(latt, ["+"], lead_hopp, del)
 	
 	lead_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; lead_hopp...)
 
@@ -233,12 +279,24 @@ function prep_lead(label, latt, lead_hopp, del=delta)
 	
 end 
 
+
+
+
+
+
 function get_lead_hopp(latt) 
 	
 	H_Superconductor.SC_Domain((ChemicalPotential=0,),
 														 Lattices.Distances(latt,1))
 
 end
+
+
+
+
+
+
+
 
 
 function get_Bonds(;NrLayers::Int, AtomsOfLayer::Function,
@@ -277,11 +335,9 @@ end
 
 
 
-colors = [["orange","green","peru","dodgerblue"],["blue","gold","darkviolet","forestgreen"]]
+colors = [["orange","green","peru","dodgerblue","lightseagreen","deeppink"],["blue","gold","darkviolet","forestgreen","coral","olive"]]
 
-
-nr_layers = 20
-
+nr_layers = 25
 nr_atoms_layer = 3*4+1 
 
 #@assert iseven(nr_atoms_layer)
@@ -294,6 +350,7 @@ nr_atoms_layer = 3*4+1
 
 
 delta = 0.005im
+
 
 #@show nr_layers nr_atoms_layer
 
@@ -386,47 +443,17 @@ function setIndRe!(X,x,inds...)
 
 end 
 
-#
-#	
-#	
-#	fig,axes = PyPlot.subplots(1,2,num=8)
-#	
-#	for (svt,ax,col) in zip(SVTs,axes,["red","green"])
-#	
-#		ax.quiver(eachrow(XY)..., eachrow(svt)...,color=col,zorder=10)
-#	
-#		plot_atoms(ax,XY,color="k",zorder=0,s=10)
-#	
-#	end 
-#	
-#	
-#
-#
-#end 
-#
-#
-#
-#
-#
-#Y = zeros(4, length(ENERGIES)) 
-#
-#labels = Vector{String}(undef,4)
+function lead_spectrum(L1::Lattices.Lattice, nr_kpoints)
 
-################# 
+	H = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(L1,1);
+													 argH="k", get_lead_hopp(L1)...)
+	
+	kPoints, kTicks = Utils.PathConnect(Lattices.BrillouinZone(L1), nr_kpoints; dim=2)
+	
+	return BandStructure.Diagonalize(H, kPoints; dim=2)
 
 
-
-
-#PyPlot.figure(6)
-#
-#y1 = Utils.Rescale(Y[1,:],[1,1.7],[0,maximum(Y[1,:])])
-#
-#PyPlot.plot(y1,ENERGIES,alpha=0.6,c="k",label="Caroli")
-#PyPlot.plot(y1,-ENERGIES,alpha=0.6,c="k")
-#PyPlot.legend()
-
-
-
+end
 
 
 

@@ -1330,7 +1330,8 @@ end
 
 function uniqsp(getsp::Function)::Function 
 	
-	function uniqsp_(start::Real, stop::Real, Len::Int64, tol::Real; Trunc=false)::Vector{Float64}
+	function uniqsp_(start::Real, stop::Real, Len::Int64, tol::Real; 
+									 Trunc::Bool=false)::Vector{Float64}
 
 		ntol,ftol = tolNF(tol)
 	

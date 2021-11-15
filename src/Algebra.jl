@@ -1348,8 +1348,16 @@ end
 #---------------------------------------------------------------------------#
 
 
+function OuterBinary(U::Union{Number,AbstractArray}, op::Function;
+										 kwargs...)::AbstractArray 
 
-function OuterBinary(U::Tu, V::Tv, op::Function; flat=false)::AbstractArray where Tu<:T where Tv<:T where T<:Union{Number,AbstractVector}
+	OuterBinary(U, U, op; kwargs...)
+
+end
+
+function OuterBinary(U::Tu, V::Tv, op::Function; 
+										 flat::Bool=false
+										 )::AbstractArray where Tu<:T where Tv<:T where T<:Union{Number,AbstractVector}
 	
 	right_shape(a::Number) = hcat(a)
 	right_shape(a::AbstractVector) = reshape(a,:,1)
@@ -1361,7 +1369,9 @@ function OuterBinary(U::Tu, V::Tv, op::Function; flat=false)::AbstractArray wher
 end 
 
 
-function OuterBinary(U::Tu, V::Tv, op::Function; flat=false, dim=1) where Tu<:T where Tv<:T where T<:AbstractMatrix
+function OuterBinary(U::Tu, V::Tv, op::Function; 
+										 flat::Bool=false, dim::Int=1
+										 ) where Tu<:T where Tv<:T where T<:AbstractMatrix
 
 	dim2 = 3 - dim # columns if dims=rows and reversed
 
@@ -1384,17 +1394,17 @@ function OuterBinary(U::Tu, V::Tv, op::Function; flat=false, dim=1) where Tu<:T 
 
 
 
-	typ = Base.return_types(op, typeof.(first.((U,V)))) |> function (ts)
+	typ = Base.return_types(op, typeof.(first.((U,V)))) |> function aux(ts)
 
 					!isempty(ts) ? ts[1] : typeof(op(U[1],V[1])) # Any
 
 		end 
 
 
+
 	out = similar(Array{typ}, Utils.flat(sizes)...)
 	
 	i0 = fill(Colon(), 2-flat)
-
 
 
 	for i in 1:sizes[dim2]

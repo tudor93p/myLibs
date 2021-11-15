@@ -177,7 +177,7 @@ function args_local_potential(LocalPotential::Function,
 	 function total_local_pot(ri::AbstractVector, rj::AbstractVector
 																	 )::AbstractMatrix
 		 
-		 LocalPotential(ri,rj) + ChemicalPotential
+		 LocalPotential(ri,rj) .+ ChemicalPotential
 	 
 	 end 
 
@@ -340,7 +340,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
 	v0, vf = args_local_potential(; param_H...)
 
-	Append!(Hoppings, v0, same(0), toBasis(One,vf))
+	Append!(Hoppings, v0, same(0)∘-, toBasis(One,vf))
 
 
         # -------------- superconducting pairing ----------------- #      

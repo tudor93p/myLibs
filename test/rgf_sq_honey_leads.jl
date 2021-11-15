@@ -101,18 +101,10 @@ for (q,term_x) in enumerate([:armchair, :zigzag])
 	
 	
 	
-			lead_hopp = get_lead_hopp(L1)
 			
 			labels[q,i,j] = label
 	
-	
-			H = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(L1,1);
-															 argH="k",
-															 lead_hopp...)
-		
-			kPoints, kTicks = Utils.PathConnect(Lattices.BrillouinZone(L1), nr_kpoints; dim=2)
-		
-			spectrum = BandStructure.Diagonalize(H, kPoints; dim=2)
+			spectrum = lead_spectrum(L1, nr_kpoints)	
 	
 			spectra[q,i,j,:] = spectrum["Energy"]
 	
@@ -120,18 +112,11 @@ for (q,term_x) in enumerate([:armchair, :zigzag])
 			Ax2.set_xlabel(string("DOS / ",spectrum["kLabel"]," / DOS"))
 	
 			Ax2.set_ylabel("Energy")
-		
-			intra, inter = TBmodel.BlochHamilt_ParallPerp(L1, get_TBL, lead_hopp)
-		
-			intra_,inter_ = intra(), only(values(inter))
-		
-		
-		#	i==1 && @show intra_ inter_ 
-		
+
+			gfs_ = lead_gfs(L1, lead_gf_labels, delta)
+
 			for (ie,E) in enumerate(lead_Energies)
 				
-				gfs = GreensFunctions.GF_SanchoRubio(E+delta, intra_, inter_; 
-																							 target=join(lead_gf_labels))
 		
 		#			@assert isapprox(GreensFunctions.GF_SanchoRubio(E + delta, intra_, inter_, "-"),
 		#											 GreensFunctions.GF_SanchoRubio_rec(E + delta, intra_, inter_;																			 target="-")["-"],
@@ -139,10 +124,10 @@ for (q,term_x) in enumerate([:armchair, :zigzag])
 		#
 		#@assert isapprox(gfs["+"], l1[:GF](E)[1], rtol=1e-8)
 		
-		
-				for (igf,gflab) in enumerate(lead_gf_labels)
-		
-					DOS[q,i,j,igf,ie] = ObservablesFromGF.DOS(gfs[gflab])
+	
+				for (igf,gf) in enumerate(gfs_(E))
+
+					DOS[q,i,j,igf,ie] = ObservablesFromGF.DOS(gf)
 	
 				end 
 				

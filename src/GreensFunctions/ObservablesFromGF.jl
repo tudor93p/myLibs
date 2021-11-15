@@ -41,6 +41,14 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function LDOS_Decimation(GD::Function; 
+												 NrLayers::Int, 
+												 IndsAtomsOfLayer::Function,
+												 kwargs...)::Vector{Float64}
+
+	LDOS_Decimation(GD, NrLayers, IndsAtomsOfLayer; kwargs...)
+
+end
 
 function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
 												 Op=1, dim::Int, VirtLeads...)::Vector{Float64}
@@ -315,7 +323,9 @@ function CaroliConductance2(Gr::Function, Ga::Function,
 
 
 
-	@assert isapprox(gDS_adv,gSD_ret') "NO TRS"
+#	@assert isapprox(gDS_adv,gSD_ret',rtol=1e-5) "NO TRS"
+	
+	isapprox(gDS_adv,gSD_ret',rtol=1e-5) || @warn "NO TRS"
 
 	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
 
@@ -565,6 +575,43 @@ function SiteTransmission(G::Function,
 end
 
 
+function SiteTransmission(Gr::Function, Ga::Function,
+													Hoppings::AbstractVector{<:AbstractMatrix},
+													 Bonds::AbstractVector{NTuple{2,Int}},
+													 RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
+													 SE_lead::Function, lead_args...;
+													dim::Int, kwargs...
+													)::Matrix{Float64}
+
+	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
+															[2,1][dim] => length(RBonds[1][1]))
+
+
+	W = GreensFunctions.DecayWidth(SE_lead(lead_args...))
+
+	for sector in Utils.IdentifySectors(first.(Bonds))
+							# for each atom, basically, provided Bonds are sorted
+
+		i = Bonds[sector[1]][1]
+
+		GiW = Gr("Atom", i, lead_args...)*W
+
+		for bond_index in sector 
+
+			j = Bonds[bond_index][2]
+
+			bt = BondTij(GiW*Ga(lead_args..., "Atom", j), Hoppings[bond_index];
+									 kwargs...) 
+
+			addSiteTiTj!(siteT, dim, (i,j), RBonds[bond_index], bt) 
+
+		end
+
+	end 
+
+	return siteT
+
+end
 
 
 

@@ -855,6 +855,7 @@ function Hopping_Term(value::AbstractMatrix,
 											condition::Function,
 											fun::Function)::Function
 
+
   function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
 
     condition(ri,rj) ? value .* fun(ri,rj) : Zero
