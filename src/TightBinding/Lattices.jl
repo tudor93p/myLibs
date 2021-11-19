@@ -122,6 +122,15 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function SquareLattice(name::Union{Symbol,AbstractString,Int},
+											 atoms::Union{AbstractArray,Real}=0,
+											 args...;
+											 kwargs...
+											 )::Lattice 
+
+	SquareLattice(1.0, name, atoms, args...; kwargs...)
+
+end
 
 
 function SquareLattice(a0::Real,

@@ -13,6 +13,13 @@ import Dierckx,FFTW
 
 const EPSILON = 1e-20
 
+#julia> chi_improper(l,a) = (-1)^l * sin((l+1/2)a))/sin(a/2)
+#ERROR: syntax: extra token ")" after end of expression
+#Stacktrace:
+# [1] top-level scope
+#   @ none:1
+#
+#julia> chi_improper(l,a) = (-1)^l * sin((l+1/2)a)/sin(a/2)
 
 
 #===========================================================================#
@@ -24,7 +31,7 @@ const EPSILON = 1e-20
 
 
 
-function RotMat2!(R::AbstractMatrix{<:Real}, theta::Real; kwargs...)::Nothing 
+function RotMat2!(R::AbstractMatrix{<:Real}, theta::Real, Ax::Int=3; kwargs...)::Nothing 
 
 	@assert LA.checksquare(R)==2 
 
@@ -32,9 +39,9 @@ function RotMat2!(R::AbstractMatrix{<:Real}, theta::Real; kwargs...)::Nothing
 
 	R[2,2] = R[1,1]
 
-	R[2,1] = sin(theta) 
+	R[1,2] = (-1)^Ax * sin(theta) 
 	
-	R[1,2] = -R[2,1]
+	R[2,1] = -R[1,2]
 
 	return 
 
@@ -44,7 +51,7 @@ function RotMat(::Val{2}, theta::Real, args...; kwargs...)::Matrix{Float64}
 
 	R = zeros(2,2) 
 
-	RotMat2!(R, theta)
+	RotMat2!(R, theta, args...)
 
 	return R
 
@@ -53,21 +60,21 @@ end
 
 function RotMat(::Val{3}, theta::Real, Ax::Int; kwargs...)::Matrix{Float64}
 
-	@assert 1<=Ax<=3 "Choose 1==x, 2==y, 3==z"
-
 	inds = filter!(!isequal(Ax), [1,2,3]) 
 
 	R = zeros(3,3) 
 
 	R[Ax,Ax] = 1.0
 
-	RotMat2!(view(R,inds,inds), theta)
+	RotMat2!(view(R,inds,inds), theta, Ax)
 
 	return R
 
 end
 
-function RotMat(D::Int, args...; kwargs...)::Matrix{Float64}
+function RotMat(D::Int, theta::Real, Ax::Int=3; kwargs...)::Matrix{Float64}
+
+	@assert 1<=Ax<=3 "Choose 1==x, 2==y, 3==z" 
 
 	RotMat(Val(D), args...; kwargs...)
 

@@ -1,15 +1,11 @@
 using Revise 
 
 # test2
-using Test 
+using Test  
 
-function pr_in(f::AbstractString) 
 
-	println("\n********* $f ********* \n")
+for f in (
 
-	include("$f.jl")
-
-end
 #"algebra" |> pr_in
 
 #"lattices_vecs" |> pr_in
@@ -30,13 +26,13 @@ end
 #"rgf_LM10" |> pr_in 
 #"rgf_LM11" |> pr_in 
 
-"rgf_LM12" |> pr_in 
+#"rgf_LM12",
 
 #"rgf_B" |> pr_in 
 
 
 #"rgf" |> pr_in
-#"gf" |> pr_in
+"gf",
 
 
 #"tbmodel" |> pr_in 
@@ -56,6 +52,14 @@ end
 
 #"param2" |>pr_in 
 
+)
+
+
+	println("\n********* $f ********* \n")
+
+	include("$f.jl")
+
+end
 
 
 

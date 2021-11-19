@@ -15,13 +15,13 @@ colors = [colors[i,j] for i in axes(colors,1) for j in [3:size(colors,2);1:2]]
 
 PyPlot.close.(1:10)
 
-LENGTH = 51
+LENGTH = 10
 
-P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = div(LENGTH,2), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
+P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
 
 P2 = (Attached_Leads = "AB",)
 
-P3 = [(ChemPot = 0.0, Hopping = 1.0, Label = "A", Direction = -1, Contact = (-1, 1), Lead_Width = div(P1.width,2), Lead_Coupling = 1.0, SCbasis = true), (ChemPot = 0.0, Hopping = 1.0, Label = "B", Direction = 1, Contact = (1, -1), Lead_Width = max(1,div(P1.width,2)-0), Lead_Coupling = 1.0, SCbasis = true)]
+P3 = [(ChemPot = 0.0, Hopping = 1.0, Label = "A", Direction = -1, Contact = (-1, 1), Lead_Width = max(1,div(P1.width,2)), Lead_Coupling = 1.0, SCbasis = true), (ChemPot = 0.0, Hopping = 1.0, Label = "B", Direction = 1, Contact = (1, -1), Lead_Width = max(1,div(P1.width,2)-0), Lead_Coupling = 1.0, SCbasis = true)]
 
 enlim = [-0.39493671,  0.39493671]
 
@@ -172,6 +172,11 @@ leadlabels = [string(l) for l in P2[:Attached_Leads]]
 
 
 println()
+
+
+function swave()
+
+end 
 
 function zerogap(args...; kwargs...)::Matrix{ComplexF64}
 
@@ -651,6 +656,8 @@ nr_at = size(A0,2)
 H_ll = TBmodel.HoppingMatrix(A0; dev_Hopping...)
 
 println()
+
+error()  
 
 @info "New method"
 

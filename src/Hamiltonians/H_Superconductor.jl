@@ -2,14 +2,183 @@ module H_Superconductor
 
 #############################################################################
 
-
-
 import ..LA 
 
 import ..Utils, ..TBmodel, ..Algebra
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
+#
+## PyCall.pyimport("get_SCgaps").SCmatr_realspace(dist_tol,hopp_cutoff,funs="meta")
+#
+#function get_SCgaps_args(params::AbstractVector{<:Number},
+#												 nmax::Int,
+#												 dim_basis::Int,
+#												 hopp_cutoff::Float64,
+#												 dist_tol::Float64
+#												 )
+#
+#	zerogap_ = zeros(ComplexF64, dim_basis, dim_basis)
+#
+#	all(<(hopp_cutoff) ∘ abs, params) && return (zerogap_,0)
+#
+#
+#	return (get_gap(params, dim_basis, hopp_cutoff, dist_tol), nmax)
+#
+#end
+#
+#
+#
+#
+##	nmax==0 ? ri/2 + rj/2 
+##	nmax>0 ? ri-rj 
+#
+#
+#
+#
+##function get_chiral_gap(chiral_eta::AbstractVector,swave::Function)::Function
+##	
+##	function gap(ri::AbstractVector,rj::AbstractVector)::Matrix{ComplexF64}
+##	
+##		chiral_gap(ri-rj, chiral_eta, swave((ri+rj)/2))
+##
+##	end 
+##
+##end 
+#
+#
+##function get_chiral_gap(chiral_eta::Function, swave::Number)::Function 
+##
+##	function gap(ri::AbstractVector,rj::AbstractVector)::Matrix{ComplexF64}
+##	
+##		chiral_gap(ri-rj, chiral_eta((ri+rj)/2), swave)
+##
+##	end 
+##
+##end 
+##			
+##
+##function get_chiral_gap(chiral_eta::Function, swave::Function)
+##				
+##	function gap(ri::AbstractVector,rj::AbstractVector)::Matrix{ComplexF64}
+##
+##		r = (ri+rj)/2
+##
+##		return chiral_gap(ri-rj,	chiral_eta(r), swave(r))
+##
+##	end 
+##
+##
+##end 
+#
+#
+#nmax_chiral_gap = 1
+#
+#delta = Utils.fSame(dist_tol)(0)
+#
+#function chiral_pwave_gapfunction(ri::AbstractVector{<:Real},
+#																	rj::AbstractVector{<:Real},
+#																	eta::Function,
+#																	args...
+#																	)::Matrix{ComplexF64}
+#																	
+#	chiral_pwave_gapfunction(ri-rj, eta(ri/2+rj/2), args...)
+#
+#end
+#
+#
+#function chiral_pwave_gapfunction(ri::AbstractVector{<:Real},
+#																	rj::AbstractVector{<:Real},
+#																	eta::AbstractVector{<:Number},
+#																	args...
+#																	)::Matrix{ComplexF64}
+#
+#	chiral_pwave_gapfunction(ri-rj, eta, args...)
+#
+#end 
+#
+#function chiral_pwave_gapfunction(R::AbstractVector{<:Real},
+#																	(eta_x,eta_y)::AbstractVector{<:Number},
+#																	delta::Function,
+#																	)::Matrix{ComplexF64}
+#
+#	x = R[1] 
+#
+#	y = R[2] 
+#	
+#	D = zeros(Complex{Float64}, 4, 4)
+#	
+#	D[1,4] = -1im*eta_y*(-delta(y - 1) + delta(y + 1))*delta(x)/2 + (1im*eta_x*delta(x - 1)/2 - 1im*eta_x*delta(x + 1)/2 + )*delta(y)
+#
+#	
+#	D[3,2] = -1im*(-delta(y - 1) + delta(y + 1))*delta(x)*conj(eta_y)/2 + (1im*delta(x - 1)*conj(eta_x)/2 - 1im*delta(x + 1)*conj(eta_x)/2)*delta(y)
+#	
+#	D[2,3] = D[1,4]
+#
+#	D[4,1] = D[3,2] 
+#
+#	
+#	return D
+#	
+#end
+#
+#
+#
+#nmax_swave_gap = 0 
+#
+#function swave_gapfunction(ri::AbstractVector{<:Real},
+#rj::AbstractVector{<:Real},
+#										psi::Number,
+#args...
+#										)::Matrix{ComplexF64} 
+#
+#swave_gapfunction(ri-rj, psi, args...)
+#
+#end 
+#
+#function swave_gapfunction(ri::AbstractVector{<:Real},
+#rj::AbstractVector{<:Real},
+#										psi::Function
+#args...
+#										)::Matrix{ComplexF64} 
+#
+#swave_gapfunction(ri-rj, psi(ri/2+rj/2), args...)
+#
+#end 
+#
+#
+#
+#function swave_gapfunction(R::AbstractVector{<:Real},
+#										psi::Number,
+#										delta::Function
+#										)::Matrix{ComplexF64}
+#
+#	x, y, = R
+#	
+#	D = zeros(ComplexF64, 4, 4)
+#	
+#	(delta(x) && delta(y)) || return D 
+#
+##	e_up, h_dw 
+#	D[1,4] = psi
+#
+## e_dw, h_up 
+#	D[2,3] = - D[1,4]
+#
+#
+#	D[4,1] = conj(D[1,4])
+#
+#	D[3,2] = - D[4,1]
+#	
+#	return D
+#	
+#end 
+#
 
 #===========================================================================#
 #
@@ -152,6 +321,11 @@ function BasisInfo(using_SC_basis::Val{true})::Function
 end
 
 
+
+
+
+
+
 #===========================================================================#
 #
 #
@@ -172,13 +346,17 @@ function args_local_potential(LocalPotential::Function,
 															ChemicalPotential::Number,
 															)::Tuple{Float64, Function}
 
+#	mu = TBmodel.matrixval(ChemicalPotential)
+
+
 	(1.0, 
 
 	 function total_local_pot(ri::AbstractVector, rj::AbstractVector
-																	 )::AbstractMatrix
+																	 )::Float64#AbstractMatrix
 		 
-		 LocalPotential(ri,rj) .+ ChemicalPotential
-	 
+		 LocalPotential(ri,rj) + ChemicalPotential
+	
+
 	 end 
 
 	 )

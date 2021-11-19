@@ -7,13 +7,13 @@ PyPlot.close(122)
 PyPlot.close(123)
 
 
-fig1,Ax1 = PyPlot.subplots(2,2,num=121,figsize=(12,11),sharex=true,sharey=true)
+fig1,Ax1 = PyPlot.subplots(2,2,num=121,figsize=(10,9),sharex=true,sharey=true)
 
 
 sleep(0.1)
-fig1,Ax3 = PyPlot.subplots(2,2,num=123,figsize=(12,11),sharex=true,sharey=true)
+fig3,Ax3 = PyPlot.subplots(2,2,num=123,figsize=(10,9),sharex=true,sharey=true)
 sleep(0.1)
-fig2,Ax2 = PyPlot.subplots(2,2,num=122,figsize=(9,8),sharex=true)
+fig2,Ax2 = PyPlot.subplots(2,2,num=122,figsize=(8,7),sharex=true)
 
 sleep(0.1) 
 
@@ -30,7 +30,8 @@ set_title(fig2)
 
 
 
-svt_En = [[0.01,0.3],[0.0,0.15]]
+svt_En = [chosen_energies["armchair"],chosen_energies["zigzag"]]
+
 
 ENERGIES = sort(unique(vcat(svt_En...,
 														Utils.uniqlinsp(-0.1,0.6,70, 3; Trunc=true))))
@@ -55,10 +56,10 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
 
 
-	Labels,LeadLatts,LeadContacts,LHopps = Utils.zipmap(
+	Labels,LeadLatts,LeadContacts,LHopps,CHopps = Utils.zipmap(
 					two_lead_args(;LayerAtomRels...)) do (contact,dir,lab)
 	
-	latt,a = honeycomb_latt_lead(contact, dir, lab; 
+		latt,a = honeycomb_latt_lead(contact, dir, lab; 
 															 LayerAtomRels..., term_x=latt_type,
 #															 four_uc=true,
 															 )
@@ -66,14 +67,16 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 		lc = lead_contacts(contact, latt, a; LayerAtomRels...)
 
 		lead_hopp = get_lead_hopp(latt)
+
+		coupl_hopp = get_coupl_hopp(latt)
 	
-		return lab,latt,lc,lead_hopp
+		return lab,latt,lc,lead_hopp,coupl_hopp
 	
 	end .|> collect
 	
 	
-	leads_ret = prep_lead.(Labels, LeadLatts, LHopps, delta)
-	leads_adv = prep_lead.(Labels, LeadLatts, LHopps, -delta)
+	leads_ret = prep_lead.(Labels, LeadLatts, LHopps, CHopps, delta)
+	leads_adv = prep_lead.(Labels, LeadLatts, LHopps, CHopps, -delta)
 	
 	NG_ret = NewGeometry(LayerAtomRels, LeadContacts, leads_ret)
 	
@@ -203,7 +206,7 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
 		end 
 
-#		for (iL,SVT) in enumerate((sum(SVTs),))
+#		for (iL,SVT) in enumerate((+(SVTs...),))
 		for (iL,SVT) in enumerate(SVTs)
 
 			color = colors[i_svt][i_latt_type+2(iL-1)]
@@ -261,7 +264,7 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 	
 	
 	
-	LS = lead_spectrum.(LeadLatts, 100)
+	LS = lead_spectrum.(LeadLatts, 200)
 
 	for (i_lead,spectrum) in enumerate(LS)
 
@@ -271,7 +274,7 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
 		I = minimum(ENERGIES).<=E.<=maximum(ENERGIES)
 
-		Ax2[2,i_latt_type].scatter(E[I],spectrum["kLabels"][I],label="PBC "*Labels[i_lead],s=10,c=colors[1][i_lead])
+		Ax2[2,i_latt_type].scatter(E[I], spectrum["kLabels"][I], label="PBC "*Labels[i_lead],s=10,c=colors[1][i_lead])
 
 	end
 		
@@ -289,8 +292,9 @@ end
 
 
 
+for fig in (fig1,fig2,fig3)
 
-fig1.tight_layout()
+	fig.tight_layout()
+	fig.subplots_adjust(top=0.92,hspace=0.1)
 
-fig1.subplots_adjust(top=0.94)
-
+end 

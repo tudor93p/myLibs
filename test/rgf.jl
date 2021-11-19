@@ -98,6 +98,8 @@ function layer_width(term_x::Symbol, N::Int)::Int
 
 	term_x==:armchair && return Int(3round((N-1)/3)+1)
 
+	return N 
+
 end
 
 
@@ -269,13 +271,14 @@ end
 
 
 
-function prep_lead(label, latt, lead_hopp, del)
+function prep_lead(label, latt, lead_hopp, coupl_hopp, del)
 
 	gf = first∘lead_gfs(latt, ["+"], lead_hopp, del)
 	
 	lead_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; lead_hopp...)
+	coupl_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; coupl_hopp...)
 
-	return LayeredSystem.PrepareLead(label, latt, lead_hopp_matr, lead_hopp_matr, gf)
+	return LayeredSystem.PrepareLead(label, latt, coupl_hopp_matr, lead_hopp_matr, gf)
 	
 end 
 
@@ -286,12 +289,22 @@ end
 
 function get_lead_hopp(latt) 
 	
-	H_Superconductor.SC_Domain((ChemicalPotential=0,),
+	H_Superconductor.SC_Domain((ChemicalPotential=0,
+															Hopping=1,
+															),
 														 Lattices.Distances(latt,1))
 
 end
 
 
+function get_coupl_hopp(latt) 
+	
+	H_Superconductor.SC_Domain((ChemicalPotential=0,
+															Hopping=1,
+															),
+														 Lattices.Distances(latt,1))
+
+end
 
 
 
@@ -346,6 +359,11 @@ nr_atoms_layer = 3*4+1
 
 #nr_layers = Int(ceil(nr_atoms_layer*2))
 #
+
+chosen_energies = Dict("armchair"=>[0.01,0.3],
+											 "zigzag"=>[0.0,0.15],
+											 "square"=>[0.0,0.3],
+											 )
 
 
 
