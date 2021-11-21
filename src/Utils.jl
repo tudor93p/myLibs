@@ -2459,6 +2459,28 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+everything_is_null(param::Function; kwargs...)::Bool = false
+
+everything_is_null(param::Number; ka...)::Bool = isapprox(param, 0; ka...)
+
+function everything_is_null(param::Utils.List; kwargs...)::Bool 
+	
+	for item in param  
+
+		everything_is_null(item; kwargs...) && return true
+
+	end 
+
+	return false
+
+end 
+
 
 #===========================================================================#
 #
@@ -2466,6 +2488,12 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function fSame(val::Union{Number,AbstractArray{<:Number}},
+							 atol::Float64)::Function 
+
+	fSame(atol)(val)
+
+end 
 
 function fSame(atol::Float64)::Function
 

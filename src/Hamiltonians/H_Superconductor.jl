@@ -13,172 +13,263 @@ import ..Utils, ..TBmodel, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
-#
-## PyCall.pyimport("get_SCgaps").SCmatr_realspace(dist_tol,hopp_cutoff,funs="meta")
-#
-#function get_SCgaps_args(params::AbstractVector{<:Number},
-#												 nmax::Int,
-#												 dim_basis::Int,
-#												 hopp_cutoff::Float64,
-#												 dist_tol::Float64
-#												 )
-#
-#	zerogap_ = zeros(ComplexF64, dim_basis, dim_basis)
-#
-#	all(<(hopp_cutoff) ∘ abs, params) && return (zerogap_,0)
-#
-#
-#	return (get_gap(params, dim_basis, hopp_cutoff, dist_tol), nmax)
-#
-#end
-#
-#
-#
-#
-##	nmax==0 ? ri/2 + rj/2 
-##	nmax>0 ? ri-rj 
-#
-#
-#
-#
-##function get_chiral_gap(chiral_eta::AbstractVector,swave::Function)::Function
-##	
-##	function gap(ri::AbstractVector,rj::AbstractVector)::Matrix{ComplexF64}
-##	
-##		chiral_gap(ri-rj, chiral_eta, swave((ri+rj)/2))
-##
-##	end 
-##
-##end 
-#
-#
-##function get_chiral_gap(chiral_eta::Function, swave::Number)::Function 
-##
-##	function gap(ri::AbstractVector,rj::AbstractVector)::Matrix{ComplexF64}
-##	
-##		chiral_gap(ri-rj, chiral_eta((ri+rj)/2), swave)
-##
-##	end 
-##
-##end 
-##			
-##
-##function get_chiral_gap(chiral_eta::Function, swave::Function)
-##				
-##	function gap(ri::AbstractVector,rj::AbstractVector)::Matrix{ComplexF64}
-##
-##		r = (ri+rj)/2
-##
-##		return chiral_gap(ri-rj,	chiral_eta(r), swave(r))
-##
-##	end 
-##
-##
-##end 
-#
-#
-#nmax_chiral_gap = 1
-#
-#delta = Utils.fSame(dist_tol)(0)
-#
-#function chiral_pwave_gapfunction(ri::AbstractVector{<:Real},
-#																	rj::AbstractVector{<:Real},
-#																	eta::Function,
-#																	args...
-#																	)::Matrix{ComplexF64}
-#																	
-#	chiral_pwave_gapfunction(ri-rj, eta(ri/2+rj/2), args...)
-#
-#end
+include_spin(spin::Bool)::Int = spin ? 2 : 1
+
+function include_spin(needs_spin::Bool, spin::Bool)::Int
+
+	needs_spin && @assert spin 
+
+	return include_spin(spin)
+
+end 
+
+
+function include_spin(must_include_spin::Bool, spin::Symbol)::Int
+
+	spin==:min && return include_spin(must_include_spin)
+
+	spin==:max && return include_spin(true) 
+
+	error()
+
+end 
+
+
+
+
+function SC_gap_args((add_gap!,nmax,needs_spin)::Tuple{Function,Int,Bool},
+												 param::Union{<:Function, <:Number,
+																			 <:AbstractVector, Tuple},
+												 hopp_cutoff::Float64,
+												 dist_tol::Float64;
+												 spin_basis=:min,
+												 Nambu_basis=:min,
+#												 latt_const::Float64=1.0,
+												 )::Tuple{Float64, Function, Int}
+
+
+	nz = !Utils.everything_is_null(param; atol=hopp_cutoff)
+
+	nr_spin = include_spin(needs_spin, spin_basis)
+
+	Nambu = include_spin(nz, Nambu_basis)==2
+
+	basis_dim = nr_spin*(Nambu ? 2 : 1)
+
+	delta = Utils.fSame(0, dist_tol)
+
+	function gap_hopping(ri::AbstractVector{<:Real}, rj::AbstractVector{<:Real}
+											 )::Matrix{ComplexF64}
+
+#		SC_gap(add_gap!, ri, rj, param, nr_spin, nr_Nambu==2)
+
+		Delta = zeros(ComplexF64, basis_dim, basis_dim)
+
+		add_gap!(Delta, ri, rj, param, nr_spin, Nambu; delta=delta)
+
+		return Delta 
+
+	end  
+
+	
+	return (Float64(nz), gap_hopping, nz*nmax)
+
+end 
+
+
+
+
+
+
+
+
+
+#===========================================================================#
 #
 #
-#function chiral_pwave_gapfunction(ri::AbstractVector{<:Real},
-#																	rj::AbstractVector{<:Real},
-#																	eta::AbstractVector{<:Number},
-#																	args...
-#																	)::Matrix{ComplexF64}
 #
-#	chiral_pwave_gapfunction(ri-rj, eta, args...)
+#---------------------------------------------------------------------------#
+
+#SC_gap_args(chiral_pwave_gapfunction, chiral_pwave_nmax, eta, hopp_cutoff,dist_tol) 
+
+
+function chiral_pwave_gapfunction!(D::AbstractMatrix{ComplexF64},
+																	 ri::AbstractVector{<:Real},
+																	rj::AbstractVector{<:Real},
+																	eta::Function,
+																	args...;
+																	kwargs...
+																	)::Nothing
+																	
+	chiral_pwave_gapfunction!(ri-rj, eta(ri/2+rj/2), args...; kwargs...)
+
+end
+
+
+function chiral_pwave_gapfunction!(D::AbstractMatrix{ComplexF64},
+																	 ri::AbstractVector{<:Real},
+																	rj::AbstractVector{<:Real},
+																	eta::AbstractVector{<:Number},
+																	args...;
+																	kwargs...
+																	)::Nothing
+
+	chiral_pwave_gapfunction!(D, ri-rj, eta, args...; kwargs...)
+
+end 
+
+
+#function chiral_pwave_gapfunction(x::AbstractVector{<:Real},
+#																	args...; kwargs...)::Matrix{ComplexF64}
+#
+#	D = zeros(ComplexF64,2,2)
+#
+#	chiral_pwave_gapfunction!(D, x, args...; kwargs...)
+#
+#	return D 
 #
 #end 
+
+
+function chiral_pwave_gapfunction!(D::AbstractMatrix{ComplexF64},
+																	 R::AbstractVector{<:Real},
+																	 eta::AbstractVector{<:Number},
+																	 Spin::Int, Nambu::Bool;
+																	delta::Function,
+																	)::Nothing
+
+	for ((ri,rj),e) in zip((R[1:2],R[2:-1:1]),eta)
+
+		s = e*(delta(ri-1) - delta(ri+1))*delta(rj)*0.5im
+
+		for (i,j) in zip(1:Spin, 2*Spin:-1:Spin+1)
+
+			D[i,j] += s
+
+			if Nambu  
+
+				D[j,i] -= conj(s) 
+
+			end 
+
+		end 
+
+	end 
+
+	return 
+
+	# PyCall.pyimport("get_SCgaps").SCmatr_realspace(dist_tol,hopp_cutoff,funs="meta")
+end
+
+chiral_pwave = (chiral_pwave_gapfunction!, 1, false)
+
+
+
+
+#===========================================================================#
 #
-#function chiral_pwave_gapfunction(R::AbstractVector{<:Real},
-#																	(eta_x,eta_y)::AbstractVector{<:Number},
-#																	delta::Function,
-#																	)::Matrix{ComplexF64}
 #
-#	x = R[1] 
 #
-#	y = R[2] 
-#	
-#	D = zeros(Complex{Float64}, 4, 4)
-#	
-#	D[1,4] = -1im*eta_y*(-delta(y - 1) + delta(y + 1))*delta(x)/2 + (1im*eta_x*delta(x - 1)/2 - 1im*eta_x*delta(x + 1)/2 + )*delta(y)
+#---------------------------------------------------------------------------#
+
+
+
 #
-#	
-#	D[3,2] = -1im*(-delta(y - 1) + delta(y + 1))*delta(x)*conj(eta_y)/2 + (1im*delta(x - 1)*conj(eta_x)/2 - 1im*delta(x + 1)*conj(eta_x)/2)*delta(y)
-#	
-#	D[2,3] = D[1,4]
+#function swave_gapfunction(x::AbstractVector{<:Real},
+#													 args...; kwargs...)::Matrix{ComplexF64}
 #
-#	D[4,1] = D[3,2] 
+#	D = zeros(ComplexF64, 2, 2) 
 #
-#	
+#	swave_gapfunction!(D, x, args...; kwargs...)
+#
 #	return D
-#	
-#end
-#
-#
-#
-#nmax_swave_gap = 0 
-#
-#function swave_gapfunction(ri::AbstractVector{<:Real},
-#rj::AbstractVector{<:Real},
-#										psi::Number,
-#args...
-#										)::Matrix{ComplexF64} 
-#
-#swave_gapfunction(ri-rj, psi, args...)
 #
 #end 
 #
-#function swave_gapfunction(ri::AbstractVector{<:Real},
-#rj::AbstractVector{<:Real},
-#										psi::Function
-#args...
-#										)::Matrix{ComplexF64} 
-#
-#swave_gapfunction(ri-rj, psi(ri/2+rj/2), args...)
-#
-#end 
-#
-#
-#
-#function swave_gapfunction(R::AbstractVector{<:Real},
-#										psi::Number,
-#										delta::Function
-#										)::Matrix{ComplexF64}
-#
-#	x, y, = R
-#	
-#	D = zeros(ComplexF64, 4, 4)
-#	
-#	(delta(x) && delta(y)) || return D 
-#
-##	e_up, h_dw 
-#	D[1,4] = psi
-#
-## e_dw, h_up 
-#	D[2,3] = - D[1,4]
-#
-#
-#	D[4,1] = conj(D[1,4])
-#
-#	D[3,2] = - D[4,1]
-#	
-#	return D
-#	
-#end 
-#
+
+
+function swave_gapfunction!(D::AbstractMatrix{ComplexF64},
+														ri::AbstractVector{<:Real}, 
+													 rj::AbstractVector{<:Real},
+													 psi::Number, 
+													 args...;
+													 kwargs...
+													 )::Nothing 
+
+	swave_gapfunction!(D, ri-rj, psi, args...; kwargs...)
+
+end 
+
+
+function swave_gapfunction!(D::AbstractMatrix{ComplexF64},
+														ri::AbstractVector{<:Real},
+													 rj::AbstractVector{<:Real},
+													 psi::Function, args...;
+													 kwargs...
+													 )::Nothing 
+
+	swave_gapfunction!(D, ri-rj, psi(ri/2+rj/2), args...; kwargs...)
+
+end 
+
+
+function swave_gapfunction!(D::AbstractMatrix{ComplexF64},
+														R::AbstractVector{<:Real},
+														psi::Number,
+														Spin::Int, Nambu::Bool;
+														delta::Function
+														)::Nothing  
+
+	all(delta, view(R,1:2)) || return  
+
+	swave_gapfunction!(D, psi, Val(Spin), Val(Nambu))
+
+end 
+
+
+function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
+														 Spin::Val{2}, Nambu::Val{true}
+														 )::Nothing
+
+	swave_gapfunction!(view(D, 1:2,3:4), psi, Spin, Val(false)) 
+
+	swave_gapfunction!(view(D, 3:4, 1:2), -conj(psi), Spin, Val(false))
+	
+end 
+
+
+
+function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
+														 Spin::Val{2}, Nambu::Val{false}
+														 )::Nothing
+
+	D[1,2] += psi  
+
+	D[2,1] -= psi 
+
+	return 
+	
+end 
+
+function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
+														 Spin::Val{1}, Nambu::Val{true} 
+														 )::Nothing
+
+	D[1,2] += psi
+		
+	D[2,1] += conj(psi) 
+
+	return 
+	
+end 
+
+
+
+
+
+swave = (swave_gapfunction!, 0, false)
+
+
 
 #===========================================================================#
 #
@@ -443,6 +534,12 @@ end
 #
 #---------------------------------------------------------------------------#
 
+										
+
+Rashba_SOC = (true, false) 
+
+
+
 
 
 
@@ -475,7 +572,9 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
   PM = Algebra.PauliMatrices()
 
-  samplehopp =  using_SC_basis ? PM[0] : rand(Complex{Float64},1,1)
+
+
+  samplehopp =  using_SC_basis ? PM[0] : rand(ComplexF64,1,1)
 
   Zero,One = zero(samplehopp),one(samplehopp) 
 
@@ -491,7 +590,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
   Append!,Sum,Hoppings = TBmodel.Add_Hopping_Terms(d0,hopp_cutoff)
 		# value, condition, (function )
   
-  maxdist,update = TBmodel.Update_Maxdist(dist_tol, hopp_cutoff)
+  maxdist, update! = TBmodel.Update_Maxdist!(dist_tol, hopp_cutoff)
 
   
         # -------------- nearest neighbor ------------------------ #      
@@ -501,7 +600,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 		Append!(Hoppings, param_H[:Hopping], same(dist[1]) ∘ -, 
 						toBasis(One, PeierlsPhaseFactor(param_H[:Peierls]...)))
 
-    maxdist = update(maxdist, param_H[:Hopping], dist[1])
+    update!(maxdist, param_H[:Hopping], dist[1])
 
   end  
 
@@ -525,13 +624,13 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
   if using_SC_basis 
 
-    val, nmax = param_H[:SC_Gap]
+    val, fun, nmax = param_H[:SC_Gap]
 
-    Append!(Hoppings, 1, true, val)
+		Append!(Hoppings, val, true, fun)
 
     nr_uc = max(Int64(nmax), nr_uc)
 
-    maxdist = update(maxdist, 1, nmax)
+    update!(maxdist, val, nmax)
 
   end
         # ------------------- electric field -------------------- #      
@@ -591,7 +690,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
   function cond(ri::AbstractVector,rj::AbstractVector)::Bool 
 
-		(isnothing(indomain) || indomain(ri,rj)) && LA.norm(ri-rj)<maxdist
+		(isnothing(indomain) || indomain(ri,rj)) && LA.norm(ri-rj)<only(maxdist)
 
 	end
   

@@ -15,7 +15,7 @@ colors = [colors[i,j] for i in axes(colors,1) for j in [3:size(colors,2);1:2]]
 
 PyPlot.close.(1:10)
 
-LENGTH = 10
+LENGTH = 1
 
 P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
 
@@ -55,9 +55,17 @@ PyPlot.scatter(eachrow(DevAtoms)..., label="Device",alpha=0.3)
 
 @show Lattices.NrVecs(DevAtoms)
 
-SurfaceAtoms = Lattices.SurfaceAtoms(DevAtoms,1)
+SurfaceAtoms = if Lattices.NrVecs(DevAtoms)==1 DevAtoms else 
+	
+	Lattices.SurfaceAtoms(DevAtoms,1)
 
-SurfaceAtoms2 = Lattices.filterAtoms_byNrBonds(-5:-1, DevAtoms, 1)
+end
+
+SurfaceAtoms2 = if Lattices.NrVecs(DevAtoms)==1 DevAtoms else 
+	
+	Lattices.filterAtoms_byNrBonds(-5:-1, DevAtoms, 1.0)
+
+end 
 
 
 @assert isapprox(SurfaceAtoms,SurfaceAtoms2) 
@@ -65,7 +73,16 @@ SurfaceAtoms2 = Lattices.filterAtoms_byNrBonds(-5:-1, DevAtoms, 1)
 
 @show Lattices.NrVecs(SurfaceAtoms)  
 
-CornerAtoms = Lattices.filterAtoms_byNrBonds(2, DevAtoms, 1)
+CornerAtoms = if Lattices.NrVecs(DevAtoms)==1 
+
+	mapreduce(x->DevAtoms,hcat,1:4) 
+
+		else
+	
+	Lattices.filterAtoms_byNrBonds(2, DevAtoms, 1.0)
+	
+
+end
 
 
 @show Lattices.NrVecs(CornerAtoms)  
@@ -73,7 +90,7 @@ CornerAtoms = Lattices.filterAtoms_byNrBonds(2, DevAtoms, 1)
 qs = Utils.Quadrant(CornerAtoms, Algebra.Mean(CornerAtoms, 2), dim=2) 
 
 #println.(eachcol(CornerAtoms))
-#@show qs  
+@show qs  
 
 CornerAtoms = CornerAtoms[:,sortperm(qs)]
 
@@ -137,14 +154,18 @@ LeadLatts = map(enumerate(P3)) do (ilp,lead_params)
 
 
 
-	lv = Lattices.LattVec(L)
-	@assert length(lv)==2 
+	lv = Lattices.LattVec(L) 
+
+	@assert length(lv)==2  
+
 	@show lv[1] 
 
-	Lattices.Align_toAtoms!(L, SurfaceAtoms)
-	
 
-	@show Lattices.PosAtoms(L)[:,1]  
+	Lattices.Align_toAtoms!(L, SurfaceAtoms)
+
+
+	@show Lattices.PosAtoms(L)[:,1]   
+
 	if ilp==1 
 		PyPlot.figure(4)
 		PyPlot.scatter(eachrow(SurfaceAtoms)...,label="Surf",alpha=0.3)
@@ -187,7 +208,7 @@ end
 
 coupling_Hparam = map(P3) do lp
 	
-	(Hopping = lp[:Lead_Coupling], SC_Gap = (zerogap, 0),	)
+	(Hopping = lp[:Lead_Coupling], SC_Gap = (0, zerogap, 0),	)
 
 end 
 
@@ -195,7 +216,7 @@ lead_Hparam = map(P3) do lp
 	
 	(Hopping = lp[:Hopping], 
 	 ChemicalPotential = lp[:ChemPot], 
-	 SC_Gap = (zerogap, 0),
+	 SC_Gap = (0,zerogap, 0),
 								)
 
 end 
@@ -273,21 +294,21 @@ end
 dev_Hparam = (Hopping = P1[:Hopping],
 							ChemicalPotential = P1[:ChemicalPotential],
 							LocalPotential = local_potential,#(dev_params),
-							SC_Gap = (chiral_gap, 1))
+							SC_Gap = (1, chiral_gap, 1))
 
 dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 
 @assert maximum(abs, dev_Hopping[:Hopping]([1,0],[0,0])) > 0  
 
 
-@show maximum(abs, dev_Hparam.SC_Gap[1]([10,0],[11,0])) 
+@show maximum(abs, dev_Hparam.SC_Gap[2]([10,0],[11,0])) 
 
 
 for i in 1:size(DevAtoms,2)-1
 
 	at = (DevAtoms[:,i],DevAtoms[:,i+1])
 
-	Delta = dev_Hparam.SC_Gap[1](at...)
+	Delta = dev_Hparam.SC_Gap[2](at...)
 
 	NZ = SparseArrays.findnz(SparseArrays.sparse(Delta))
 
@@ -305,7 +326,7 @@ end
 
 
 
-@show maximum(abs, lead_Hparam[1].SC_Gap[1]([10,0],[11,0])) 
+@show maximum(abs, lead_Hparam[1].SC_Gap[2]([10,0],[11,0])) 
 
 DevH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(Dev,1); dev_Hopping...)
 
@@ -345,8 +366,8 @@ println(P1)
 println(P2)
 println.(P3) 
 println()
-spectra = nothing 
-#spectra = Dict()
+#spectra = nothing 
+spectra = Dict()
 
 if !isnothing(spectra)
 
@@ -357,10 +378,9 @@ if !isnothing(spectra)
 	
 	
 	
-	E2 = sort(DevDiag["Energy"])[1:10]
 	E1= [-4.629323740217191, -4.629323740217172, -3.638156713627021, -3.6381567136270054, -2.6333392035002894, -2.633339203500278, -2.4192701553998983, -2.4192701553998877, -1.6610804434322783, -1.6610804434322735]
 	
-	LENGTH==4&&@assert isapprox(E1,E2)
+	LENGTH==4&&@assert isapprox(E1,sort(DevDiag["Energy"])[1:10])
 	
 	
 	@show extrema(DevDiag["kLabels"])
@@ -369,6 +389,8 @@ if !isnothing(spectra)
 	
 	
 	spectra["Device"] = (DevDiag["kLabels"],DevDiag["Energy"])
+
+	@show DevDiag["Energy"] 
 
 end 
 
@@ -390,7 +412,7 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 		
 		@show Lattices.BrillouinZone(latt)
 
-		kPoints, = Utils.PathConnect(Lattices.BrillouinZone(latt), 100, dim=2)
+		kPoints, = Utils.PathConnect(Lattices.BrillouinZone(latt), 300, dim=2)
 
 		LeadH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(latt,1); argH="k", hopp_l...)
 
@@ -565,284 +587,283 @@ self_energy_ = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)
 
 
 
+	error()  
 
+if LayerAtom[:NrLayers]>4
 
-
-layer = rand(3:LayerAtom[:NrLayers]-3)
-
-@show layer 
-
-layer_right = layer+1 
-
-layer_left = layer-1 
-
-A0 = LayerAtom[:AtomsOfLayer](layer)   
-
-
-inds_atoms_of_layer = LayerAtom[:IndsAtomsOfLayer](layer)
-
-
-i_atom_in_layer = rand(axes(inds_atoms_of_layer,1))
-
-i_atom = inds_atoms_of_layer[i_atom_in_layer]
-
-R_atom = A0[:,i_atom_in_layer] 
-
-@show i_atom_in_layer i_atom R_atom 
-
-
-
-
-function print_transm(ij, rs, t::Real, out::AbstractDict=Dict())
-
-	isapprox(t,0,atol=1e-14) && return 
-
-	rs_ = map([1,2]) do k 
-		
-		rk = rs[k]
-
-		if ij[k]==i_atom 
-			
-			@assert isapprox(rk,R_atom,atol=1e-5)
-
-			return "R"#string(Int.(rk))
-
-		end 
-
-		dr = rk-rs[[2,1][k]]
-
-		e = argmax(abs.(dr)) 
-
-		return string("R",dr[e]>0 ? "+" : "-","xy"[e])
-
-	end
-
-	println("T",Tuple(ij),"=",round(t,digits=4),": ",join(rs_,"=>"))
-
-	out[Tuple(ij)] = t 
-
-end  
-
-
-
-
-layer_siteT = zero(A0)
-
-
-
-#	A = LayerAtom[:AtomsOfLayer](L)
-
-#	H_lL = TBmodel.HoppingMatrix(A0, A; dev_Hopping...)
-
-#	@show H_lL
+	layer = rand(2:LayerAtom[:NrLayers]-2)
+	
+	@show layer 
+	
+	layer_right = layer+1 
+	
+	layer_left = layer-1 
+	
+	A0 = LayerAtom[:AtomsOfLayer](layer)   
+	
+	
+	inds_atoms_of_layer = LayerAtom[:IndsAtomsOfLayer](layer)
+	
+	
+	i_atom_in_layer = rand(axes(inds_atoms_of_layer,1))
+	
+	i_atom = inds_atoms_of_layer[i_atom_in_layer]
+	
+	R_atom = A0[:,i_atom_in_layer] 
+	
+	@show i_atom_in_layer i_atom R_atom 
 	
 
-
-Gi = g_("Layer", layer, "A", 3)
-
-
-GWG = Gi*GreensFunctions.DecayWidth(self_energy_("A",3))*Gi'  
-
-
-
-nr_orb = 4
-
-
-
-out1=Dict()
-
-nr_at = size(A0,2)
-
-H_ll = TBmodel.HoppingMatrix(A0; dev_Hopping...)
-
-println()
-
-error()  
-
-@info "New method"
-
-println()
-
-println("Intra-layer BondTij=GWG H")
-
-for i in 1:nr_at, j in i+1:nr_at
-
-	I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)  
-	J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
-
-
-	Tij = ObservablesFromGF.BondTij(GWG[I,J], H_ll[J,I])
-																	
-	ObservablesFromGF.addSiteTiTj!(layer_siteT, 2, 
-																 (i,j), 
-																 (A0[:,i], A0[:,j]),
-																 Tij) 
-
-	if i_atom_in_layer in [i,j]
-
-		print_transm(inds_atoms_of_layer[[i,j]], (A0[:,i], A0[:,j]), Tij, out1)
-
-	end 
-
-end  
-
-
-
-
-
-
-A_left = LayerAtom[:AtomsOfLayer](layer-1)
-A_right = LayerAtom[:AtomsOfLayer](layer+1)
-
-
-
-H_toleft = TBmodel.HoppingMatrix(A0,A_left; dev_Hopping...)
-H_toright = TBmodel.HoppingMatrix(A0,A_right; dev_Hopping...)
-
-
-
-
-
-g_left  = g_("Layer", layer-1, "Layer", layer-1)
-g_right = g_("Layer", layer+1, "Layer", layer+1)
-
-
-sigma_left = GreensFunctions.SelfEn(H_toleft', 
-																		g_("Layer", layer-1; dir="left")) 
-
-#sigma_left = GreensFunctions.SelfEn(H_toleft', g_left)
-
-#sigma_right = GreensFunctions.SelfEn(H_toright',g_right)
-
-sigma_right = GreensFunctions.SelfEn(H_toright',
-																		 g_("Layer",layer+1; dir="right"))
-
-
-CM5 = ObservablesFromGF.longitudinal_conductance_matrix(
-					g_("Layer",layer),
-					sigma_left,
-					sigma_right)
-
-
-
-#for (i,Ri) in enumerate(eachcol(A_left))
-
-#	for (j,Rj) 
-
-
-println("\nLayer $(layer-1)=>$layer: tr(conductance_matrix)")
-
-
-for (i,j) in Algebra.get_Bonds(A_left, A0, isBond, dim=2)
-
-
-	I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)
-
-	J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)
-
-
-	Tij = real(LinearAlgebra.tr(CM5[I,J])) 
-
-	ObservablesFromGF.addSiteTiTj!(layer_siteT, 2, 
-																 (j,), 
-																 (A_left[:,i], A0[:,j]),
-																 Tij)
-
-	if j==i_atom_in_layer
-
-
-		print_transm((LayerAtom[:IndsAtomsOfLayer](layer-1)[i],i_atom),
-								 (A_left[:,i], A0[:,j]), Tij, out1)
-
-	end 
-
-#from layer-1 to layer 
-
-
-end 
-
-
-A_left = LayerAtom[:AtomsOfLayer](layer-1+1)
-A_right = LayerAtom[:AtomsOfLayer](layer+1+1)
-
-
-A0 = LayerAtom[:AtomsOfLayer](layer+1)
-
-H_toleft = TBmodel.HoppingMatrix(A0, A_left; dev_Hopping...) 
-
-H_toright = TBmodel.HoppingMatrix(A0, A_right; dev_Hopping...)
-
-
-
-
-
-g_left  = g_("Layer", layer-1+1)
-g_right = g_("Layer", layer+1+1)
-
-
-CM6 = ObservablesFromGF.longitudinal_conductance_matrix(
-					g_("Layer", layer+1, "Layer", layer+1),
-					GreensFunctions.SelfEn(H_toleft', g_left),
-					GreensFunctions.SelfEn(H_toright', g_right))
-
-
-
-
-
-println("\nLayer $layer=>$(layer+1): tr(conductance_matrix)")
-
-
-for (i,j) in Algebra.get_Bonds(A_left, A0, isBond, dim=2)
-
-	I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)   
-
-	J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
-
-	Tij = real(LinearAlgebra.tr(CM6[I,J]))
-
-	ObservablesFromGF.addSiteTiTj!(layer_siteT, 2, 
-																 (i,), 
-																 (A_left[:,i], A0[:,j]),
-																 Tij)
-
-	if i==i_atom_in_layer
-
-		print_transm((i_atom, LayerAtom[:IndsAtomsOfLayer](layer+1)[j]),
-								 (A_left[:,i], A0[:,j]), Tij, out1)
+	
+	function print_transm(ij, rs, t::Real, out::AbstractDict=Dict())
+	
+		isapprox(t,0,atol=1e-14) && return 
+	
+		rs_ = map([1,2]) do k 
+			
+			rk = rs[k]
+	
+			if ij[k]==i_atom 
+				
+				@assert isapprox(rk,R_atom,atol=1e-5)
+	
+				return "R"#string(Int.(rk))
+	
+			end 
+	
+			dr = rk-rs[[2,1][k]]
+	
+			e = argmax(abs.(dr)) 
+	
+			return string("R",dr[e]>0 ? "+" : "-","xy"[e])
+	
+		end
+	
+		println("T",Tuple(ij),"=",round(t,digits=4),": ",join(rs_,"=>"))
+	
+		out[Tuple(ij)] = t 
+	
+	end  
+	
+	
+	
+	
+	layer_siteT = zero(A0)
+	
+	
+	
+	#	A = LayerAtom[:AtomsOfLayer](L)
+	
+	#	H_lL = TBmodel.HoppingMatrix(A0, A; dev_Hopping...)
+	
+	#	@show H_lL
 		
+	
+	
+	Gi = g_("Layer", layer, "A", 3)
+	
+	
+	GWG = Gi*GreensFunctions.DecayWidth(self_energy_("A",3))*Gi'  
+	
+	
+	
+	nr_orb = 4
+	
+	
+	
+	out1=Dict()
+	
+	nr_at = size(A0,2)
+	
+	H_ll = TBmodel.HoppingMatrix(A0; dev_Hopping...)
+	
+	println()
+	
+	
+	@info "New method"
+	
+	println()
+	
+	println("Intra-layer BondTij=GWG H")
+	
+	for i in 1:nr_at, j in i+1:nr_at
+	
+		I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)  
+		J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
+	
+	
+		Tij = ObservablesFromGF.BondTij(GWG[I,J], H_ll[J,I])
+																		
+		ObservablesFromGF.addSiteTiTj!(layer_siteT, 2, 
+																	 (i,j), 
+																	 (A0[:,i], A0[:,j]),
+																	 Tij) 
+	
+		if i_atom_in_layer in [i,j]
+	
+			print_transm(inds_atoms_of_layer[[i,j]], (A0[:,i], A0[:,j]), Tij, out1)
+	
+		end 
+	
+	end  
+	
+	
+	
+	
+	
+	
+	A_left = LayerAtom[:AtomsOfLayer](layer-1)
+	A_right = LayerAtom[:AtomsOfLayer](layer+1)
+	
+	
+	
+	H_toleft = TBmodel.HoppingMatrix(A0,A_left; dev_Hopping...)
+	H_toright = TBmodel.HoppingMatrix(A0,A_right; dev_Hopping...)
+	
+	
+	
+	
+	
+	g_left  = g_("Layer", layer-1, "Layer", layer-1)
+	g_right = g_("Layer", layer+1, "Layer", layer+1)
+	
+	
+	sigma_left = GreensFunctions.SelfEn(H_toleft', 
+																			g_("Layer", layer-1; dir="left")) 
+	
+	#sigma_left = GreensFunctions.SelfEn(H_toleft', g_left)
+	
+	#sigma_right = GreensFunctions.SelfEn(H_toright',g_right)
+	
+	sigma_right = GreensFunctions.SelfEn(H_toright',
+																			 g_("Layer",layer+1; dir="right"))
+	
+	
+	CM5 = ObservablesFromGF.longitudinal_conductance_matrix(
+						g_("Layer",layer),
+						sigma_left,
+						sigma_right)
+	
+	
+	
+	#for (i,Ri) in enumerate(eachcol(A_left))
+	
+	#	for (j,Rj) 
+	
+	
+	println("\nLayer $(layer-1)=>$layer: tr(conductance_matrix)")
+	
+	
+	for (i,j) in Algebra.get_Bonds(A_left, A0, isBond, dim=2)
+	
+	
+		I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)
+	
+		J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)
+	
+	
+		Tij = real(LinearAlgebra.tr(CM5[I,J])) 
+	
+		ObservablesFromGF.addSiteTiTj!(layer_siteT, 2, 
+																	 (j,), 
+																	 (A_left[:,i], A0[:,j]),
+																	 Tij)
+	
+		if j==i_atom_in_layer
+	
+	
+			print_transm((LayerAtom[:IndsAtomsOfLayer](layer-1)[i],i_atom),
+									 (A_left[:,i], A0[:,j]), Tij, out1)
+	
+		end 
+	
+	#from layer-1 to layer 
+	
+	
 	end 
-
-#from layer to layer+1
-
-
-end 
-
-
-
-
-
-
-
-println("\nSite T: ",round.(layer_siteT[:, i_atom_in_layer],digits=4),"\n")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+	
+	
+	A_left = LayerAtom[:AtomsOfLayer](layer-1+1)
+	A_right = LayerAtom[:AtomsOfLayer](layer+1+1)
+	
+	
+	A0 = LayerAtom[:AtomsOfLayer](layer+1)
+	
+	H_toleft = TBmodel.HoppingMatrix(A0, A_left; dev_Hopping...) 
+	
+	H_toright = TBmodel.HoppingMatrix(A0, A_right; dev_Hopping...)
+	
+	
+	
+	
+	
+	g_left  = g_("Layer", layer-1+1)
+	g_right = g_("Layer", layer+1+1)
+	
+	
+	CM6 = ObservablesFromGF.longitudinal_conductance_matrix(
+						g_("Layer", layer+1, "Layer", layer+1),
+						GreensFunctions.SelfEn(H_toleft', g_left),
+						GreensFunctions.SelfEn(H_toright', g_right))
+	
+	
+	
+	
+	
+	println("\nLayer $layer=>$(layer+1): tr(conductance_matrix)")
+	
+	
+	for (i,j) in Algebra.get_Bonds(A_left, A0, isBond, dim=2)
+	
+		I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)   
+	
+		J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
+	
+		Tij = real(LinearAlgebra.tr(CM6[I,J]))
+	
+		ObservablesFromGF.addSiteTiTj!(layer_siteT, 2, 
+																	 (i,), 
+																	 (A_left[:,i], A0[:,j]),
+																	 Tij)
+	
+		if i==i_atom_in_layer
+	
+			print_transm((i_atom, LayerAtom[:IndsAtomsOfLayer](layer+1)[j]),
+									 (A_left[:,i], A0[:,j]), Tij, out1)
+			
+		end 
+	
+	#from layer to layer+1
+	
+	
+	end 
+	
+	
+	
+	
+	
+	
+	
+	println("\nSite T: ",round.(layer_siteT[:, i_atom_in_layer],digits=4),"\n")
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+else 	
+	
+	
 
 
 

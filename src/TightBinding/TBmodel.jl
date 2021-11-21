@@ -720,12 +720,30 @@ function Update_Maxdist(dist_tol::Float64,
 
 end
 
+function Update_Maxdist!(dist_tol::Float64, hopp_cutoff::Float64
+												)::Tuple{Vector{Float64},Function}
 
-function Zero_Hopping_Term(Zero::T)::Function where T<:AbstractMatrix
+	function update!(md::AbstractVector{<:Real}, param::Real, d::Real 
+									 )::Nothing 
+
+		abs(param)>hopp_cutoff && setindex!(md, max(md[1],d)+2dist_tol, 1)
+
+		return 
+
+  end
+
+	return [2dist_tol],update!
+
+end
+
+
+
+function constHoppTerm(cht::AbstractMatrix{<:Number})::Function 
     
-	function f(ri::AbstractVector, rj::AbstractVector)::T 
+	function f(ri::AbstractVector{<:Real}, rj::AbstractVector{<:Real}
+						 )::Matrix{ComplexF64}
 
-		copy(Zero)
+		copy(cht)
 
 	end 
 
@@ -834,9 +852,9 @@ function Add_Hopping_Terms(d0::Int, hopp_cutoff::Float64=1e-8)
 
   function Sum(hoppings::AbstractVector{Function}, condition)::Function
 
-		isempty(hoppings) && return Zero_Hopping_Term 
+		isempty(hoppings) && return constHoppTerm(Zero)
 
-		Hopping_Term(matrixval(1), Zero, condition, Sum_(hoppings))
+		return Hopping_Term(matrixval(1), Zero, condition, Sum_(hoppings))
 
   end
 
@@ -887,7 +905,7 @@ function Hopping_Term(value::AbstractMatrix,
 											condition::Bool,
 											fun::Function)::Function
 
-	condition || return Zero_Hopping_Term(Zero)
+	condition || return constHoppTerm(Zero)
 
   return function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
   
@@ -904,7 +922,7 @@ function Hopping_Term(value::AbstractMatrix,
 											condition::Bool,
 											fun::AbstractMatrix)::Function
 
-	condition || return Zero_Hopping_Term(Zero)
+	condition || return constHoppTerm(Zero)
 
   return function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
   

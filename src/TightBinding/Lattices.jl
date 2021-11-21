@@ -2594,7 +2594,8 @@ end
 function Align_toAtoms!(latt::Lattice, 
 												surface::AbstractMatrix{<:Real}, 
 												shift_dir::AbstractVector{<:Real};
-												prepare_vertices=true, order_vertices=true, 
+												prepare_vertices::Bool=true, 
+												order_vertices::Bool=true, 
 												kwargs...)::Lattice
 
 	# shift_dir = +/- i means positive/negative a_i
@@ -2611,15 +2612,13 @@ function Align_toAtoms!(latt::Lattice,
 	prepare_vertices && return Align_toAtoms!(latt, Geometry.prepare_polygon_vertices(surface; dim=VECTOR_STORE_DIM, order_vertices=order_vertices), shift_dir; prepare_vertices=false, kwargs...)
 
 
-
-
 	while true 
 
-		r = Algebra.LargestLengthscale(surface; dim=VECTOR_STORE_DIM)
+		r = max(1,Algebra.LargestLengthscale(surface; dim=VECTOR_STORE_DIM))
 
 		ShiftAtoms!(latt; r=-shift_dir*r*1.3)
-		
-		do_overlap(latt, surface) || break 
+	
+		do_overlap(latt, surface) || break  
 
 	end 
 
