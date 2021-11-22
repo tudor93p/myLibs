@@ -44,6 +44,7 @@ include("GreensFunctions/GreensFunctions.jl")
 include("GreensFunctions/ObservablesFromGF.jl")
 
 
+include("Hamiltonians/HoppingTerms.jl")
 include("Hamiltonians/H_Superconductor.jl")
 
 

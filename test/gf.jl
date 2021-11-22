@@ -298,11 +298,13 @@ dev_Hparam = (Hopping = P1[:Hopping],
 
 dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 
+
 @assert maximum(abs, dev_Hopping[:Hopping]([1,0],[0,0])) > 0  
 
 
 @show maximum(abs, dev_Hparam.SC_Gap[2]([10,0],[11,0])) 
 
+error() 
 
 for i in 1:size(DevAtoms,2)-1
 

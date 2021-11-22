@@ -465,7 +465,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function structure_factors(Ls, test=true)
+function structure_factors(Ls, test=true)::Array
 
 	Utils.isList(Ls, AbstractMatrix) || error("List of matrices needed")
 
@@ -702,9 +702,9 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Cofactor(A,row,col)
+function Cofactor(A::AbstractMatrix{T},row::Int,col::Int)::T where T
 
-  return  (-1)^(col + row) * LA.det(A[axes(A,1).!=row,axes(A,2).!=col])
+  (-1)^(col + row) * LA.det(A[axes(A,1).!=row,axes(A,2).!=col])
 
 end
 
@@ -1264,7 +1264,7 @@ function SpinMatrices(s)
 
 	d = Int(2*s+1)
 
-	Sz = 1/2 * LA.Diagonal(d-1:-2:-d)
+	Sz = 1/2 * LA.diagm(0=>d-1:-2:-d)
 												
   # first diagonal for general s from en.wikipedia.org/wiki/Spin_(physics)
 	
@@ -1274,7 +1274,7 @@ function SpinMatrices(s)
 	
 	Sy = im*LA.diagm(1=>-diag,-1=>diag)
 
-	return Dict(0=>Utils.UnitMatrix(d), 1=>Sx, 2=>Sy, 3=>Sz)
+	return Dict(0=>ArrayOps.UnitMatrix(d), 1=>Sx, 2=>Sy, 3=>Sz)
 
 end
 
