@@ -34,14 +34,14 @@ function swave_gapfunction!(
 	all(delta, view(R,1:2)) || return  
 
 	swave_gapfunction!(D, psi, 
-										 Val(desired_basis.use_spin ? 2 : 1), 
-										Val(desired_basis.use_Nambu))
+										 Val(desired_basis.use_spin), 
+										 Val(desired_basis.use_Nambu))
 
 end 
 
 
 function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
-														 Spin::Val{2}, Nambu::Val{true}
+														 Spin::Val{true}, Nambu::Val{true}
 														 )::Nothing
 
 	swave_gapfunction!(view(D, 1:2,3:4), psi, Spin, Val(false)) 
@@ -53,7 +53,7 @@ end
 
 
 function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
-														 Spin::Val{2}, Nambu::Val{false}
+														 Spin::Val{true}, Nambu::Val{false}
 														 )::Nothing
 
 	D[1,2] += psi  
@@ -65,7 +65,7 @@ function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
 end 
 
 function swave_gapfunction!(D::AbstractMatrix{ComplexF64}, psi::Number,
-														 Spin::Val{1}, Nambu::Val{true} 
+														 Spin::Val{false}, Nambu::Val{true} 
 														 )::Nothing
 
 	D[1,2] += psi

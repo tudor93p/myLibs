@@ -1,3 +1,5 @@
+
+
 function chiral_pwave_gapfunction!(ri::AbstractVector{<:Real},
 																	rj::AbstractVector{<:Real},
 																	eta::Function,
@@ -44,7 +46,7 @@ function chiral_pwave_gapfunction!(
 
 			D[i,j] += s
 
-			if desired_basis.Nambu  
+			if desired_basis.use_Nambu  
 
 				D[j,i] -= conj(s) 
 
@@ -64,7 +66,8 @@ end
 
 
 #function chiral_pwave_gapfunction(desired_basis::HamiltBasis,
-#																	args...; kwargs...)::Matrix{ComplexF64}
+#																	args...; kwargs...
+#																	)::Matrix{ComplexF64}
 #
 #	D = zeros(ComplexF64, desired_basis.matrix_dim, desired_basis.matrix_dim)
 #
@@ -73,7 +76,7 @@ end
 #	return D 
 #
 #end 
-#
+
 
 
 chiral_pwave = HoppingTerm(HamiltBasis(false,true), 

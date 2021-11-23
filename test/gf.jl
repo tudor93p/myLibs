@@ -17,13 +17,13 @@ PyPlot.close.(1:10)
 
 LENGTH = 1
 
-P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2.0)
+P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=-1.6)
 
 P2 = (Attached_Leads = "AB",)
 
 P3 = [(ChemPot = 0.0, Hopping = 1.0, Label = "A", Direction = -1, Contact = (-1, 1), Lead_Width = max(1,div(P1.width,2)), Lead_Coupling = 1.0, SCbasis = true), (ChemPot = 0.0, Hopping = 1.0, Label = "B", Direction = 1, Contact = (1, -1), Lead_Width = max(1,div(P1.width,2)-0), Lead_Coupling = 1.0, SCbasis = true)]
 
-enlim = [-0.39493671,  0.39493671]
+enlim = nothing#[-0.39493671,  0.39493671]
 
 Dev = Lattices.SquareLattice()
 
@@ -194,34 +194,117 @@ leadlabels = [string(l) for l in P2[:Attached_Leads]]
 
 println()
 
+for s in [0,1],spin in [:min,:max]
 
-function swave()
+	@info  (s ,spin)
 
-end 
+	SC_Gap = 	basis, (v0, val, nmax) = H_Superconductor.init_SC_gapfunction(H_Superconductor.chiral_pwave, [1,1im]*s, 1e-8, 1e-5; spin_basis=spin)
 
-function zerogap(args...; kwargs...)::Matrix{ComplexF64}
+	@assert v0==s==nmax
 
-	zeros(ComplexF64, 4, 4)
+	@show size(val([0,0],[0,1]))
+#	println.(eachrow(val([0,0],[0,1])))
 
-end 
+	@assert maximum(abs, val([0,0],[0,1]))==s/2
+
+	n = Dict(0=>1,1=>2)[s]*Dict(:min=>1,:max=>2)[spin]
+			
+	@assert size(val(rand(2),rand(2)))==(n,n) 
 
 
-coupling_Hparam = map(P3) do lp
+	@show basis 
+
+	hopp0 = H_Superconductor.SC_Domain((SC_Gap=SC_Gap,Hopping=0),[1])
 	
-	(Hopping = lp[:Lead_Coupling], SC_Gap = (0, zerogap, 0),	)
-
-end 
-
-lead_Hparam = map(P3) do lp 
+		@show hopp0[:Nr_UCs] hopp0[:SC_basis] hopp0[:nr_orb]
 	
-	(Hopping = lp[:Hopping], 
-	 ChemicalPotential = lp[:ChemPot], 
-	 SC_Gap = (0,zerogap, 0),
-								)
+		@show hopp0[:BasisInfo]("QP")
+		@show hopp0[:BasisInfo]("Charge")
+		@show hopp0[:BasisInfo]("E")
+		@show hopp0[:BasisInfo]("H") 
+
+
+		println() 
+
+
+
+		V(R) = round(1/(3+sum(abs2, R)),digits=2)
+
+
+	for (loc_pot,v0) in [(V,V(0)), (15,15)]
+
+		@info loc_pot  v0 
+
+		hopp = H_Superconductor.SC_Domain((SC_Gap=SC_Gap,
+																			 LocalPotential=loc_pot,), [1])
+
+#		s==1 && spin==:min 
+
+		inter_x = hopp[:Hopping]([0,0],[1,0])
+		inter_y = hopp[:Hopping]([0,0],[0,1])
+		
+		intra = hopp[:Hopping]([0,0],[0,0])
+	
+		if false 
+
+			println("intra");		println.(eachrow(intra))
+	
+			for i in axes(intra,1), j in axes(intra,2)
+	
+				t = intra[i,j] 
+	
+				i==j && @assert abs(t)== v0 t
+	
+				i!=j && @assert t==0 t
+	
+			end 
+
+		end 
+
+		if true 
+
+	
+#			println("inter_x")
+#			println.(eachrow(inter_x))
+#
+#			println("inter_y")
+#			println.(eachrow(inter_y)) 
+
+			for i=1:n 
+
+				@assert abs(inter_x[i,i])==abs(inter_y[i,i])==1
+
+				inter_x[i,i]=0
+				inter_y[i,i]=0
+			end 
+
+			@assert isapprox(inter_x, hopp0[:Hopping]([0,0],[1,0]))
+			@assert isapprox(inter_y, hopp0[:Hopping]([0,0],[0,1]))
+
+
+#			for i in axes(intra,1), j in axes(intra,2)
+#	
+#				for t in [inter_x[i,j] ,  inter_y[i,j]]
+#
+#					i==j && @assert abs(t)== 1 t
+#		
+#					i!=j && @assert t==0 t
+#
+#			end 
+#			end 
+
+		end 
+
+	end 
 
 end 
 
-function local_potential(ri, rj=ri)#dev_params::UODict)::Union{Float64,Function}
+println()
+println()
+
+
+
+function local_potential(ri)#dev_params::UODict)::Union{Float64,Function}
 
 	w = P1.Barrier_width * P1.length 
 
@@ -244,6 +327,35 @@ function eta(R)
 
 end 
 
+			
+chiral_gap = H_Superconductor.init_SC_gapfunction(H_Superconductor.chiral_pwave, eta, 1e-8, 1e-5)
+
+
+
+zerogap = H_Superconductor.init_SC_gapfunction(H_Superconductor.chiral_pwave, 0, 1e-8, 1e-5; Nambu_basis=true)
+
+coupling_Hparam = map(P3) do lp
+	
+	(Hopping = lp[:Lead_Coupling], 
+#	 SC_Gap = zerogap,
+	SC_Gap = chiral_gap,	 
+	 )
+
+end 
+
+
+
+lead_Hparam = map(P3) do lp 
+	
+	(Hopping = lp[:Hopping], 
+	 ChemicalPotential = lp[:ChemPot], 
+	 SC_Gap = zerogap,
+#	 SC_Gap =chiral_gap, 
+								)
+
+end 
+
+
 if false 
 PyPlot.figure(3)
 
@@ -262,39 +374,15 @@ PyPlot.ylim(-1.1,1.1)
 PyPlot.legend() 
 end 
 
-function chiral_gap(ri::AbstractVector, rj::AbstractVector)::Matrix{ComplexF64}
-
-	eta_x,eta_y = eta(ri/2 + rj/2)
-	
 
 
-	delta(u)::Bool = isapprox(u,0,atol=0.0001)
-	
 
-	psi = 0  
-
-	(x, y)= ri-rj 
-	
-	D = zerogap()
-	
-	D[1,4]=-1im*eta_y*(-delta(y - 1) + delta(y + 1))*delta(x)/2 + (1im*eta_x*delta(x - 1)/2 - 1im*eta_x*delta(x + 1)/2 + psi*delta(x))*delta(y)
-	
-	D[2,3]=-1im*eta_y*(-delta(y - 1) + delta(y + 1))*delta(x)/2 + (1im*eta_x*delta(x - 1)/2 - 1im*eta_x*delta(x + 1)/2 - psi*delta(x))*delta(y)
-	
-	D[3,2]=-1im*(-delta(y - 1) + delta(y + 1))*delta(x)*conj(eta_y)/2 + (1im*delta(x - 1)*conj(eta_x)/2 - 1im*delta(x + 1)*conj(eta_x)/2 - delta(x)*conj(psi))*delta(y)
-	
-	D[4,1]=-1im*(-delta(y - 1) + delta(y + 1))*delta(x)*conj(eta_y)/2 + (1im*delta(x - 1)*conj(eta_x)/2 - 1im*delta(x + 1)*conj(eta_x)/2 + delta(x)*conj(psi))*delta(y)
-	
-	return D
-		
-end 
-			
 
 
 dev_Hparam = (Hopping = P1[:Hopping],
 							ChemicalPotential = P1[:ChemicalPotential],
 							LocalPotential = local_potential,#(dev_params),
-							SC_Gap = (1, chiral_gap, 1))
+							SC_Gap = chiral_gap)
 
 dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 
@@ -302,15 +390,14 @@ dev_Hopping = H_Superconductor.SC_Domain(dev_Hparam,	[1])
 @assert maximum(abs, dev_Hopping[:Hopping]([1,0],[0,0])) > 0  
 
 
-@show maximum(abs, dev_Hparam.SC_Gap[2]([10,0],[11,0])) 
+@show maximum(abs, dev_Hparam.SC_Gap[2][2]([10,0],[11,0])) 
 
-error() 
 
 for i in 1:size(DevAtoms,2)-1
 
 	at = (DevAtoms[:,i],DevAtoms[:,i+1])
 
-	Delta = dev_Hparam.SC_Gap[2](at...)
+	Delta = dev_Hparam.SC_Gap[2][2](at...)
 
 	NZ = SparseArrays.findnz(SparseArrays.sparse(Delta))
 
@@ -328,7 +415,7 @@ end
 
 
 
-@show maximum(abs, lead_Hparam[1].SC_Gap[2]([10,0],[11,0])) 
+@show maximum(abs, lead_Hparam[1].SC_Gap[2][2]([10,0],[11,0])) 
 
 DevH = TBmodel.Bloch_Hamilt(Lattices.NearbyUCs(Dev,1); dev_Hopping...)
 
@@ -362,13 +449,16 @@ if LENGTH==4
 
 end 
 
+println()
 
 
 println(P1) 
 println(P2)
 println.(P3) 
-println()
+println() 
+
 #spectra = nothing 
+
 spectra = Dict()
 
 if !isnothing(spectra)
@@ -442,17 +532,18 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 
 	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, get_TBL, hopp_l)
 
+#	label=="A"&&@show intra() only(values(inter))
+
 	# intra might be a function of k,
 	# inter might be more than one matrix (m ∈ {1,2,...})
 
-	function gf(E::Number; k=[])::Matrix{ComplexF64}
+	function gf(E::Real; k=[])::Matrix{ComplexF64}
 
-		GreensFunctions.GF_SanchoRubio(E, intra(k), only(values(inter));
-																	 target="+")["+"]
+		GreensFunctions.GF_SanchoRubio(E + 1im*P1.delta, intra(k), only(values(inter)), "+")
 		
 	end
 
-	return LayeredSystem.PrepareLead( label, latt, hc, hl, gf)
+	return LayeredSystem.PrepareLead(label, latt, hc, hl, gf)
 
 end 
 
@@ -511,7 +602,8 @@ isBond = Algebra.EuclDistEquals(1; tol=1e-5,dim=2)
 
 layers = parse.(Int, Lattices.labelToComponent(Dev)) .+ 1 
 
-@show extrema(unique(layers))
+@show extrema(layers)
+
 
 	
 la,ial = Utils.FindPartners(enumerate(layers), sortfirst=true)
@@ -552,6 +644,29 @@ G = GreensFunctions.GF_Decimation(
 					)
 
 
+ENERGIES = LinRange(extrema(spectra["Lead"][2])...,100)
+
+
+DOS = [ObservablesFromGF.DOS(leads[1][:GF](E)[1]) for E in ENERGIES]
+
+se0 = GreensFunctions.SelfEn_fromGDecim(G(0), VirtLeads, Slicer)("A",1)
+
+dos0 = ObservablesFromGF.DOS(leads[1][:GF](0)[1])
+
+@show dos0 
+
+eachrow(se0 ).|>println
+
+PyPlot.figure(1)
+PyPlot.plot(DOS,ENERGIES,color="forestgreen") 
+
+
+
+
+
+
+
+error()
 
 
 
@@ -584,12 +699,13 @@ Energy = (rand()-0.5)*0.35
 
 g_ = G(Energy + P1.delta*im) 
 
+
+
 self_energy_ = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)
 
 
 
 
-	error()  
 
 if LayerAtom[:NrLayers]>4
 

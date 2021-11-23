@@ -22,7 +22,7 @@ for f in (
 #"lattices_relabsdim" |> pr_in
 
 
-"hopping_terms",
+#"hopping_terms",
 
 #"rgf_LM08" |> pr_in 
 #"rgf_sq_honey_leads" |> pr_in
@@ -35,7 +35,7 @@ for f in (
 
 
 #"rgf" |> pr_in
-#"gf",
+"gf",
 
 
 #"tbmodel" |> pr_in 

@@ -707,8 +707,8 @@ end
 
 
 
-function Update_Maxdist(dist_tol::Float64,
-												hopp_cutoff::Float64)::Tuple{Float64,Function}
+function Update_Maxdist(dist_tol::T, hopp_cutoff::Real
+											 )::Tuple{T,Function} where T<:Real
 
   function update(maxdist::Real, param::Real, d::Real)::Float64
 
@@ -720,8 +720,8 @@ function Update_Maxdist(dist_tol::Float64,
 
 end
 
-function Update_Maxdist!(dist_tol::Float64, hopp_cutoff::Float64
-												)::Tuple{Vector{Float64},Function}
+function Update_Maxdist!(dist_tol::T, hopp_cutoff::Real
+												)::Tuple{Vector{T},Function} where T<:Real
 
 	function update!(md::AbstractVector{<:Real}, param::Real, d::Real 
 									 )::Nothing 
@@ -738,12 +738,13 @@ end
 
 
 
-function constHoppTerm(cht::AbstractMatrix{<:Number})::Function 
+function constHoppTerm(cht::Union{AbstractMatrix{<:Number},Number}
+											)::Function 
     
 	function f(ri::AbstractVector{<:Real}, rj::AbstractVector{<:Real}
 						 )::Matrix{ComplexF64}
 
-		copy(cht)
+		copy(matrixval(cht))
 
 	end 
 

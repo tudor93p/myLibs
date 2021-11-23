@@ -2473,11 +2473,11 @@ function everything_is_null(param::Utils.List; kwargs...)::Bool
 	
 	for item in param  
 
-		everything_is_null(item; kwargs...) && return true
+		everything_is_null(item; kwargs...) || return false 
 
 	end 
 
-	return false
+	return true
 
 end 
 

@@ -6,6 +6,9 @@ import ..LA
 
 import ..Utils, ..TBmodel, ..Algebra
 
+import ..HoppingTerms 
+
+using ..HoppingTerms: HamiltBasis, HoppingTerm 
 
 #===========================================================================#
 #
@@ -13,29 +16,10 @@ import ..Utils, ..TBmodel, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
-
-
-#include_spin(spin::Bool)::Bool = spin# ? 2 : 1
-#
-#function include_spin(needs_spin::Bool, spin::Bool)::Bool
-#
-#	needs_spin && @assert spin 
-#
-#	return include_spin(spin)
-#
-#end 
-#
-#
-#function include_spin(must_include_spin::Bool, spin::Symbol)::Bool
-#
-#	spin==:min && return include_spin(must_include_spin)
-#
-#	spin==:max && return include_spin(true) 
-#
-#	error()
-#
-#end 
-
+include("chiral_pwave.jl")
+include("swave.jl")
+include("hopping_Peierls.jl")
+include("local_potential.jl")
 
 #step 1: ht_i = Number or init_hopp_term(some_specific_params)
 
@@ -57,7 +41,6 @@ import ..Utils, ..TBmodel, ..Algebra
 
 
 
-
 function init_SC_gapfunction(SCHT::HoppingTerm,
 												 param::Union{<:Function, <:Number,
 																			 <:AbstractVector, Tuple},
@@ -66,38 +49,77 @@ function init_SC_gapfunction(SCHT::HoppingTerm,
 												 spin_basis=:min,
 												 Nambu_basis=:min,
 #												 latt_const::Float64=1.0,
-												 )::Tuple{Float64, Function, Int}
-
-#	v0, cond, val, nmax, dmax  = 
-
-	nz = !Utils.everything_is_null(param; atol=hopp_cutoff)
-
-	basis = compatible_HamiltBasis(nz ? SCHT.basis : (false, false), 
-																 spin_basis, Nambu_basis) 
+												 )::Tuple{HamiltBasis, Tuple{Int, Function, Int}}
 
 
 
-#	function gap_hopping(ri::AbstractVector{<:Real}, rj::AbstractVector{<:Real}
-#											 )::Matrix{ComplexF64}
+	if Utils.everything_is_null(param; atol=hopp_cutoff)
 
-#		SC_gap(add_gap!, ri, rj, param, nr_spin, nr_Nambu==2)
+		basis = HoppingTerms.compatible_HamiltBasis(false, false, 
+																								spin_basis, Nambu_basis)
 
-#		Delta = zeros(ComplexF64, basis_dim, basis_dim)
+		return basis, (0, HoppingTerms.zeroHoppTerm(basis), 0)
 
-#		add_gap!(Delta, ri, rj, param, nr_spin, Nambu; delta=delta)
+	else 
 
-#		return Delta 
+		basis = HoppingTerms.compatible_HamiltBasis(SCHT.basis, 
+																								spin_basis, Nambu_basis)
 
-#	end  
-	
-	return (Float64(nz), gap_hopping, nz*nmax)
+		delta = Utils.fSame(0, dist_tol)
+
+		function gap_hopping(ri::AbstractVector{<:Real}, 
+												 rj::AbstractVector{<:Real}
+											 )::Matrix{ComplexF64}
+
+			Delta = zero(basis)
+
+			SCHT.tij(ri, rj, param, Delta, basis, delta) # in-place Delta 
+
+			return Delta 
+
+		end 
+
+		return basis, (1, gap_hopping, SCHT.nr_uc)
+
+	end 	
 
 end 
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
+
+function init_hopp_term(HT::HoppingTerm,
+												hopp_cutoff::Float64,
+												 dist::Real,
+												 dist_tol::Float64,
+												 basis::HamiltBasis,
+												 params...;
+												 )::Tuple{Union{Bool,Function}, Function, Int, Real}
+
+	if Utils.everything_is_null(params; atol=hopp_cutoff)
+
+		return (false, HoppingTerms.zeroHoppTerm(basis), 0, 0)
+
+	else 
+
+		return (Utils.fSame(dist, dist_tol) ∘ -,
+
+						HoppingTerms.upgraded_tij(HT, basis, params...), 
+
+						HT.nr_uc, 
+
+						dist) 
+
+	end
+
+end
 
 
 
@@ -195,81 +217,6 @@ end
 
 
 
-function BasisInfo(using_SC_basis::Bool)::Function
-
-	BasisInfo(Val(using_SC_basis))
-	
-end 
-
-
-function BasisInfo(using_SC_basis::Val{false})::Function
-
-	function One(label=nothing; kwargs...)::Vector{Float64} 
-		
-		[1.0]
-
-	end 
-
-end 
-
-function BasisInfo(using_SC_basis::Val{true})::Function
-
-	kw0 = Dict(
-						"Charge" => :charge,
-
-						"QP" =>  nothing,
-
-						"E" => :electron,
-
-						"H" => :hole, 
-
-						"Sz" => :spin
-
-						)
-
-
-	function get_vector(label::AbstractString; kwargs...)::Vector{Float64}
-
-		@assert haskey(kw0,label) "Label '$label' not understood" 
-
-		K = kw0[label]
-
-		return get_vector(; (isnothing(K) ? () : Dict(K=>true))...)
-
-	end 
-
-
-	function get_vector(; kwargs...)::Vector{Float64}
-
-		out = map([(1,1), (1,-1), (-1,1), (-1,-1)]) do (C,S)
-
-			mapreduce(*, (
-										(:charge,		C),
-										(:spin,			S),
-										(:electron,	Int(C>0)),
-										(:hole,			Int(C<0))
-										)
-								) do (k,v)
-
-				use = get(kwargs, k, false) 
-			
-				isa(use,Bool) && use && return v 
-				
-				isa(use,Int) && use==1 && return v 
-
-				return 1 
-
-			end 
-
-		end 
-
-		return length(unique(out))==1 ? out[1:1] : out 
-
-
-	end 
-
-end
-
 
 
 
@@ -307,6 +254,23 @@ end
 #
 #LocalPotHopp = HoppingTerm(args_local_potential, 0, false, false)
 
+function get_basis_gap(::Nothing)::Tuple{Bool, HamiltBasis,Nothing}
+	
+	false, HamiltBasis(false,false), nothing 
+
+end 
+
+
+function get_basis_gap((basis,gap)::Tuple{HamiltBasis,Tuple}
+											 )::Tuple{Bool, HamiltBasis, Tuple}
+	
+	true, basis, gap
+
+end 
+
+
+
+
 
 
 
@@ -318,9 +282,13 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
         # ---------------- initialize parameters --------------------- #      
 
+
+
+
+
   default_param_H = (
 											Hopping			= 1.0,
-											ChemicalPotential	= 2.0,
+											ChemicalPotential = 0.0,#*using_SC_gap,
 											LocalPotential 		= 0.0,
 										        SC_Gap			= nothing,
 														Peierls = (0.0,:x),
@@ -331,56 +299,44 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 										#	Rashba_SOC		= 0.0,
 															)
 
-
   param_H = Utils.Combine_NamedTuples(param_H_, default_param_H)
 
-	param_H[:SC_Gap] 
-
-
-	
-
-  using_SC_basis = !isnothing(param_H[:SC_Gap])
-
-  PM = Algebra.PauliMatrices()
+	using_SC_gap, target_basis, SC_Gap = get_basis_gap(param_H[:SC_Gap])
 
 
 
-  samplehopp =  using_SC_basis ? PM[0] : rand(ComplexF64,1,1)
-
-  Zero,One = zero(samplehopp),one(samplehopp) 
-
-  toBasis = ToBasis(using_SC_basis,Zero)
-
-	d0 = LA.checksquare(toBasis(samplehopp))
-
-  same = Utils.fSame(dist_tol)
+#	@show default_param_H[:ChemicalPotential]
+#	@show get(param_H_, :ChemicalPotential, "x")
+#	@show param_H[:ChemicalPotential]
 
         # ------------------- needed for the hoppings ----------------- #      
-
-
-  Append!,Sum,Hoppings = TBmodel.Add_Hopping_Terms(d0,hopp_cutoff)
+  Append!, Sum, Hoppings = TBmodel.Add_Hopping_Terms(target_basis.matrix_dim,
+																										 hopp_cutoff)
 		# value, condition, (function )
   
-  maxdist, update! = TBmodel.Update_Maxdist!(dist_tol, hopp_cutoff)
+  maxdist, d_update! = TBmodel.Update_Maxdist!(dist_tol, hopp_cutoff) 
 
-  
+  nmax, n_update! = TBmodel.Update_Maxdist!(0, hopp_cutoff)
+
         # -------------- nearest neighbor ------------------------ #      
 
-  if length(dist)>=1
+	if length(dist)>=1 
 
-#	v0, cond, val, nmax, dmax  = PeierlsHopp.f(param_H[:Hoppings], 
-#																			 dist,
-#																			 param_H[:Peierls],
-#																			 deired_basis)
-#
-#	Append!(Hoppings, v0, cond, val)
-#
-#	update!(maxdist, v0, dmax)  
+		cond, val, n, d = init_hopp_term(
+													hopping_Peierls, 
+													hopp_cutoff, 
+													dist[1], dist_tol, 
+													target_basis,
+													param_H[:Hopping],
+													prep_PeierlsPhaseFactor(param_H[:Peierls]...)...
+													) 
 
-		Append!(Hoppings, param_H[:Hopping], same(dist[1]) ∘ -, 
-						toBasis(One, PeierlsPhaseFactor(param_H[:Peierls]...)))
+		Append!(Hoppings, 1, cond, val)
 
-    update!(maxdist, param_H[:Hopping], dist[1])
+		n_update!(nmax, cond isa Function, n) 
+
+		d_update!(maxdist, cond isa Function, d) 
+
 
   end  
 
@@ -395,31 +351,25 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
         # ----------------- local potential --------------- #      
 				
+	lp = init_hopp_term(local_potential, hopp_cutoff, 
+											0, dist_tol, target_basis, 
+											param_H[:LocalPotential], param_H[:ChemicalPotential]
+											)
 
-#				v0, cond, val, nmax, dmax = LocalPotHopp.f(param_H, desired_basis)
-#
-#
-#
-#				Append!(Hoppings, v0, cond, val)
-#
-#				update!(maxdist, v0, dmax)
-
-	v0, vf = args_local_potential(; param_H...)
-
-	Append!(Hoppings, v0, same(0)∘-, toBasis(One,vf))
+	Append!(Hoppings, 1, lp[1], lp[2])
 
 
         # -------------- superconducting pairing ----------------- #      
 
-  if using_SC_basis 
+	if using_SC_gap
 
-    val, fun, nmax = param_H[:SC_Gap]
+		val, fun, n = SC_Gap
 
 		Append!(Hoppings, val, true, fun)
 
-    nr_uc = max(Int64(nmax), nr_uc)
+		n_update!(nmax, val, n)
 
-    update!(maxdist, val, nmax)
+		d_update!(maxdist, val, n)
 
   end
         # ------------------- electric field -------------------- #      
@@ -483,16 +433,15 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
 	end
   
-#  returnB_Input, (Sum(Hoppings,cond), hopp_cutoff)
 
 	return Dict(
 		:Hopping => Sum(Hoppings,cond),
-		:Nr_UCs => nr_uc,	# provided the kind of hoppings above 
+		:Nr_UCs => Int(round(only(nmax))),	# provided the kind of hoppings above 
 		:hopp_cutoff => hopp_cutoff,
 		:dist_tol => dist_tol,
-		:SC_basis => using_SC_basis,
-		:BasisInfo => BasisInfo(using_SC_basis),
-		:nr_orb => d0,
+		:SC_basis => target_basis.use_Nambu,
+		:BasisInfo => HoppingTerms.basis_info(target_basis),
+		:nr_orb => target_basis.matrix_dim,
 		)
 			
 

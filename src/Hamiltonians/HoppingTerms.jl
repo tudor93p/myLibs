@@ -1,9 +1,10 @@
 module HoppingTerms
 #############################################################################
 
-import Base: <, ==
-import ..LA
+import Base: <, ==, zero
+import ..LA, ..TBmodel
 
+export HamiltBasis, HoppingTerm
 
 #===========================================================================#
 #
@@ -18,9 +19,9 @@ struct HamiltBasis
 
 	use_Nambu::Bool
 
-#	spin::Vector{Int}
+	spin::Vector{Int}
 
-#	charge::Vector{Int}  
+	charge::Vector{Int}  
 
 	matrix_dim::Int
 
@@ -35,21 +36,19 @@ struct HamiltBasis
 	function HamiltBasis(spin::Val{false}, Nambu::Val{false}, args...
 											)::HamiltBasis
 	
-		new(false, false, #[1], [1], 
-				1)
+		new(false, false, [1], [1], 1)
 	
 	end 
 	
 	
 	function HamiltBasis(spin::Val{false}, Nambu::Val{true}, 
-#											 spins::AbstractVector{Int}=[1,-1],
+											 spins::AbstractVector{Int}=[1,-1],
 											 args...
 											)::HamiltBasis
 	
 #		@assert length(spins)==2
 	
-		new(false, true, #spins, [1,-1], 
-				2)
+		new(false, true, spins, [1,-1], 2)
 	
 	end 
 	
@@ -57,8 +56,7 @@ struct HamiltBasis
 	function HamiltBasis(spin::Val{true}, Nambu::Val{false}, 
 											 args...)::HamiltBasis
 	
-		new(true, false, #[1,-1], [1,1], 
-				2)
+		new(true, false, [1,-1], [1,1], 2)
 	
 	end 
 	
@@ -66,13 +64,20 @@ struct HamiltBasis
 	function HamiltBasis(spin::Val{true}, Nambu::Val{true}, 
 											 args...)::HamiltBasis
 	
-		new(true, true, #repeat([1,-1], outer=2), repeat([1,-1],inner=2), 
-				4)
+		new(true, true, repeat([1,-1], outer=2), repeat([1,-1],inner=2), 4)
 	
 	end 
 
 end 
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -109,7 +114,25 @@ function <(b::HamiltBasis, B::HamiltBasis)::Bool
 
 end 
 
+function zero(basis::HamiltBasis)::Matrix{ComplexF64}
 
+	zeros(ComplexF64, basis.matrix_dim, basis.matrix_dim)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function zeroHoppTerm(basis::HamiltBasis)::Function 
+
+	TBmodel.constHoppTerm(zero(basis))
+	
+end 
 
 
 #===========================================================================#
@@ -128,11 +151,16 @@ function compatible_HamiltBasis(basis::HamiltBasis, args...)::HamiltBasis
 
 end
 
+
+
+
 function compatible_HamiltBasis(use_sN::NTuple{2,Bool}, args...)::HamiltBasis
 
 	compatible_HamiltBasis(use_sN..., args...)
 
 end
+
+
 
 function compatible_HamiltBasis(use_spin::Bool, use_Nambu::Bool,
 																spin::Bool, Nambu::Bool
@@ -142,7 +170,7 @@ function compatible_HamiltBasis(use_spin::Bool, use_Nambu::Bool,
 
 	use_Nambu && @assert Nambu
 	
-	return HamiltBasis(any(use_spin, spin), any(use_Nambu, Nambu))
+	return HamiltBasis(use_spin|spin, use_Nambu|Nambu)
 
 end
 
@@ -264,15 +292,19 @@ end
 function upgrade(spin1::Bool, Nambu1::Bool,
 								 spin2::Bool, Nambu2::Bool)::Function
 
-	if spin1==spin2 && Nambu2
-		
-		return Nambu1 ? identity : Nambu_doubling
+	if spin1==spin2 
+	
+		Nambu1==Nambu2 && return identity 
+
+		Nambu2 && !Nambu1 && return Nambu_doubling 
 
 	elseif !spin1 && spin2 && !Nambu1 
 		
 		return Nambu2 ? spinNambu_doubling : spin_doubling 
 
 	end
+
+	@show spin1 spin2 Nambu1 Nambu2 
 
 	error("Enlarge target basis")
 
@@ -281,6 +313,101 @@ end
 
 
 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function get_basis_signature(basis::HamiltBasis; kwargs...)::Vector{Int}
+
+	#	out = map([(1,1), (1,-1), (-1,1), (-1,-1)]) do (C,S) 
+	
+	map(zip(basis.charge, basis.spin)) do (C,S)
+
+		mapreduce(*, (
+									(:charge,		C),
+									(:electron,	C>0),
+									(:hole,			C<0),
+
+									(:spin,			S),
+									(:spinup,		S>0),
+									(:spindown, S<0),
+
+									)
+							) do (k,v)
+
+			use = get(kwargs, k, false) 
+		
+			isa(use,Bool) && use && return v 
+			
+			isa(use,Int) && use==1 && return v 
+
+			return 1 
+
+		end 
+
+	end 
+
+end 
+
+
+
+function basis_info(basis::HamiltBasis)::Function 
+
+	kw0 = Dict(
+						"Charge" => :charge,
+
+						"QP" =>  nothing,
+
+						"E" => :electron,
+
+						"H" => :hole, 
+
+#						"Sz" => :spin
+
+						)
+
+	function get_vector(label::AbstractString; kwargs...)::Vector{Int}
+
+		@assert haskey(kw0,label) "Label '$label' not understood" 
+
+		K = kw0[label]
+		
+		kw = isnothing(K) ? () : Dict(K=>true)
+
+		out = get_basis_signature(basis; kw...)
+		
+		return length(unique(out))==1 ? out[1:1] : out 
+
+	end 
+
+end 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -295,14 +422,21 @@ struct HoppingTerm
 
 	basis::HamiltBasis 
 
-	get_hopp_f::Function # give parameters => f(ri,rj)
+	tij::Function # tij(ri, rj, parameters...)
 
 	nr_uc::Int # max reach of the hopping
 
+	cond::Union{Bool,Function}
 	# info about what f(ri,rj) returns 
-	
+
 end 
 
+
+function HoppingTerm(basis::HamiltBasis, tij::Function, nr_uc::Int)::HoppingTerm
+
+	HoppingTerm(basis, tij, nr_uc, true)
+
+end
 
 #function spinProjector(ht::HoppingTerm)::Matrix{Int}
 #
@@ -329,6 +463,25 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
+										 tij::Function=ht.tij)#, params...)
+
+	upgrade(ht.basis, basis) ∘ tij
+	
+end 
+
+
+function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis, params...)
+
+	upgraded_tij(ht, basis, function tij(ri::AbstractVector{<:Real}, 
+																			 rj::AbstractVector{<:Real}
+																			 )::Union{Number,
+																							 AbstractMatrix{<:Number}}
+
+								 							ht.tij(ri, rj, params...)
+
+													end)
+end 
 
 
 #===========================================================================#
