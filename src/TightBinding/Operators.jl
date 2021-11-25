@@ -137,10 +137,11 @@ end
 function Operator(A::Union{Number, AbstractVecOrMat{<:Number}, Function}, 
 									args...; kwargs...)::Operator
 
+	
 	numbers,enough_data = get_nratorbH(; kwargs...)
 
 	@assert enough_data "Provide more size-related kwargs"
-	
+
 	return Operator_(reduce_data(A), 
 									 numbers, 
 									 get_vc_dims(;kwargs...),
@@ -166,14 +167,11 @@ function reduce_data(A::AbstractMatrix{T})::Union{T,VecOrMat{T}} where T<:Number
 
 	dA = LA.diag(A)
 
-	isapprox(A, LA.diagm(0=>dA), atol=1e-6) && return reduce_data(dA)
-
-	return A 
+	return isapprox(A, LA.diagm(dA), atol=1e-6) ? reduce_data(dA) : A
 
 end  
 
 function reduce_data(A::AbstractVector{T})::Union{T,Vector{T}} where T<:Number 
-
 	length(Utils.Unique(A; tol=1e-6))==1 && return A[1]
 	
 	return Vector{T}(A)
@@ -1210,6 +1208,45 @@ function NVelocity(args...; kwargs...)::Operator
 	Velocity(TBmodel.Bloch_NVelocity(args...; kwargs...); kwargs...)
 
 end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+#function Projector(args...; kwargs...)
+#
+#	op = Operator(args...; kwargs..., trace=:none)
+#
+#
+#	H(X::AbstractMatrix{<:Number}; kwargs...)::Matrix{<:Number}
+#
+#	ExpectVal(X, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag); kwargs...)
+#
+#	X'*H*X' 
+#
+#
+#desired: op'*X*op
+#
+#
+#end 
+#
+
+
+
+
+
+
+
+
+
+
+
 
 #=
 

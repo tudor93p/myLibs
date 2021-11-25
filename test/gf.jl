@@ -15,9 +15,9 @@ colors = [colors[i,j] for i in axes(colors,1) for j in [3:size(colors,2);1:2]]
 
 PyPlot.close.(1:10)
 
-LENGTH = 1
+LENGTH = 4
 
-P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=-1.6)
+P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2)
 
 P2 = (Attached_Leads = "AB",)
 
@@ -337,8 +337,8 @@ zerogap = H_Superconductor.init_SC_gapfunction(H_Superconductor.chiral_pwave, 0,
 coupling_Hparam = map(P3) do lp
 	
 	(Hopping = lp[:Lead_Coupling], 
-#	 SC_Gap = zerogap,
-	SC_Gap = chiral_gap,	 
+	 SC_Gap = zerogap,
+#	SC_Gap = chiral_gap,	 
 	 )
 
 end 
@@ -486,6 +486,9 @@ if !isnothing(spectra)
 
 end 
 
+get_TBL(L::Lattices.Lattice) = Lattices.NearbyUCs(L, 1)
+
+
 leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 											label, latt, coupling_HP, lead_HP, lp)
 
@@ -528,7 +531,6 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 	
 	@assert hopp_l[:Nr_UCs]<=1 
 
-  get_TBL(L::Lattices.Lattice) = Lattices.NearbyUCs(L, hopp_l[:Nr_UCs])
 
 	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, get_TBL, hopp_l)
 
@@ -546,6 +548,24 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 	return LayeredSystem.PrepareLead(label, latt, hc, hl, gf)
 
 end 
+
+
+
+
+#coupl_matrix = TBmodel.BlochHamilt_ParallPerp(LeadLatts[1], get_TBL, H_Superconductor.SC_Domain(coupling_Hparam[1], [1]))[2] |> values |> first
+#
+#@show coupl_matrix
+#
+#t0 = LinearAlgebra.norm(coupl_matrix[1,:])
+#
+#@show t0 
+#
+#u0,v0 = coupl_matrix[1,:]/t0
+#
+#@show u0 v0 
+
+
+
 
 if !isnothing(spectra) 
 
@@ -643,28 +663,110 @@ G = GreensFunctions.GF_Decimation(
 					LayerAtom...,
 					)
 
+function xy_PHS( E::AbstractVector{<:Real},
+									f::AbstractVector{<:Real},
+									E_on_axis::Int=1)
 
-ENERGIES = LinRange(extrema(spectra["Lead"][2])...,100)
+
+	E2 = vcat(-reverse(E),E)
+	f2 = vcat(reverse(f),f)
+
+	E_on_axis==1 && return E2,f2  
+
+	E_on_axis==2 && return f2,E2
+
+error()
+
+
+end 
+
+
+
+
+ENERGIES_pos = LinRange(0, maximum(spectra["Lead"][2]), 200)
+ENERGIES_neg = -ENERGIES_pos
+ENERGIES = vcat(reverse(ENERGIES_neg),ENERGIES_pos)
+
+#eps0 = 2*spectra["Device"][2][2]
+
+#@show eps0
 
 
 DOS = [ObservablesFromGF.DOS(leads[1][:GF](E)[1]) for E in ENERGIES]
 
-se0 = GreensFunctions.SelfEn_fromGDecim(G(0), VirtLeads, Slicer)("A",1)
+#
+#se0 = GreensFunctions.SelfEn_fromGDecim(G(0), VirtLeads, Slicer)("A",1)
+#
+#dos0 = ObservablesFromGF.DOS(leads[1][:GF](0)[1])
+#
+#@show dos0 
+#
+#gamma0  = 2pi*dos0*t0^2 
+#
+#
+#Gamma0 = gamma0*coupl_matrix'*coupl_matrix/t0^2
+#
+#Sigma0r = -0.5im*Gamma0 
+#
+#println("sigmas")
+#eachrow(Sigma0r) .|>println 
+#
+#println()
+#eachrow(se0 ).|>println
+#
+PyPlot.figure(1) 
 
-dos0 = ObservablesFromGF.DOS(leads[1][:GF](0)[1])
 
-@show dos0 
+dev_Hopping[:BasisInfo]("E")
 
-eachrow(se0 ).|>println
 
-PyPlot.figure(1)
-PyPlot.plot(DOS,ENERGIES,color="forestgreen") 
+dev_Hopping[:BasisInfo]("H")
 
 
 
 
+PyPlot.plot(DOS,ENERGIES,color="forestgreen",label="DOS")
 
 
+T_pos = zeros(length(ENERGIES_pos))
+T_neg = zeros(length(ENERGIES_neg))
+
+
+for (T,Ens) in ((T_pos,ENERGIES_pos),(T_neg,ENERGIES_neg))
+
+	for (ie,E) in enumerate(Ens)
+
+		g = G(E)
+	
+		se = GreensFunctions.SelfEn_fromGDecim(g, VirtLeads, Slicer)
+		
+	#	T[ie] = real(ObservablesFromGF.CaroliConductance(g, se, "A", "B", 1))
+		
+		SigmaS = se("B",1)
+		SigmaD = se("A",1)
+	
+		GammaS = GreensFunctions.DecayWidth(SigmaS)
+		GammaD = GreensFunctions.DecayWidth(SigmaD)
+	
+		GammaE = zeros(ComplexF64,2,2)
+		GammaH = zeros(ComplexF64,2,2)
+	
+		GammaE[1,1] = GammaS[1,1]
+	
+		GammaH[2,2] = GammaD[2,2]
+#		GammaH[1,1] = GammaD[1,1]
+	
+		G1 = g("A",1,"B",1)
+
+		T[ie] = real(LinearAlgebra.tr(G1*GammaE*G1'*GammaH))
+
+	end 
+
+end 
+
+PyPlot.plot(xy_PHS(ENERGIES_pos, T_pos+T_neg, 2)...,  c="red",label="T")
+
+PyPlot.legend()
 
 error()
 

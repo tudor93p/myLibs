@@ -11,6 +11,8 @@ import Dates, Combinatorics
 
 using Distributed 
 
+using BenchmarkTools
+
 using OrderedCollections:OrderedDict
 import Random
 
@@ -296,7 +298,42 @@ end
 #---------------------------------------------------------------------------#
 is_float(S) = any(Ti -> S<:Ti, [Float64, ComplexF64])
 
+
+
 is_exact(S) = any(Ti -> S<:Ti, [Integer, Rational, AbstractString, AbstractChar, Complex{<:Integer}, Complex{<:Rational}])
+
+function is_exact2(S::DataType)::Bool 
+
+	S==Any && return false 
+
+	(S<:Complex || S<:Rational) && return is_exact2(only(S.parameters))
+
+	return is_exact2(Val(S)) ? true : is_exact2(supertype(S))
+
+end 
+
+is_exact2(::Union{Val{Integer},
+									Val{AbstractString}, 
+									Val{AbstractChar},
+									Val{Symbol},
+									}
+					)::Bool=true
+									
+is_exact2(::Val)::Bool = false
+
+#for S in [Integer, Rational{Int}, AbstractString, AbstractChar, Complex{Integer}, Complex{Rational{Int}}, Complex{Int}]
+#
+#		@assert is_exact(S)==is_exact2(S)
+#
+#
+#	end 
+#
+#	for x in ["a", 'a', 1, 1.0, 1im, 1.0im , im*1//2]
+#
+#		@assert is_exact(	typeof(x))== is_exact2(typeof(x))
+#
+#	end 
+
 
 
 
@@ -392,11 +429,14 @@ function Unique(V::AbstractArray{T};
 								dim::Int=ndims(V)==1 ? 1 : 0,
 								tol=1e-8, inds=nothing,
 								sorted=false,
-								check_type=true) where T
+								check_type::Bool=true) where T
 
 	dim = min(dim, ndims(V))
 
-	if !check_type || is_exact(T) || all(is_exact ∘ typeof, V)
+	@assert is_exact(T)==is_exact2(T)
+
+
+	if !check_type || is_exact2(T) || all(is_exact2 ∘ typeof, V)
 
 		U = unique(V,dims=dim) |> function (u)
 
