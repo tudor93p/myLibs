@@ -228,23 +228,51 @@ end
 #
 #---------------------------------------------------------------------------#
 
-
-function CaroliConductance(G::Function, get_SE::Function,
-													 source, drain, uc::Int;
-														f::Function=LA.tr
-													 )::ComplexF64
-
-	gSS = G(source, uc, source, uc)
-	
-	gSD = source==drain ? gSS : G(source, uc, drain, uc) 
-
-	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
+function test_CaroliConductance(gSS::AbstractMatrix,
+																SigmaS::AbstractMatrix;
+																f::Function=LA.tr)
 
 	A = real(f(Algebra.Commutator(gSS,SigmaS)))
 
 	@assert isapprox(0, A, atol=1e-10) A
 
-	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)
+end 
+
+function CaroliConductance(G::Function, get_SE::Function,
+													 source, drain, 
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64 
+
+	CaroliConductance(G, get_SE, source, drain, 1, projectors...; kwargs...)
+
+end 
+
+function CaroliConductance(G::Function, get_SE::Function,
+													 source, drain, uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	gSS = G(source, uc, source, uc)
+	
+	SigmaS = get_SE(source, uc)
+
+	test_CaroliConductance(gSS, SigmaS; kwargs...) 
+
+
+
+	GammaS = GreensFunctions.DecayWidth(SigmaS) 
+
+	source==drain && return CaroliConductance(gSS, GammaS, GammaS,
+																						projectors...; kwargs...)
+
+	return CaroliConductance(G(source, uc, drain, uc),
+											GammaS,
+											GreensFunctions.DecayWidth(get_SE(drain, uc)),
+											projectors...;
+											kwargs...)
+
 
 #	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)
 
@@ -259,24 +287,65 @@ end
 
 
 function CaroliConductance(G1::AbstractMatrix, 
-													 sigma_source::AbstractMatrix, 
-													 sigma_drain::AbstractMatrix, 
-													 G2::AbstractMatrix=G1; 
+													 gamma_source::AbstractMatrix, 
+													 gamma_drain::AbstractMatrix, 
+													 G2::AbstractMatrix; 
 													 f::Function=LA.tr)::ComplexF64
+
+	@assert LA.ishermitian(gamma_source) && LA.ishermitian(gamma_drain)
 
 	# formula (7) of Meir+Wingreen, PRL 68, 2512 (1992)  
 	# or formula 
 	#
 	# of Caroli et al, J.Phys.C: Solid State Phys. 4 916 (1971)
 
-	f(*(GreensFunctions.DecayWidth(sigma_source),
+	f(*(gamma_source,#GreensFunctions.DecayWidth(sigma_source),
 			G1,
-			GreensFunctions.DecayWidth(sigma_drain),
+			gamma_drain,#GreensFunctions.DecayWidth(sigma_drain),
 			G2'
 			)
 		)
 
 end
+
+function CaroliConductance(G1::AbstractMatrix, 
+													 gamma_source::AbstractMatrix, 
+													 gamma_drain::AbstractMatrix, 
+													 G2::AbstractMatrix,
+													 proj::Function, 
+													 kwargs...)::ComplexF64  
+	
+	CaroliConductance(G1, gamma_source, gamma_drain, G2, proj, proj; kwargs...)
+
+end
+
+function CaroliConductance(G1::AbstractMatrix, 
+													 gamma_source::AbstractMatrix, 
+													 gamma_drain::AbstractMatrix, 
+													 G2::AbstractMatrix,
+													 proj_source::Function, proj_drain::Function;
+													 kwargs...)::ComplexF64 
+
+	CaroliConductance(G1, 
+										proj_source(gamma_source),
+										proj_drain(gamma_drain),
+										G2;
+										kwargs...)
+
+end 
+
+
+function CaroliConductance(G1::AbstractMatrix, 
+													 gamma_source::AbstractMatrix, 
+													 gamma_drain::AbstractMatrix,
+													 projectors::Vararg{Function};
+													 kwargs...)::Float64
+
+	real(CaroliConductance(G1,gamma_source, gamma_drain,G1,
+												 projectors...; kwargs...))
+
+end 
+
 
 
 

@@ -2,7 +2,7 @@ module HoppingTerms
 #############################################################################
 
 import Base: <, ==, zero
-import ..LA, ..TBmodel
+import ..LA, ..TBmodel, ..Utils
 
 export HamiltBasis, HoppingTerm
 
@@ -373,6 +373,13 @@ function basis_info(basis::HamiltBasis)::Function
 
 						)
 
+	function get_vector(label::Union{AbstractChar,Symbol};
+											kwargs...)::Vector{Int}
+
+		get_vector(string(label); kwargs...)
+
+	end 
+
 	function get_vector(label::AbstractString; kwargs...)::Vector{Int}
 
 		@assert haskey(kw0,label) "Label '$label' not understood" 
@@ -386,6 +393,8 @@ function basis_info(basis::HamiltBasis)::Function
 		return length(unique(out))==1 ? out[1:1] : out 
 
 	end 
+
+	return get_vector 
 
 end 
 
@@ -463,10 +472,20 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
-										 tij::Function=ht.tij)#, params...)
 
-	upgrade(ht.basis, basis) ∘ tij
+function upgraded_tij(basis0::HamiltBasis, basis::HamiltBasis,
+										 tij::Function)::Function
+
+	upgrade(basis0, basis) ∘ tij
+	
+end 
+
+
+
+function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
+										 tij::Function=ht.tij)::Function
+
+	upgraded_tij(ht.basis, basis, tij)
 	
 end 
 
@@ -528,7 +547,33 @@ end
 
 
 
+function init_hopp_term(HT::HoppingTerm,
+												hopp_cutoff::Float64,
+												 dist::Real,
+												 dist_tol::Float64,
+												 basis::HamiltBasis,
+												 params...;
+												 )::Tuple{Union{Bool,Function}, Function, Int, Real}
 
+	if Utils.everything_is_null(params; atol=hopp_cutoff)
+
+		return (false, zeroHoppTerm(basis), 0, 0)
+
+	else 
+
+		return (Utils.fSame(dist, dist_tol) ∘ -,
+
+						upgraded_tij(HT, basis, params...), 
+
+						HT.nr_uc, 
+
+						dist) 
+
+	end
+
+end
+
+#, params...)
 
 
 

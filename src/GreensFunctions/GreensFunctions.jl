@@ -81,13 +81,21 @@ function SelfEn_fromGDecim(G::Function,
 													 LeadLayerSlicer::Function
 													 )::Function
 
-	function self_en(k,i=1)  
+	function self_en(k,i::Int=1)::Matrix
 
 		(K,i),slice = LeadLayerSlicer(k,i)
 
 		inter = VirtLeads[typeof(first(keys(VirtLeads)))(K)][:intercell]
 
-		dir = Dict("LeftLead"=>"left","RightLead"=>"right")[K]
+		dir = if K=="LeftLead" 
+			
+			"left"
+			
+					elseif K=="RightLead"
+						
+			"right"
+
+					end 
 
 
 		return SelfEn(inter[min(i,end)]'[slice...,slice...],

@@ -34,8 +34,10 @@ for f in (
 #"rgf_B" |> pr_in 
 
 
+"transm_ZXS", 
+
 #"rgf" |> pr_in
-"gf",
+#"gf",
 
 
 #"tbmodel" |> pr_in 
@@ -43,7 +45,7 @@ for f in (
 #"utils" |> pr_in 
 
 #"utils_splitws" |> pr_in 
-#"oper" |> pr_in
+#"oper" ,
 
 #"bandstr" |> pr_in
 

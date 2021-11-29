@@ -161,7 +161,8 @@ end
 # 
 #---------------------------------------------------------------------------#
 
-function reduce_data(A::AbstractMatrix{T})::Union{T,VecOrMat{T}} where T<:Number 
+function reduce_data(A::AbstractMatrix{T}
+										)::Union{T,VecOrMat{T}} where T<:Number 
 
 	size(A,1) != size(A,2) && return reduce_data(reshape(A,:))
 
@@ -429,7 +430,7 @@ function get_iter_inds(::NTuple{2,T},
 
 	L = length.(acts_on)
 
-	all(L.==length.(numbers[1:2])) && return Colon()
+	all(L.==numbers[1:2]) && return Colon()
 
 	return sort!(vcat(get_iter_inds(argmax(L).==(1,2), acts_on, numbers)...))
 
@@ -441,7 +442,6 @@ end
 #
 #
 #---------------------------------------------------------------------------#
-
 
 function check_size(A::AbstractVecOrMat{<:Number},
 										sums::NTuple{2,Val},
@@ -522,6 +522,14 @@ function check_size(A::AbstractVecOrMat{<:Number},
 										args...)
 
 	@assert only(unique(size(A)))==length(I)
+
+end 
+
+function check_size(A::AbstractVecOrMat{<:Number},
+										::NTuple{2,S} where S<:Union{Val{true},Val{false}},
+										I::Colon,
+										args...)
+
 
 end 
 
@@ -708,6 +716,47 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 end  
 
 
+
+function MatrixElem(P1::AbstractMatrix{<:Number},
+										Op::AbstractMatrix{<:Number},
+										P2::AbstractMatrix{<:Number},
+										csdim::Int,
+										I::Colon,
+										)::Matrix
+
+	csdim==1 && return P1' * Op * P2 
+
+	csdim==2 && return conj(P1)*Op*transpose(P2)
+
+end 
+
+
+function MatrixElem(P1::AbstractVector{<:Number},
+										Op::AbstractMatrix{<:Number},
+										P2::AbstractVector{<:Number},
+										args...
+										)::Matrix
+
+	MatrixElem(LA.Diagonal(P1), Op, LA.Diagonal(P2), args...)
+
+end 
+
+
+function MatrixElem(P1::Number,
+										Op::AbstractMatrix{<:Number},
+										P2::Number,
+										args...
+										)::Matrix
+
+	conj(P1)*sum(Op,dims=(1,2))*P2 
+
+end 
+
+
+
+
+
+
 function ExpectVal(P::AbstractMatrix{<:Number}, 
 									 Op::AbstractMatrix{<:Number},
 									 ::NTuple{2,Val{true}},
@@ -716,7 +765,7 @@ function ExpectVal(P::AbstractMatrix{<:Number},
 									 args...; kwargs...
 									 )::Matrix
 
-	Utils.VecAsMat(LA.diag(P' * Op * P), csdim)
+	Utils.VecAsMat(LA.diag(MatrixElem(P, Op, P, csdim, I)), csdim)
 
 end 
 
@@ -816,7 +865,6 @@ function (H::Operator)(P::AbstractMatrix{<:Number}; kwargs...
 	ExpectVal(P, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag); kwargs...)
 
 end 
-
 
 
 #===========================================================================#
@@ -1118,7 +1166,7 @@ function Position(ax::Int, Rs::AbstractMatrix{<:Real};
 									kwargs...)::Operator
 
 	a = selectdim(Rs, [2,1][dim], ax)
-
+	
 	Op = applicable(fpos, a) ? fpos(a) : fpos.(a)
 
 	return Operator(Op, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
@@ -1218,24 +1266,36 @@ end
 #---------------------------------------------------------------------------#
 
 
+#disabled sums; they may have different meanings for matrix elements 
 
-#function Projector(args...; kwargs...)
-#
-#	op = Operator(args...; kwargs..., trace=:none)
-#
-#
-#	H(X::AbstractMatrix{<:Number}; kwargs...)::Matrix{<:Number}
-#
-#	ExpectVal(X, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag); kwargs...)
-#
-#	X'*H*X' 
-#
-#
-#desired: op'*X*op
-#
-#
-#end 
-#
+function Projector(args...;
+									 sum_atoms=nothing, sum_orbitals=false, trace=nothing,
+									 size_H=nothing,
+									 kwargs...)::Function
+
+	if get_nratorbH(; size_H=size_H, kwargs...)[2] 
+
+		H = Operator(args...; size_H=size_H, trace=:all, kwargs...)
+		
+		return function f1(X::AbstractMatrix{<:Number}; kwa...)::Matrix{<:Number}
+
+			MatrixElem(H.data, X, H.data, H.csdim, H.inds)
+
+		end 
+
+	else 
+		
+		return function f2(X::AbstractMatrix{<:Number}; kwa...)::Matrix{<:Number}
+
+			H = Operator(args...; size_H=LA.checksquare(X), trace=:all, kwargs..., kwa...)
+
+			return MatrixElem(H.data, X, H.data, H.csdim, H.inds)
+
+		end 
+
+	end 
+
+end 
 
 
 

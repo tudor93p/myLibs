@@ -27,7 +27,7 @@ function swave_gapfunction!(
 														R::AbstractVector{<:Real},
 														psi::Number,
 														D::AbstractMatrix{ComplexF64},
-														desired_basis::HamiltBasis;
+														desired_basis::HamiltBasis,
 														delta::Function
 														)::Nothing  
 

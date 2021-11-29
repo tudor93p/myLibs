@@ -44,13 +44,12 @@ include("local_potential.jl")
 function init_SC_gapfunction(SCHT::HoppingTerm,
 												 param::Union{<:Function, <:Number,
 																			 <:AbstractVector, Tuple},
-												 hopp_cutoff::Float64,
-												 dist_tol::Float64;
+									 hopp_cutoff::Float64=1e-6,
+									 dist_tol::Float64=1e-5;
 												 spin_basis=:min,
 												 Nambu_basis=:min,
 #												 latt_const::Float64=1.0,
 												 )::Tuple{HamiltBasis, Tuple{Int, Function, Int}}
-
 
 
 	if Utils.everything_is_null(param; atol=hopp_cutoff)
@@ -79,6 +78,10 @@ function init_SC_gapfunction(SCHT::HoppingTerm,
 
 		end 
 
+
+		
+
+
 		return basis, (1, gap_hopping, SCHT.nr_uc)
 
 	end 	
@@ -94,32 +97,6 @@ end
 #---------------------------------------------------------------------------#
 
 
-
-function init_hopp_term(HT::HoppingTerm,
-												hopp_cutoff::Float64,
-												 dist::Real,
-												 dist_tol::Float64,
-												 basis::HamiltBasis,
-												 params...;
-												 )::Tuple{Union{Bool,Function}, Function, Int, Real}
-
-	if Utils.everything_is_null(params; atol=hopp_cutoff)
-
-		return (false, HoppingTerms.zeroHoppTerm(basis), 0, 0)
-
-	else 
-
-		return (Utils.fSame(dist, dist_tol) ∘ -,
-
-						HoppingTerms.upgraded_tij(HT, basis, params...), 
-
-						HT.nr_uc, 
-
-						dist) 
-
-	end
-
-end
 
 
 
@@ -322,7 +299,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
 	if length(dist)>=1 
 
-		cond, val, n, d = init_hopp_term(
+		cond, val, n, d = HoppingTerms.init_hopp_term(
 													hopping_Peierls, 
 													hopp_cutoff, 
 													dist[1], dist_tol, 
@@ -351,7 +328,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
         # ----------------- local potential --------------- #      
 				
-	lp = init_hopp_term(local_potential, hopp_cutoff, 
+	lp = HoppingTerms.init_hopp_term(local_potential, hopp_cutoff, 
 											0, dist_tol, target_basis, 
 											param_H[:LocalPotential], param_H[:ChemicalPotential]
 											)
@@ -427,7 +404,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 
         # -------------- compute max_dist and sum up ------------- #      
 
-  function cond(ri::AbstractVector,rj::AbstractVector)::Bool 
+  function cond0(ri::AbstractVector,rj::AbstractVector)::Bool 
 
 		(isnothing(indomain) || indomain(ri,rj)) && LA.norm(ri-rj)<only(maxdist)
 
@@ -435,7 +412,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
   
 
 	return Dict(
-		:Hopping => Sum(Hoppings,cond),
+		:Hopping => Sum(Hoppings,cond0),
 		:Nr_UCs => Int(round(only(nmax))),	# provided the kind of hoppings above 
 		:hopp_cutoff => hopp_cutoff,
 		:dist_tol => dist_tol,

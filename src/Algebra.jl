@@ -1228,16 +1228,21 @@ end
 
 
 
-function PauliMatrices()::Dict{Int64,Array{Complex{Float64},2}}
+function PauliMatrices()::Dict{Int64,Matrix{ComplexF64}}
 
-  s0 = Complex{Float64}[[1 0]; [0 1]]
-  s1 = Complex{Float64}[[0 1]; [1 0]]
-  s2 = Complex{Float64}[[0 -1im]; [1im 0]]
-  s3 = Complex{Float64}[[1 0]; [0 -1]]
-  
-  
-  return Dict(0=>s0, 1 => s1, 2=>s2, 3=>s3)
+	Dict(i=> PauliMatrix(i) for i=0:3)
+
 end
+
+
+PauliMatrix(i::Int)::Matrix{ComplexF64} = PauliMatrix(Val(i))
+
+PauliMatrix(::Val{0})::Matrix{ComplexF64} = [[1 0]; [0 1]]
+PauliMatrix(::Val{1})::Matrix{ComplexF64} = [[0 1]; [1 0]]
+PauliMatrix(::Val{2})::Matrix{ComplexF64} = [[0 -1im]; [1im 0]]
+PauliMatrix(::Val{3})::Matrix{ComplexF64} = [[1 0]; [0 -1]]
+
+
 
 function SpinMatrices(s)
 	

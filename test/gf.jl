@@ -15,15 +15,16 @@ colors = [colors[i,j] for i in axes(colors,1) for j in [3:size(colors,2);1:2]]
 
 PyPlot.close.(1:10)
 
-LENGTH = 4
+LENGTH = 60
 
-P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.002, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2)
+P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.008, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2)
 
 P2 = (Attached_Leads = "AB",)
 
 P3 = [(ChemPot = 0.0, Hopping = 1.0, Label = "A", Direction = -1, Contact = (-1, 1), Lead_Width = max(1,div(P1.width,2)), Lead_Coupling = 1.0, SCbasis = true), (ChemPot = 0.0, Hopping = 1.0, Label = "B", Direction = 1, Contact = (1, -1), Lead_Width = max(1,div(P1.width,2)-0), Lead_Coupling = 1.0, SCbasis = true)]
 
-enlim = nothing#[-0.39493671,  0.39493671]
+enlim = nothing
+enlim = [-0.39493671,  0.39493671]
 
 Dev = Lattices.SquareLattice()
 
@@ -475,14 +476,14 @@ if !isnothing(spectra)
 	LENGTH==4&&@assert isapprox(E1,sort(DevDiag["Energy"])[1:10])
 	
 	
-	@show extrema(DevDiag["kLabels"])
+#	@show extrema(DevDiag["kLabels"])
 	
 	println() 
 	
 	
 	spectra["Device"] = (DevDiag["kLabels"],DevDiag["Energy"])
 
-	@show DevDiag["Energy"] 
+#	@show DevDiag["Energy"] 
 
 end 
 
@@ -683,8 +684,10 @@ end
 
 
 
-ENERGIES_pos = LinRange(0, maximum(spectra["Lead"][2]), 200)
+ENERGIES_pos = LinRange(0, enlim[2], 200)
+
 ENERGIES_neg = -ENERGIES_pos
+
 ENERGIES = vcat(reverse(ENERGIES_neg),ENERGIES_pos)
 
 #eps0 = 2*spectra["Device"][2][2]
@@ -717,22 +720,24 @@ DOS = [ObservablesFromGF.DOS(leads[1][:GF](E)[1]) for E in ENERGIES]
 PyPlot.figure(1) 
 
 
-dev_Hopping[:BasisInfo]("E")
+@show dev_Hopping[:BasisInfo]("E") dev_Hopping[:BasisInfo]("H")
 
-
-dev_Hopping[:BasisInfo]("H")
+el_proj,hole_proj = [Operators.Projector(dev_Hopping[:BasisInfo](x), :atoms; dev_Hopping...,dim=2) for x in "EH"]
+	
 
 
 
 
 PyPlot.plot(DOS,ENERGIES,color="forestgreen",label="DOS")
 
+for (label, color, ehhe) in [("A","red","eh"),
+														 ("N","black","ee")]
 
 T_pos = zeros(length(ENERGIES_pos))
 T_neg = zeros(length(ENERGIES_neg))
 
 
-for (T,Ens) in ((T_pos,ENERGIES_pos),(T_neg,ENERGIES_neg))
+for (T,Ens,proj) in ((T_pos,ENERGIES_pos,1),(T_neg,ENERGIES_neg,2))
 
 	for (ie,E) in enumerate(Ens)
 
@@ -742,35 +747,80 @@ for (T,Ens) in ((T_pos,ENERGIES_pos),(T_neg,ENERGIES_neg))
 		
 	#	T[ie] = real(ObservablesFromGF.CaroliConductance(g, se, "A", "B", 1))
 		
-		SigmaS = se("B",1)
-		SigmaD = se("A",1)
-	
-		GammaS = GreensFunctions.DecayWidth(SigmaS)
-		GammaD = GreensFunctions.DecayWidth(SigmaD)
-	
-		GammaE = zeros(ComplexF64,2,2)
-		GammaH = zeros(ComplexF64,2,2)
-	
-		GammaE[1,1] = GammaS[1,1]
-	
-		GammaH[2,2] = GammaD[2,2]
-#		GammaH[1,1] = GammaD[1,1]
-	
-		G1 = g("A",1,"B",1)
+#		SigmaS = se("B",1)
+#		SigmaD = se("A",1)
+#	
+#		GammaS = GreensFunctions.DecayWidth(SigmaS)
+#		GammaD = GreensFunctions.DecayWidth(SigmaD)
 
-		T[ie] = real(LinearAlgebra.tr(G1*GammaE*G1'*GammaH))
+#		@assert size(GammaS)==(2,2) 
+#
+#		GammaE = zeros(ComplexF64,2,2)
+#		GammaH = zeros(ComplexF64,2,2)
+#	
+#		GammaE[1,1] = GammaS[1,1]
+#	
+#		GammaH[2,2] = GammaD[2,2]
+
+#		@assert el_proj(GammaS) ≈ GammaE 
+#		@assert hole_proj(GammaD) ≈ GammaH
+
+	if ehhe=="eh" 
+
+		if proj == 1 
+
+			T[ie] = ObservablesFromGF.CaroliConductance(g, se, "A", "A", el_proj, hole_proj)
+
+		else 
+
+			T[ie] = ObservablesFromGF.CaroliConductance(g, se, "A", "A", hole_proj, el_proj)
+
+		end 
+
+	elseif ehhe=="ee"
+
+		if proj==1 
+
+			T[ie] = ObservablesFromGF.CaroliConductance(g, se, "A", "B", el_proj) 
+
+		else 
+
+			T[ie] = ObservablesFromGF.CaroliConductance(g, se, "A", "B", hole_proj)
+
+		end 
+
+	end 
+
+#	@assert t_eh ≈ t_he (t_eh,t_he)
+#	@assert t_ee ≈ t_hh (t_ee,t_hh)
+
+
+
+#	t_tot = ObservablesFromGF.CaroliConductance(g, se, "A", "B")
+
+#	@assert t_ee+t_hh+t_eh+t_he ≈ t_tot 
+
+#[(el_proj,el_proj),(el_proj,hole_proj),(hole_proj,el_proj),(hole_proj,hole_proj)][ehhe[proj]]
+
+#	T[ie] =  [t_ee, t_eh, t_he, t_hh][ehhe[proj]]
 
 	end 
 
 end 
 
-PyPlot.plot(xy_PHS(ENERGIES_pos, T_pos+T_neg, 2)...,  c="red",label="T")
+
+@assert T_pos ≈ T_neg 
+
+PyPlot.figure(1)
+
+PyPlot.plot(xy_PHS(ENERGIES_pos, T_pos, 2)...,  c=color,label=label)
+
+end 
 
 PyPlot.legend()
 
+
 error()
-
-
 
 hoppings = LayeredSystem.get_hoppings(dev_Hopping[:Hopping], 
 																			Slicer, 
