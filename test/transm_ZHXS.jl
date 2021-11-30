@@ -3,12 +3,12 @@
 # Hall insulator–superconductor junctions
 # Ying-Tao Zhang,1 Zhe Hou,2 X. C. Xie,2,3 and Qing-Feng Sun2,3,*
 
-import myLibs: Algebra, H_Superconductor,  HoppingTerms, Utils, TBmodel
+import myLibs: Algebra, H_Superconductor,  HoppingTerms, Utils, TBmodel,Lattices, BandStructure, Operators
 import myLibs.HoppingTerms: HoppingTerm, HamiltBasis
-import LinearAlgebra
+import LinearAlgebra, PyPlot
 
 
-ZXS_inter = HoppingTerm(HamiltBasis(true,false),
+ZHXS_inter = HoppingTerm(HamiltBasis(true,false),
 						function inter_hopping(ri::AbstractVector,rj::AbstractVector,
 																	 aux
 																	 )::Matrix
@@ -23,7 +23,7 @@ ZXS_inter = HoppingTerm(HamiltBasis(true,false),
 						
 						 end, 1) 
 
-ZXS_intra = HoppingTerm(HamiltBasis(true,false),
+ZHXS_intra = HoppingTerm(HamiltBasis(true,false),
 
 						function get_intra_hopping(ri::AbstractVector, rj::AbstractVector, m::Real, mu_L::Real)
 						
@@ -33,7 +33,25 @@ ZXS_intra = HoppingTerm(HamiltBasis(true,false),
 
 
 
-function ZXS_hamilt(Delta, m, mu)
+function ZHXS_hopping(Delta, m, mu)
+
+	min_m,max_m = [-1,1]*sqrt(Delta^2 + mu^2)
+
+	NrMZM = if min_m <=m<=max_m 
+					
+						1 
+
+					elseif m<min_m 
+
+						2
+
+					else 
+
+						0
+
+					end 
+
+
 
 	hopp_cutoff = 1e-6 
 	dist_tol = 1e-5 
@@ -54,21 +72,21 @@ function ZXS_hamilt(Delta, m, mu)
 
 
 
-	cond, val, n, d = HoppingTerms.init_hopp_term(ZXS_inter, hopp_cutoff, 1, dist_tol, target_basis, 1)
+	cond, val, n, d = HoppingTerms.init_hopp_term(ZHXS_inter, hopp_cutoff, 1, dist_tol, target_basis, 1)
 
-		Append!(Hoppings, 1, cond, val)
+		Append!(Hoppings, 0.5, cond, val)
 
 		n_update!(nmax, cond isa Function, n) 
 
 		d_update!(maxdist, cond isa Function, d) 
 
 
-	lp = HoppingTerms.init_hopp_term(ZXS_intra, hopp_cutoff, 
+	lp = HoppingTerms.init_hopp_term(ZHXS_intra, hopp_cutoff, 
 											0, dist_tol, target_basis, 
 											m, mu
 											)
 
-	Append!(Hoppings, 1, lp[1], lp[2])
+	Append!(Hoppings, 0.5, lp[1], lp[2])
 
 
 
@@ -76,7 +94,7 @@ function ZXS_hamilt(Delta, m, mu)
 
 		val, fun, n = sc_gap
 
-		Append!(Hoppings, val, true, fun)
+		Append!(Hoppings, val/2, true, fun)
 
 		n_update!(nmax, val, n)
 
@@ -92,40 +110,55 @@ function ZXS_hamilt(Delta, m, mu)
 		:SC_basis => target_basis.use_Nambu,
 		:BasisInfo => HoppingTerms.basis_info(target_basis),
 		:nr_orb => target_basis.matrix_dim,
+		:NrMZM => NrMZM,
 		)
 
 end
 
 
 
-f = ZXS_hamilt(0,0,0)[:Hopping]
-
-for r in ([0,0],[1,0],[0,1],[2,1])
 
 
-	@show r
+function plot_atoms(ax, atoms::AbstractMatrix; 
+										max_atoms::Int=100,
+										kwargs...)
 	
-	println.(eachrow(f([0,0],r)))
-
-	println()
-
-end
+	nr_atoms =  Lattices.NrVecs(atoms)
 
 
+	plot_at = Lattices.Vecs(atoms, 1:min(nr_atoms,max_atoms))
+
+	ax.scatter(eachrow(plot_at)...; kwargs...) 
+
+	ax.set_aspect(1)  
 
 
-#2a: mu=1.5; Delta=?;
+	if nr_atoms>max_atoms 
 
-# m: min_m,max_m = [-1,1]*sqrt(Delta^2 + mu^2)
+		ax.scatter(Lattices.Vecs(atoms, max_atoms+1)...;
+							 Utils.dict_diff(kwargs,:c,:color)...,
+							c="red")
+	end 
 
-
-
-
-
-
-
+end  
 
 
+function device_lattice(n::Int)
 
+	latt = Lattices.SquareLattice()
+	
+	Lattices.ShiftAtoms!(latt, n = (1 .-[1,n])/2) 
+
+	Lattices.Superlattice!(latt, [1,n])
+	
+
+
+	Lattices.KeepDim!(latt, 1)
+
+
+
+	return latt 
+
+end 
 
 

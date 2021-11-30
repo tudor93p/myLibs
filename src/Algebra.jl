@@ -257,7 +257,7 @@ function Mean(f::Function, iter::Utils.List)
 end 
 
 
-function Mean(A::AbstractArray, dims::Union{Tuple,Int})
+function Mean(A::AbstractArray, dims::Union{Tuple,Int})::AbstractArray
 
 	dims_ = unique(vcat(dims...))
 
@@ -562,8 +562,8 @@ end
 function ConvoluteVectorPacket(weights, values, centers, 
 															 delta, vectors::AbstractMatrix{<:Number};
 															 dim::Int,
-															 get_weights=false, normalize=true, 
-															 keepdims=true, kwargs...) 
+															 get_weights::Bool=false, normalize::Bool=true, 
+															 keepdims::Bool=true, kwargs...) 
 
 	W = getCombinedDistrib(weights, values, centers, delta;
 												 normalize=normalize)
