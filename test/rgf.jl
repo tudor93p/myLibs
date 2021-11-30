@@ -65,8 +65,7 @@ function plot_layers(ax_or_n; max_nr_layers::Int=30,
 	
 		layer>max_nr_layers && break 
 
-end 
-
+	end 
 
 end 
 
@@ -448,11 +447,14 @@ function GF((LayerAtom,Slicer,LeadRels,VirtLeads))
 
 end 
 
+
+
 function get_SE(g, (LayerAtom,Slicer,LeadRels,VirtLeads))
 
 	GreensFunctions.SelfEn_fromGDecim(g, VirtLeads, Slicer)
 
-end 
+end  
+
 function setIndRe!(X,x,inds...)
 
 	@assert imag(x)<1e-9  x

@@ -1636,12 +1636,7 @@ function add_kwargs(PF::ParamFlow, F::Function; kwargs...)::Function
 
 	kwa2 = NamedTuple{Tuple(ks2)}(kwargs[k] for k in ks2)
 
-
-	return function f(args...; kwa...)
-
-		F(args...; kwa1..., kwa2..., kwa...)
-
-	end 
+	return Utils.add_kwargs(F; kwa1..., kwa2...)
 
 end 
 

@@ -1750,7 +1750,12 @@ end
 
 
 function Superlattice!(latt::Lattice, n, args...;
-											 Labels=nothing, kwargs...)::Lattice
+											 Labels=nothing, 
+											 recenter::Bool=false,
+											 kwargs...)::Lattice
+
+	recenter && ShiftAtoms!(latt, n=(1 .- n)/2)
+
 
 	n = SquareInt_LattCoeff(latt, n, args...)
 
@@ -1766,6 +1771,8 @@ function Superlattice!(latt::Lattice, n, args...;
 
 
 	LattVec!(latt, CombsOfVecs(latt, n), args...)
+
+
 
 	return latt 
 
@@ -1788,14 +1795,21 @@ end
 
 
 function Superlattice_(latt::Lattice, n::Matrix{Int}, args...;
+											 recenter::Bool=false,
 											 Labels=nothing, kw...)::Lattice
+	
+	recenter && @warn "'recenter' only works for in-place 'Superlattice!'"
+
+	#? ShiftAtoms(latt, n=(1 .- n)/2) : latt,
+	
 
 	cov = CombsOfVecs(latt, n, args...)
 
-	return Lattice(latt, args...;
+	L = Lattice(latt, args...;
 								 act_on_vectors=(v::AbstractMatrix{<:Float64})->cov,
-					act_on_atoms=new_atoms_dict(latt, ucs_in_UC(n; kw...), Labels),
-				 )
+								act_on_atoms=new_atoms_dict(latt, ucs_in_UC(n; kw...), Labels)
+				 ) 
+
 
 end
 
@@ -2720,7 +2734,7 @@ end
 
 
 function NearbyUCs(latt::Lattice, nr_uc::Int=1; #sublatt_coord=Dict(), 
-									 remove_minus_m=true, kwargs...)::NTuple{3,Matrix}
+									 remove_minus_m::Bool=true, kwargs...)::NTuple{3,Matrix}
 
 	ms = vectors_of_integers(LattDim(latt), nr_uc)
 
@@ -2747,6 +2761,48 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+
+function plot_atoms(latt::Lattice, args...; kwargs...)
+
+	plot_atoms(PosAtoms(latt), args...; kwargs...)
+
+end 
+
+function plot_atoms(atoms::AbstractMatrix, n::Int; kwargs...)
+
+	PyPlot.figure(n)
+
+	plot_atoms(PyPlot.gca(), atoms; kwargs...)
+
+end  
+
+function plot_atoms(atoms::AbstractMatrix, ax;
+										max_atoms::Int=100,
+										kwargs...)
+	
+	nr_atoms =  NrVecs(atoms)
+
+	plot_at = Vecs(atoms, 1:min(nr_atoms,max_atoms))
+
+
+	ax.scatter(eachcomp(plot_at)...; kwargs...)
+
+	ax.set_aspect(1)  
+
+	if nr_atoms>max_atoms 
+
+		ax.scatter(Vecs(atoms, max_atoms+1)...;
+							 Utils.dict_diff(kwargs,:c,:color)...,
+							c="red")
+	end 
+
+end  
+
+
+
+
+
+
 
 
 #function plot(latt::Lattice)

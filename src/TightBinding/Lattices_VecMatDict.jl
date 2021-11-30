@@ -9,12 +9,9 @@ const VECTOR_STORE_DIM = 2
 const VECTOR_AXIS = [2,1][VECTOR_STORE_DIM] 
 
 
-Unique(args...;kwargs...) = Utils.Unique(args...; kwargs..., tol=TOLERANCE, dim=VECTOR_STORE_DIM)
 
-Unique!(args...;kwargs...) = Utils.Unique!(args...; kwargs..., tol=TOLERANCE, dim=VECTOR_STORE_DIM)
+Unique, Unique!, EnumUnique = [Utils.add_args_kwargs(F; tol=TOLERANCE, dim=VECTOR_STORE_DIM) for F in [Utils.Unique, Utils.Unique!, Utils.EnumUnique]]
 
-
-EnumUnique(args...;kwargs...) = Utils.EnumUnique(args...; kwargs..., tol=TOLERANCE,dim=VECTOR_STORE_DIM)
 
 
 @assert Set([VECTOR_STORE_DIM,VECTOR_AXIS])==Set(1:2)
@@ -22,7 +19,7 @@ EnumUnique(args...;kwargs...) = Utils.EnumUnique(args...; kwargs..., tol=TOLERAN
 Cat = [vcat,hcat][VECTOR_STORE_DIM]
 
 eachvec = [eachrow,eachcol][VECTOR_STORE_DIM]
-
+eachcomp = Utils.add_args_kwargs(eachslice; dims=VECTOR_AXIS)
 
 function VecsOnDim(vecs::AbstractMatrix; dim::Int)::AbstractMatrix
 
@@ -30,23 +27,34 @@ function VecsOnDim(vecs::AbstractMatrix; dim::Int)::AbstractMatrix
 
 end 
 
-	
-RotVecs(args...) = Algebra.RotVecs(args...; dim=VECTOR_STORE_DIM)
+
+(RotVecs, 
+ VecsToMat, 
+ vectors_of_integers, 
+ CombsOfVecs10, 
+ PointInPolygon
+			) = [ Utils.add_args_kwargs(F; dim=VECTOR_STORE_DIM) for F in [
+													Algebra.RotVecs, 
+													Utils.VecsToMat, 
+													Utils.vectors_of_integers, 
+													Utils.CombsOfVecs10, 
+													Geometry.PointInPolygon_wn]]
 
 
-
+#RotVecs(args...) = Algebra.RotVecs(args...; dim=VECTOR_STORE_DIM)
+#
+#VecsToMat(args...; kwargs...) = Utils.VecsToMat(args...; dim=VECTOR_STORE_DIM, kwargs...)
+#
+#vectors_of_integers(args...; kwargs...) = Utils.vectors_of_integers(args...; dim=VECTOR_STORE_DIM, kwargs...) 
+#CombsOfVecs10(args...; kwargs...) = Utils.CombsOfVecs10(args...; dim=VECTOR_STORE_DIM, kwargs...)
+#
+#
+#PointInPolygon(args...; kwargs...) = Geometry.PointInPolygon_wn(args...; dim=VECTOR_STORE_DIM, kwargs...)
+#
+#
 
 sortvecs(A::AbstractMatrix{<:Number}; kwargs...) = sortslices(A; dims=VECTOR_STORE_DIM, kwargs...)
 
-VecsToMat(args...; kwargs...) = Utils.VecsToMat(args...; dim=VECTOR_STORE_DIM, kwargs...)
-
-vectors_of_integers(args...; kwargs...) = Utils.vectors_of_integers(args...; dim=VECTOR_STORE_DIM, kwargs...) 
-
-
-
-CombsOfVecs10(args...; kwargs...) = Utils.CombsOfVecs10(args...; dim=VECTOR_STORE_DIM, kwargs...)
-
-PointInPolygon(args...; kwargs...) = Geometry.PointInPolygon_wn(args...; dim=VECTOR_STORE_DIM, kwargs...)
 
 #===========================================================================#
 #

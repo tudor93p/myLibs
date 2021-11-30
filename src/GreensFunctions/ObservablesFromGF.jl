@@ -230,16 +230,20 @@ end
 
 function test_CaroliConductance(gSS::AbstractMatrix,
 																SigmaS::AbstractMatrix;
-																f::Function=LA.tr)
+																#f::Function=LA.tr
+																)
 
-	A = real(f(Algebra.Commutator(gSS,SigmaS)))
+	A = real(LA.tr(Algebra.Commutator(gSS, SigmaS)))
 
 	@assert isapprox(0, A, atol=1e-10) A
 
 end 
 
+
+
+
 function CaroliConductance(G::Function, get_SE::Function,
-													 source, drain, 
+													 source::AbstractString, drain::AbstractString, 
 													 projectors::Vararg{Function};
 													 kwargs...
 													 )::Float64 
@@ -248,49 +252,127 @@ function CaroliConductance(G::Function, get_SE::Function,
 
 end 
 
+
 function CaroliConductance(G::Function, get_SE::Function,
-													 source, drain, uc::Int,
+													 source::AbstractString, drain::AbstractString, 
+													 uc::Int,
 													 projectors::Vararg{Function};
 													 kwargs...
 													 )::Float64
+	
+	source==drain && return CaroliConductance(G, get_SE, source, uc, 
+																						projectors...; kwargs...)
 
-	gSS = G(source, uc, source, uc)
 	
 	SigmaS = get_SE(source, uc)
 
-	test_CaroliConductance(gSS, SigmaS; kwargs...) 
+	test_CaroliConductance(G(source, uc, source, uc), SigmaS; kwargs...)
 
-
-
-	GammaS = GreensFunctions.DecayWidth(SigmaS) 
-
-	source==drain && return CaroliConductance(gSS, GammaS, GammaS,
-																						projectors...; kwargs...)
 
 	return CaroliConductance(G(source, uc, drain, uc),
-											GammaS,
-											GreensFunctions.DecayWidth(get_SE(drain, uc)),
-											projectors...;
-											kwargs...)
-
-
-#	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)
-
-#	@assert isapprox(out1, out2, atol=1e-14) 
-
-	return out1 
-
+													 GreensFunctions.DecayWidth(SigmaS),
+													 GreensFunctions.DecayWidth(get_SE(drain, uc)),
+													 projectors...;
+													 kwargs...)
 end 
 
 
 
+function CaroliConductance(G::Function, get_SE::Function,
+													 lead::AbstractString, 
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	CaroliConductance(G, get_SE, lead, 1, projectors...; kwargs...)
+
+end 
 
 
-function CaroliConductance(G1::AbstractMatrix, 
+function CaroliConductance(G::Function, get_SE::Function,
+													 lead::AbstractString, uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	g = G(lead, uc) 
+	
+	Sigma = get_SE(lead, uc)
+
+	test_CaroliConductance(g, Sigma; kwargs...) 
+
+	return CaroliConductance(g, 
+													 GreensFunctions.DecayWidth(Sigma),
+													 projectors...; kwargs...) 
+
+end  
+
+function CaroliConductance(G::AbstractMatrix, 
+													 gamma::AbstractMatrix, 
+													 projectors::Vararg{Function};
+													 kwargs...)::Float64 
+
+	CaroliConductance(G, gamma, gamma, projectors...; kwargs...)
+
+end 
+
+
+function CaroliConductance(Gr::Function, Ga::Function,
+														get_SE::Function,
+														source::AbstractString, drain::AbstractString, 
+													 projectors::Vararg{Function};
+														kwargs...
+														)::ComplexF64
+
+	CaroliConductance(Gr, Ga, get_SE, source, drain, 1,
+										projectors...; kwargs...)
+end 
+
+function CaroliConductance(Gr::Function, Ga::Function,
+														get_SE::Function,
+														source::AbstractString, drain::AbstractString, 
+														uc::Int,
+													 projectors::Vararg{Function};
+														kwargs...
+														)::ComplexF64
+
+	source==drain && return CaroliConductance(Gr, get_SE,
+																						source, uc, projectors...;
+																						kwargs...)
+
+	gSD_ret = Gr(source, uc, drain, uc) 
+
+	gDS_adv = Ga(drain, uc, source, uc) 
+
+	SigmaS = get_SE(source, uc)
+
+
+	#	@assert isapprox(gDS_adv,gSD_ret',rtol=1e-5) "NO TRS"
+	
+	isapprox(gDS_adv,gSD_ret',rtol=1e-5) || @warn "NO TRS?"
+
+	test_CaroliConductance(Gr(source, uc, source, uc), SigmaS; kwargs...)
+
+
+
+	return CaroliConductance(gSD_ret,
+													 GreensFunctions.DecayWidth(SigmaS),
+													 GreensFunctions.DecayWidth(get_SE(drain, uc)),
+													 gDS_adv,
+													 projectors...; kwargs...)
+
+end  
+
+
+
+
+
+function CaroliConductance(gR_SD::AbstractMatrix, 
 													 gamma_source::AbstractMatrix, 
 													 gamma_drain::AbstractMatrix, 
-													 G2::AbstractMatrix; 
-													 f::Function=LA.tr)::ComplexF64
+													 gA_DS::AbstractMatrix; 
+#													 f::Function=LA.tr
+													 )::ComplexF64
 
 	@assert LA.ishermitian(gamma_source) && LA.ishermitian(gamma_drain)
 
@@ -299,12 +381,8 @@ function CaroliConductance(G1::AbstractMatrix,
 	#
 	# of Caroli et al, J.Phys.C: Solid State Phys. 4 916 (1971)
 
-	f(*(gamma_source,#GreensFunctions.DecayWidth(sigma_source),
-			G1,
-			gamma_drain,#GreensFunctions.DecayWidth(sigma_drain),
-			G2'
-			)
-		)
+	LA.tr(gamma_source * gR_SD * gamma_drain * gA_DS) 
+
 
 end
 
@@ -335,13 +413,14 @@ function CaroliConductance(G1::AbstractMatrix,
 end 
 
 
-function CaroliConductance(G1::AbstractMatrix, 
+
+function CaroliConductance(G::AbstractMatrix, 
 													 gamma_source::AbstractMatrix, 
 													 gamma_drain::AbstractMatrix,
 													 projectors::Vararg{Function};
 													 kwargs...)::Float64
 
-	real(CaroliConductance(G1,gamma_source, gamma_drain,G1,
+	real(CaroliConductance(G, gamma_source, gamma_drain, G',
 												 projectors...; kwargs...))
 
 end 
@@ -349,79 +428,20 @@ end
 
 
 
-function CaroliConductance2(G::Function, get_SE::Function,
-														source, drain, uc::Int;
-														f::Function=LA.tr
-#														kwargs...
-														)::ComplexF64
-
-
-	gSS = G(source, uc, source, uc)
-	
-	gSD = source==drain ? gSS : G(source, uc, drain, uc) 
-
-	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
-
-
-	A = real(f(Algebra.Commutator(gSS,SigmaS)))
-
-	@assert isapprox(0, A, atol=1e-10) A
-
-
-#	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)#kwargs...)
-
-	out2 = CaroliConductance2(gSD, SigmaS, SigmaD; f=f)#kwargs...)
-
-
-#	@assert isapprox(out1, out2, atol=1e-14)
-
-	return out2
-
-end  
-
-function CaroliConductance2(Gr::Function, Ga::Function,
-														get_SE::Function,
-														source, drain, uc::Int;
-														f::Function=LA.tr
-#														kwargs...
-														)::ComplexF64
-
-	gSD_ret = Gr(source, uc, drain, uc) 
-
-	gDS_adv = Ga(drain, uc, source, uc) 
-
-
-
-#	@assert isapprox(gDS_adv,gSD_ret',rtol=1e-5) "NO TRS"
-	
-	isapprox(gDS_adv,gSD_ret',rtol=1e-5) || @warn "NO TRS"
-
-	SigmaS, SigmaD = get_SE(source, uc), get_SE(drain, uc)
-
-#	out1 = CaroliConductance(gSD, SigmaS, SigmaD; f=f)
-
-	out2 = CaroliConductance2(gSD_ret, SigmaS, SigmaD, gDS_adv; f=f)
-
-
-#	@assert isapprox(out1, out2, atol=1e-14)
-
-	return out2
-
-end  
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
 
-function CaroliConductance2(gSD_ret::AbstractMatrix,
-														SigmaS::AbstractMatrix, 
-														SigmaD::AbstractMatrix,
-														gDS_adv...;
-														f::Function=LA.tr)::ComplexF64 
-
-	f(longitudinal_conductance_matrix(gSD_ret, SigmaS, SigmaD, gDS_adv...))
 
 
-end 
+
+
+
 
 function FanoFactor2(G::Function, get_SE::Function,
 														source, drain, uc::Int;
@@ -493,6 +513,9 @@ function longitudinal_conductance_matrix(gSD_ret::AbstractMatrix,
 #	right: drain, SigmaD, GammaD 
 	# formula (10) of PRB 68, 075306 (2003) -- or (A21)
 
+#	@assert LA.ishermitian(gamma_source) && LA.ishermitian(gamma_drain)
+
+
 	1im*Algebra.Commutator(SigmaS,
 												 gSD_ret*GreensFunctions.DecayWidth(SigmaD)*gDS_adv,
 												 4=>adjoint)
@@ -507,14 +530,13 @@ end
 #---------------------------------------------------------------------------#
 
 
-function addSiteTiTj!(siteT::T,
+function addSiteTiTj!(siteT::AbstractMatrix{<:Real},
 											dim::Int,
-											inds::Tuple{Vararg{Int}}, 
+											inds::NTuple{N,Int} where N,
 											(Ri,Rj),
-											Tij::Float64)::T where T<:AbstractMatrix{<:Real}
+											Tij::Float64)::Nothing 
 
 	t = Tij .* (Rj-Ri)
-
 
 	for i in inds 
 
@@ -522,7 +544,7 @@ function addSiteTiTj!(siteT::T,
 
 	end 
 
-	return siteT 
+	return 
 
 end 
 
@@ -561,7 +583,8 @@ end
 
 function BondTij(Gi_W_Gjdagg::AbstractMatrix{ComplexF64},
 								 Hji::AbstractMatrix{ComplexF64};
-								 f::Function=LA.tr, kwargs...)::Float64
+								 f::Function=LA.tr, 
+								 kwargs...)::Float64
 
 	-2.0*imag(f(Gi_W_Gjdagg*Hji))
 

@@ -23,7 +23,9 @@ PyPlot.close(2)
 fig,Ax = PyPlot.subplots(2,2,num=2,figsize=(10,7))
 sleep(0.1)
 
-function figure2a(ax1,ax2,nr_at=100)
+
+
+function figure2a(ax1, ax2, nr_at=100)
 
 	nr_kpoints = 500
 
@@ -37,7 +39,7 @@ function figure2a(ax1,ax2,nr_at=100)
 	
 	for n = -15:15
 
-		plot_atoms(ax1, Lattices.Atoms_ManyUCs(latt; Ns=n), #label=n,
+		Lattices.plot_atoms(Lattices.Atoms_ManyUCs(latt; Ns=n), ax1;#label=n,
 							 max_atoms=30,
 							 color=["k","gray"][1+(n+100)%2],s=4)
 
@@ -135,11 +137,11 @@ function figure2bcd(ax,ax2,nr_at=100)
 end 
 
 	
-figure2a(Ax[1,:]...,)
+figure2a(Ax[1,:]...,50)
 
 sleep(0.1) 
 
-figure2bcd(Ax[2,:]...,)
+figure2bcd(Ax[2,:]...,50)
 	
 	
 

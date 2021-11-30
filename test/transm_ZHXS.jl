@@ -3,7 +3,7 @@
 # Hall insulator–superconductor junctions
 # Ying-Tao Zhang,1 Zhe Hou,2 X. C. Xie,2,3 and Qing-Feng Sun2,3,*
 
-import myLibs: Algebra, H_Superconductor,  HoppingTerms, Utils, TBmodel,Lattices, BandStructure, Operators
+import myLibs: Algebra, H_Superconductor,  HoppingTerms, Utils, TBmodel,Lattices, BandStructure, Operators, LayeredSystem,GreensFunctions, ObservablesFromGF
 import myLibs.HoppingTerms: HoppingTerm, HamiltBasis
 import LinearAlgebra, PyPlot
 
@@ -37,13 +37,13 @@ function ZHXS_hopping(Delta, m, mu)
 
 	min_m,max_m = [-1,1]*sqrt(Delta^2 + mu^2)
 
-	NrMZM = if min_m <=m<=max_m 
-					
-						1 
+	NrMZM = if m<min_m 
 
-					elseif m<min_m 
+							2 
 
-						2
+					elseif m<max_m 
+
+						1
 
 					else 
 
@@ -53,11 +53,11 @@ function ZHXS_hopping(Delta, m, mu)
 
 
 
+
 	hopp_cutoff = 1e-6 
 	dist_tol = 1e-5 
 
-	target_basis, sc_gap = H_Superconductor.init_SC_gapfunction(H_Superconductor.swave, Delta; spin_basis=true) 
-
+	target_basis, sc_gap = H_Superconductor.init_SC_gapfunction(H_Superconductor.swave, Delta; spin_basis=true, Nambu_basis=true)
 
   Append!, Sum, Hoppings = TBmodel.Add_Hopping_Terms(target_basis.matrix_dim,
 																										 hopp_cutoff)
@@ -119,46 +119,108 @@ end
 
 
 
-function plot_atoms(ax, atoms::AbstractMatrix; 
-										max_atoms::Int=100,
-										kwargs...)
-	
-	nr_atoms =  Lattices.NrVecs(atoms)
-
-
-	plot_at = Lattices.Vecs(atoms, 1:min(nr_atoms,max_atoms))
-
-	ax.scatter(eachrow(plot_at)...; kwargs...) 
-
-	ax.set_aspect(1)  
-
-
-	if nr_atoms>max_atoms 
-
-		ax.scatter(Lattices.Vecs(atoms, max_atoms+1)...;
-							 Utils.dict_diff(kwargs,:c,:color)...,
-							c="red")
-	end 
-
-end  
-
-
 function device_lattice(n::Int)
 
 	latt = Lattices.SquareLattice()
 	
-	Lattices.ShiftAtoms!(latt, n = (1 .-[1,n])/2) 
-
-	Lattices.Superlattice!(latt, [1,n])
-	
-
+	Lattices.Superlattice!(latt, [1,n]; recenter=true)
 
 	Lattices.KeepDim!(latt, 1)
-
-
 
 	return latt 
 
 end 
+
+
+function slices_ribbon(NrLayers::Int, NrAtomsPerLayer::Int)
+
+	LayeredSystem.LayerAtomRels((device_lattice(NrAtomsPerLayer),
+																NrLayers), "sublatt"; test=true)[1]
+
+end
+
+#Lattices.plot_atoms(latt/atoms, ax/n)
+#
+#LayeredSystem.plot_layers(ax/n)
+
+
+function square_latt_lead(contact::Int, dir::Int, label::AbstractString;
+													AtomsOfLayer::Function, 
+													kwargs...)
+
+	atoms = AtomsOfLayer(contact) 
+
+	atoms[1,:] .+= dir 
+
+	return Lattices.SquareLattice(dir, label, atoms, nothing, 1)
+
+end   
+
+
+two_lead_args(;NrLayers::Int, kwargs...) =  [(1, -1, "Left"), (NrLayers, 1, "Right")] 
+
+prep_lead(label, latt, lead_hopp, del) = prep_lead(label, latt, lead_hopp, lead_hopp, del)
+
+function prep_lead(label, latt, lead_hopp, coupl_hopp, del)
+
+	LayeredSystem.PrepareLead(label, 
+														latt, 
+														Utils.add_args_kwargs(TBmodel.HoppingMatrix;
+																						 coupl_hopp...),
+														Utils.add_args_kwargs(TBmodel.HoppingMatrix; 
+																						 lead_hopp...),
+														GreensFunctions.GF_Surface(latt, "+", lead_hopp, del))
+
+end 
+
+
+
+
+
+function NewGeometry(LayerAtomRels, LeadContacts, leads, dev_hopp)
+
+	LayeredSystem.NewGeometry(rand(0,0), 
+															 LayerAtomRels; 
+															 LeadContacts=LeadContacts,
+															 Leads=leads, dim=2, 
+															 dev_hopp...)
+
+
+end
+
+
+function lead_contacts(contact::Int,
+											 lead::Lattices.Lattice; 
+											 AtomsOfLayer::Function, IndsAtomsOfLayer::Function, 
+											 kwargs...)
+
+	isBond = Algebra.EuclDistEquals(1; tol=1e-5, dim=2)
+
+	lc = LayeredSystem.get_LeadContacts(AtomsOfLayer(contact), lead, isBond)
+
+	return IndsAtomsOfLayer(contact)[lc]
+
+end 
+
+
+
+
+function GF(dev_hopp, (LayerAtom,Slicer,LeadRels,VirtLeads))
+
+	GreensFunctions.GF_Decimation(dev_hopp, VirtLeads, Slicer;
+																			 LayerAtom...)
+
+end 
+
+
+
+
+function get_SE(g, (LayerAtom,Slicer,LeadRels,VirtLeads))
+
+	GreensFunctions.SelfEn_fromGDecim(g, VirtLeads, Slicer)
+
+end  
+
+
 
 

@@ -4,7 +4,7 @@ module GreensFunctions
 import ..LA, ..ArrayOps
 
 
-import ..Utils, ..TBmodel 
+import ..Utils, ..TBmodel, ..Lattices
 
 import ..Graph, ..LayeredSystem
 
@@ -503,6 +503,47 @@ end
 #																surface Green functions"
 #
 #---------------------------------------------------------------------------#
+
+function GF_Surface(latt::Lattices.Lattice,
+										target_arg::AbstractString,
+										hopping::AbstractDict,
+										delta::Real,
+									)::Function
+
+	first ∘ GF_Surface(latt, [target_arg], hopping, delta)
+
+
+end
+
+function GF_Surface(latt::Lattices.Lattice,
+										target_arg::AbstractVector{<:AbstractString},
+										hopping::AbstractDict,
+										delta::Real,
+										)::Function
+
+	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, Lattices.NearbyUCs, hopping)
+	
+	@assert Lattices.LattDim(latt)==1 
+
+	intra_, inter_ = intra(), only(values(inter))
+		
+	
+	return function gf(E::Real)::Vector{Matrix{ComplexF64}}
+
+		gfs = GreensFunctions.GF_SanchoRubio(E+delta*im, intra_, inter_;
+																				 target=join(target_arg))
+
+		return [gfs[t] for t in target_arg]
+
+	end
+
+end
+
+
+
+
+
+
 
 function SanchoRubio_converged!(Errors::AbstractVector{<:Real},
 																iter::Int, 

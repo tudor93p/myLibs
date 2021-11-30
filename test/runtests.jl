@@ -36,7 +36,10 @@ for f in (
 
 #"transm_ZHXS", 
 
-"transm_ZHXS_Fig2", 
+#"transm_ZHXS_Fig2", 
+#"transm_ZHXS_Fig3", 
+"transm_ZHXS_Fig5", 
+"transm_ZHXS_Fig7", 
 
 #"rgf" |> pr_in
 #"gf",

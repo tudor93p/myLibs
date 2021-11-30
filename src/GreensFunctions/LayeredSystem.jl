@@ -1411,6 +1411,39 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function plot_layers(ax_or_n; max_nr_layers::Int=30, 
+										 AtomsOfLayer::Function,
+										 NrLayers::Int,
+										 IndsAtomsOfLayer=nothing,
+										 LayerOfAtom=nothing,
+										 label=nothing,
+										 kwargs...)
+
+	for layer in 1:NrLayers
+	
+	
+	
+		kw = (isnothing(label) || layer>1) ? () : Dict(:label=>"label")
+
+		color = isodd(layer) ? "black" : "gray" 
+	
+		Lattices.plot_atoms(AtomsOfLayer(layer), ax_or_n;
+							 color = layer>max_nr_layers ? "red" : color,
+							 Utils.dict_diff(kwargs,:c,:color)...,
+							 kw...)
+	
+		layer>max_nr_layers && break 
+
+	end 
+
+end 
 
 
 
