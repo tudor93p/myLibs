@@ -2800,6 +2800,17 @@ end
 
 
 
+function plot_bonds(Rs_bonds, ax; max_bonds::Int=500, kwargs...)
+
+	ax.set_aspect(1)
+
+	for (a1,a2) in Rs_bonds[1:min(max_bonds,end)]
+
+		ax.plot([a1[1],a2[1]], [a1[2],a2[2]]; kwargs...)
+	
+	end 
+
+end 
 
 
 

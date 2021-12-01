@@ -19,7 +19,7 @@ module LayeredSystem
 import ..LA 
 
 
-import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps
+import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps, ..Algebra
 
 
 
@@ -1416,6 +1416,81 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+
+
+function get_Bonds(len_or_bond;
+									 AtomsOfLayer::Function, 
+									 IndsAtomsOfLayer::Function,
+									 NrLayers::Int,
+									kwargs...
+									)::Vector{NTuple{2,Int}}
+
+	Algebra.get_Bonds(AtomsOfLayer, 
+										len_or_bond,
+										IndsAtomsOfLayer,
+										[(l1,l2) for l1=1:NrLayers for l2=l1:min(l1+1,NrLayers)];
+										kwargs...)
+
+end
+
+
+function bondRs_fromInds(inds_bonds::AbstractVector{NTuple{2,Int}};
+												 IndsAtomsOfLayer::Function,
+												 AtomsOfLayer::Function,
+												 NrLayers::Int,
+												 kwargs...
+												 )::Vector{Vector{Vector{<:Real}}}
+
+	Algebra.bondRs_fromInds(inds_bonds, AtomsOfLayer, IndsAtomsOfLayer,
+													[(l1,l2) for l1=1:NrLayers for l2=l1:min(l1+1,NrLayers)]; 
+													kwargs...)
+
+end 
+
+#	function atoms(k) 
+#
+#			L = LayerOfAtom(k)
+#
+#			i = only(indexin(k,IndsAtomsOfLayer(L)))
+#
+#			return selectdim(AtomsOfLayer(L), dim, i)
+#
+#	end  
+#
+#
+#
+#
+#
+#	f1 = Utils.sel(atoms1,dim) 
+#
+#	f1(i) = atom_i 
+#
+#
+#
+#	map(inds_bonds) do (a,b)
+#
+#		map([a,b]) do k 
+#
+#			L = LayerOfAtom(k)
+#
+#			i = only(indexin(k,IndsAtomsOfLayer(L)))
+#
+#			return collect(selectdim(AtomsOfLayer(L), dim, i))
+#
+#		end 
+#
+#	end 
+#				
+#end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 function plot_layers(ax_or_n; max_nr_layers::Int=30, 

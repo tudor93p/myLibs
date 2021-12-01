@@ -224,3 +224,170 @@ end
 
 
 
+function get_Bonds(; kwargs...)
+
+	inds_bonds = LayeredSystem.get_Bonds(1; kwargs...,  dim=2) 
+
+	Rs_bonds = LayeredSystem.bondRs_fromInds(inds_bonds; kwargs..., dim=2)
+
+	return inds_bonds, Rs_bonds
+
+end  
+
+
+function device_atoms(;AtomsOfLayer::Function, NrLayers::Int, 
+											IndsAtomsOfLayer::Function, kwargs...)
+
+	iaol = IndsAtomsOfLayer.(1:NrLayers)
+
+	at = zeros(2, sum(length, iaol))
+
+	for (layer,inds) in enumerate(iaol)
+	
+		for (i,a) in zip(inds,eachcol(AtomsOfLayer(layer)))
+
+			at[:,i] = a 
+
+		end 
+	
+	end
+
+	return at 
+
+end  
+
+
+
+function plot_arrow(ax1, xy, dxy; kwargs...)
+
+	ax1.arrow((xy-dxy/2)..., dxy...; length_includes_head=true, width=0.1, head_width=0.41, head_length=0.2, kwargs...)
+
+end 
+
+
+
+function transversal_current(Gr::Function, Ga::Function,
+														 gamma::Function,
+														 layer::Int,
+														 lead::AbstractString;
+														 Hopping::Function,
+														 AtomsOfLayer::Function,
+														 IndsAtomsOfLayer::Function,
+														 dim::Int,
+														 kwargs...)
+
+	inds = IndsAtomsOfLayer(layer) 
+
+	atoms = AtomsOfLayer(layer) 
+
+	n = length(inds)-1 
+
+	xy = zeros(2,n)
+	
+	dxy = zeros(2,n)
+	
+
+
+	for i_nu in 1:n
+
+		a = inds[i_nu] 
+
+		b = inds[i_nu+1]
+
+		Ra,Rb = selectdim(atoms, dim, i_nu), selectdim(atoms, dim, i_nu+1) 
+
+		t_ab = Hopping(Ra, Rb)
+
+		# t from nu==a to nu+1==b
+
+		@assert any(abs.(t_ab).>0.1) t_ab
+
+		ga_La = Ga(lead,1,"Atom",a)
+
+		gr_aL = Gr("Atom",a,lead,1) 
+
+		gr_bL = Gr("Atom",b,lead,1)
+
+		ggg_ba = gr_bL*gamma(lead,1)*ga_La
+
+
+		ga_Lb = Ga(lead,1,"Atom",b)
+
+
+		@assert isapprox(ga_La,gr_aL',rtol=1e-8) && isapprox(ga_Lb,gr_bL',rtol=1e-8)
+
+
+
+		ggg_ab = gr_aL*gamma(lead,1)*ga_Lb
+
+		cond = -1im*LinearAlgebra.tr(t_ab*ggg_ba - t_ab'*ggg_ab)  
+
+		@assert isapprox(imag(cond),0,atol=1e-8) cond 
+
+
+		selectdim(xy, dim, i_nu) .= Ra/2+Rb/2 
+
+		selectdim(dxy, dim, i_nu) .= real(cond) * LinearAlgebra.normalize(Rb-Ra)
+
+	end 
+
+
+
+	return xy,dxy 
+
+
+end 
+
+
+
+#function longitudinal_current()
+#
+#	inds1 = IndsAtomsOfLayer(layer)
+#
+#	inds2 = IndsAtomsOfLayer(layer+1)
+#
+#
+#	n = length(inds1)
+#	
+#	@assert 	length(inds2)==n
+#
+#	xy = zeros(2,n)
+#	
+#	dxy = zeros(2,n)
+#
+#
+##	left = ("Layer",layer)
+##	right = (
+#
+#	for (i,(i1,i2)) in enumerate(zip(inds1,inds2))
+#
+#		left = ("Atom",i1)
+#
+#		right = ("Atom", i2)
+#
+#		s_L = sigma(left...) 
+#	
+#		g_R = GreensFunctions.DecayWidth(sigma(right...))
+#	
+#		b = Gr(left..., right...)*g_R*Ga(right..., left...)
+#	
+#		
+#		cond = -1im*LinearAlgebra.tr(b*s_L' - s_L*b)
+#		
+#		@assert isapprox(imag(cond),0,atol=1e-8) cond 
+#
+#
+#		selectdim(xy, dim, i) .= Ra/2+Rb/2 
+#
+#		selectdim(dxy, dim, i) .= real(cond) * LinearAlgebra.normalize(Rb-Ra)
+#
+#	end 
+#
+#end 
+
+
+
+
+
+
+

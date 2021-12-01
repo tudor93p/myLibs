@@ -1603,9 +1603,11 @@ end
 
 
 function get_Bonds(atoms::AbstractMatrix, 
-									 len_or_f::Union{<:Function,<:Real}; kwargs...)
+									 len_or_f::Union{<:Function,<:Real}; 
+									 order_pairs::Bool=true,
+									kwargs...)
 
-	get_Bonds(atoms, atoms, len_or_f; order_pairs=true, kwargs...)
+	get_Bonds(atoms, atoms, len_or_f; order_pairs=order_pairs, kwargs...)
 						
 end 
 
@@ -1637,12 +1639,14 @@ function get_Bonds(get_atoms_batch::Function,
 									 len_or_f::Union{Function,Real},
 									 output_index::Function,
 									 batches::AbstractVector{NTuple{2,Int}};
+									 order_pairs::Bool=true,
 									kwargs...)
 
 	get_Bonds(get_atoms_batch, get_atoms_batch,
 						len_or_f,
 						output_index, output_index,
 						batches;
+						order_pairs=order_pairs,
 						kwargs...)
 
 end 
@@ -1732,21 +1736,214 @@ end
 #
 #---------------------------------------------------------------------------#
 
+#
+#sd_args1(a; dim::Int)::Tuple{AbstractVector{<:Real}, Int, Int} = (atoms1, dim, a)
+#
+#
+#function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 
+#												 sd_args1::Function,
+#												 sd_args2::Function=sd_args1
+#												 )::Vector{Vector{Vector{<:Real}}}
+#	f = Utils.sel(atoms1,dim) 
+#
+#	map(bond_indices) do (a,b)
+#
+#		collect(collect(f(i)) for (f,i) in zip((f1,f2),(a,b)))
+#
+#	end 
+#end 
+
+function bondRs_fromInds(inds_bonds::AbstractVector{NTuple{2,Int}},
+												 get_atoms_batch::Function,
+												 output_index::Function,
+												 batches::AbstractVector{NTuple{2,Int}}; 
+												 same_batches::Bool=true,
+												 kwargs...
+												 )::Vector{Vector{Vector{Real}}}
+
+	bondRs_fromInds(inds_bonds,
+									get_atoms_batch, get_atoms_batch,
+									output_index, output_index,
+									batches;
+									same_batches=same_batches,
+									kwargs...)
+
+end 
+
+
+bR_get_ind(a::Int, ::Colon)::Tuple{Bool,Int} = (true,a)  
+bR_get_ind(::Int, ::Nothing)::Tuple{Bool,Int} = (false,0) 
+bR_get_ind(::Int, A::Int)::Tuple{Bool,Int} = (true,A)
+bR_get_ind(a::Int,v::AbstractVector{Int})::Tuple{Bool,Int} = bR_get_ind(a, only(indexin(a, v)))
+
+function bondRs_fromInds(inds_bonds::AbstractVector{NTuple{2,Int}},
+												 get_atoms_batch_1::Function,
+												 get_atoms_batch_2::Function,
+												 output_index_1::Function,
+												 output_index_2::Function, 
+												 batches::AbstractVector{NTuple{2,Int}}; 
+												 same_batches::Bool=false,
+												 kwargs...
+												 )::Vector{Vector{Vector{Real}}}
+
+	bondRs = [Vector{Vector{Real}}(undef,2) for bond in inds_bonds] 
+
+
+	current = BitVector(undef, length(inds_bonds))
+
+	As = zeros(Int, length(inds_bonds))
+
+	Bs = zeros(Int, length(inds_bonds))
+
+
+
+	for sector in Utils.IdentifySectors(first, batches)
+
+		sub_batch = batches[sector] 
+
+		i1 = sub_batch[1][1]
+
+		atoms1 = get_atoms_batch_1(i1) 
+
+		inds_batch_1 = output_index_1(i1) 
+
+
+		for (i1,i2) in sub_batch 
+
+			for (bond,((a,),Rs)) in enumerate(zip(inds_bonds,bondRs))
+
+				if isassigned(Rs)
+
+					current[bond] = false 
+
+				else 
+
+					current[bond], As[bond] = bR_get_ind(a, inds_batch_1) 
+
+				end 
+
+			end 
+
+
+			potential_bonds = findall(current) 
+
+			isempty(potential_bonds) && continue  
+
+
+
+			same = same_batches && i1==i2 
+
+			inds_batch_2 = same ? inds_batch_1 : output_index_2(i2)  
+
+
+			for bond in potential_bonds 
+
+				current[bond], Bs[bond] = bR_get_ind(inds_bonds[bond][2], 
+																						 inds_batch_2) 
+			end 
+
+
+			potential_bonds = potential_bonds[current[potential_bonds]]
+
+			isempty(potential_bonds) && continue  
+
+
+			atoms2 = same ? atoms1 : get_atoms_batch_2(i2)
+
+
+			for bond in potential_bonds 
+
+				bondRs[bond] .= bondRs_fromInds((As[bond],Bs[bond]), atoms1, atoms2;
+																				kwargs...)
+
+			end 
+	
+		end # sub-batch
+
+			#for ((a,b), Rab) in zip(inds_bonds, bondRs)
+#	
+#				isassigned(Rab) && continue 
+#
+#				A,success = bR_get_ind(a, inds_batch_1)
+#
+#				success || continue 
+# 
+#				B,succes = bR_get_ind(b, inds_batch_2)
+#				
+#				success || continue  
+#
+#				Rab .= bondRs_fromInds((A,B), atoms1, atoms2; kwargs...) 
+#
+#			end 
+#
+#		end 
+
+	end # sector 
+
+
+	@assert all(isassigned, bondRs) 
+	
+	return bondRs 
+
+
+end 
+
+	#Utils.flatmap(batches) do (b,c)
+
+	#	order = order_pairs && b==c 
+
+	#	d = isBond(get_atoms_batch_1(b), get_atoms_batch_2(c); kwargs...)
+
+	#	inds_batch_1, inds_batch_2 = output_index_1(b), output_index_2(c)
+
+	#	return sort(map(findall(order ? LA.triu(d,1) : d)) do bond
+
+	#		(i,j) = bond.I 
+
+	#		I = inds_batch_1[i]
+	#		J = inds_batch_2[j]
+
+	#		return (!order || I<J) ? (I,J) : (J,I)
+	#						
+	#	end)
+
+	#end |> sort 
+
+
 
 
 
 function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 
-												 atoms1::AbstractMatrix{<:Real}, 
-												 atoms2::AbstractMatrix{<:Real}=atoms1; 
-												 dim::Int)::Vector{Vector{Vector{<:Real}}}
+												 atoms::AbstractMatrix{<:Real};
+												 same_batches::Bool=true,
+												 kwargs...)::Vector{Vector{Vector{<:Real}}}
 
-	map(bond_indices) do (a,b)
+	bondRs_fromInds(bondRs_fromInds, atoms, atoms; 
+									same_batches=same_batches,
+									kwargs...)
 
-		[collect(selectdim(atoms1, dim, a)), collect(selectdim(atoms2, dim, b))
-		 ]
-
-	end 
 end 
+
+function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}}, 
+												 atoms1::AbstractMatrix{<:Real},
+												 atoms2::AbstractMatrix{<:Real};
+												 kwargs...)::Vector{Vector{Vector{<:Real}}}
+												 
+	[bondRs_fromInds(I, atoms1, atoms2; kwargs...) for I in bond_indices]
+
+end 
+
+
+
+function bondRs_fromInds(I::NTuple{2,Int},
+												 atoms::Vararg{AbstractMatrix{<:Real},2};
+												 dim::Int,
+												 kwargs...)::Vector{Vector{<:Real}}
+
+	[collect(selectdim(adi...)) for adi in zip(atoms, (dim,dim), I)]
+
+end 
+
 
 
 

@@ -311,40 +311,19 @@ end
 
 
 
-function get_Bonds(;NrLayers::Int, AtomsOfLayer::Function,
-									 IndsAtomsOfLayer::Function,
-										kwargs...)
+function get_Bonds(; kwargs...)
 
-	dev_at = device_atoms(;NrLayers=NrLayers, AtomsOfLayer=AtomsOfLayer,
-												IndsAtomsOfLayer=IndsAtomsOfLayer,
-												kwargs...)
+	inds_bonds = LayeredSystem.get_Bonds(1; kwargs...  dim=2)
 
-#	N = min(NrLayers, Int(ceil(max_atoms/length(IndsAtomsOfLayer(1)))))
-
-
-	inds_bonds = Algebra.get_Bonds(AtomsOfLayer, 1.0, 
-																IndsAtomsOfLayer, 
-																[(l1,l2) for l1 in 1:NrLayers for l2 in l1:min(l1+1,NrLayers)];
-																dim=2)
-
-	Rs_bonds = Algebra.bondRs_fromInds(inds_bonds, dev_at; dim=2)
-
+	Rs_bonds = LayeredSystem.bondRs_fromInds(inds_bonds; kwargs..., dim=2)
 
 	return inds_bonds, Rs_bonds
 
-end 
-function plot_bonds(ax, Rs_bonds; max_atoms::Int=500, kwargs...)
+end  
 
-	ax.set_aspect(1)
 
-	for (a1,a2) in Rs_bonds[1:min(max_atoms,end)]
 
-		ax.plot([a1[1],a2[1]], [a1[2],a2[2]]; kwargs...)
-	
-	end 
-
-end 
-
+plot_bonds(ax, Rs; kwargs...) = Lattices.plot_bonds(Rs, ax; kwargs...)
 
 
 colors = [["orange","green","peru","dodgerblue","lightseagreen","deeppink"],["blue","gold","darkviolet","forestgreen","coral","olive"]]
