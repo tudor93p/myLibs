@@ -625,6 +625,55 @@ function BondTransmission(G::Function,
 
 end
 
+function BondTransmission(Gr::Function, Ga::Function,
+													Hoppings::AbstractVector{<:AbstractMatrix},
+													 Bonds::AbstractVector{NTuple{2,Int}},
+													 SE_lead::Function, lead_args...;
+													 kwargs...)::Vector{Float64}
+
+	W = GreensFunctions.DecayWidth(SE_lead(lead_args...))
+
+	bondT = zeros(Float64, length(Bonds))
+
+	for (bond_index,(i,j)) in enumerate(Bonds)
+
+#	for sector in Utils.IdentifySectors(first.(Bonds))
+							# for each atom, basically, provided Bonds are sorted
+
+#		i = Bonds[sector[1]][1]
+
+		gr_iL = Gr("Atom",i, lead_args...)
+
+		ga_Lj = Ga(lead_args..., "Atom", j)
+
+		gr_jL = Gr("Atom", j, lead_args...)
+
+		@assert gr_jL' ≈ ga_Lj 
+
+
+		bondT[bond_index] = -2imag(LA.tr(gr_iL*W*ga_Lj * Hoppings[bond_index]))
+
+	
+		#GiW = G("Atom", i, lead_args...)*W
+
+#		for bond_index in sector 
+
+		#	j = Bonds[bond_index][2]
+
+	#		bondT[bond_index] = BondTij(GiW,
+#																	G("Atom", j, lead_args...),
+#																	Hoppings[bond_index]; kwargs...)
+#		end
+
+	end 
+
+	return bondT
+
+end
+
+
+
+
 
 
 

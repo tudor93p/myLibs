@@ -265,6 +265,46 @@ function plot_arrow(ax1, xy, dxy; kwargs...)
 end 
 
 
+function plot_arrows(ax, XY_, dXY_; min_abs_len=nothing,
+										 min_rel_len=nothing,
+										 inds=Colon(),kwargs...)
+
+	XY = XY_[:,inds]
+
+	dXY = dXY_[:,inds]
+
+
+
+	norms = LinearAlgebra.norm.(eachcol(dXY))
+
+	max_norm = if !isnothing(min_abs_len) 
+		
+									min_abs_len 
+
+						elseif !isnothing(min_rel_len)
+		
+							maximum(norms)*min_rel_len
+
+						else 
+
+							-1
+
+						end
+
+
+	mask  = norms .> max_norm
+
+	for (xy,dxy) in zip(eachcol(XY[:,mask]),eachcol(dXY[:,mask]))
+
+		plot_arrow(ax, xy, dxy; kwargs...)
+
+	end 
+
+	sleep(0.01)
+
+end 
+
+
 
 function transversal_current(Gr::Function, Ga::Function,
 														 gamma::Function,
@@ -286,13 +326,17 @@ function transversal_current(Gr::Function, Ga::Function,
 	
 	dxy = zeros(2,n)
 	
+	ij = zeros(Int,2,n)
 
 
 	for i_nu in 1:n
 
 		a = inds[i_nu] 
 
-		b = inds[i_nu+1]
+		b = inds[i_nu+1] 
+
+		ij[1,i_nu] = a 
+		ij[2,i_nu] = b 
 
 		Ra,Rb = selectdim(atoms, dim, i_nu), selectdim(atoms, dim, i_nu+1) 
 
@@ -333,57 +377,102 @@ function transversal_current(Gr::Function, Ga::Function,
 
 
 
-	return xy,dxy 
+	return ij,xy,dxy 
 
 
 end 
 
 
 
-#function longitudinal_current()
-#
-#	inds1 = IndsAtomsOfLayer(layer)
-#
-#	inds2 = IndsAtomsOfLayer(layer+1)
-#
-#
-#	n = length(inds1)
-#	
-#	@assert 	length(inds2)==n
-#
-#	xy = zeros(2,n)
-#	
-#	dxy = zeros(2,n)
-#
-#
-##	left = ("Layer",layer)
-##	right = (
-#
-#	for (i,(i1,i2)) in enumerate(zip(inds1,inds2))
-#
-#		left = ("Atom",i1)
-#
-#		right = ("Atom", i2)
-#
-#		s_L = sigma(left...) 
-#	
-#		g_R = GreensFunctions.DecayWidth(sigma(right...))
-#	
-#		b = Gr(left..., right...)*g_R*Ga(right..., left...)
-#	
-#		
-#		cond = -1im*LinearAlgebra.tr(b*s_L' - s_L*b)
-#		
-#		@assert isapprox(imag(cond),0,atol=1e-8) cond 
-#
-#
-#		selectdim(xy, dim, i) .= Ra/2+Rb/2 
-#
-#		selectdim(dxy, dim, i) .= real(cond) * LinearAlgebra.normalize(Rb-Ra)
-#
-#	end 
-#
-#end 
+function longitudinal_current(Gr::Function, Ga::Function,
+														 layer::Int,
+														 hopp::Function,
+														 LeadLayerSlicer::Function,
+														 ;
+														 AtomsOfLayer::Function,
+														 IndsAtomsOfLayer::Function,
+														 dim::Int,
+														 kwargs...)
+
+	left = layer-1 
+	right = layer+1 
+
+	atoms_left = AtomsOfLayer(left) 
+	atoms = AtomsOfLayer(layer)
+	atoms_right = AtomsOfLayer(right) 
+
+
+	sigma_left = GreensFunctions.SelfEn(hopp(atoms_left,atoms),
+																			Gr("Layer",left,dir="left"))
+	
+	sigma_right = GreensFunctions.SelfEn(hopp(atoms_right,atoms),
+																			 Gr("Layer",right,dir="right"))
+
+	gamma_right = GreensFunctions.DecayWidth(sigma_right)
+	gamma_left = GreensFunctions.DecayWidth(sigma_left)
+
+
+	gr = Gr("Layer",layer) 
+
+	ga = Ga("Layer", layer)
+
+	
+	
+	ggg = gr*gamma_right*ga 
+
+	@assert gr ≈ ga' 
+
+	
+	cond_matrix = -im*(ggg*sigma_left' - sigma_left*ggg)
+
+
+
+	inds = IndsAtomsOfLayer(layer)
+
+	inds_left = IndsAtomsOfLayer(left)
+
+	n = length(inds)
+	
+	@assert length(inds_left)==n
+
+	xy = zeros(2,n)
+	
+	dxy = zeros(2,n)
+	
+	ij = zeros(Int,2,n)
+
+
+
+	for (i_rel,(i_abs,i_abs_left)) in enumerate(zip(inds,inds_left))
+
+		Ra = selectdim(atoms_left, dim, i_rel)
+		Rb = selectdim(atoms, dim, i_rel)
+
+		ij[:,i_rel] .= [i_abs_left,i_abs]
+
+
+		L,slice = LeadLayerSlicer("Atom",i_abs)
+		L_l,slice_l = LeadLayerSlicer("Atom",i_abs_left)
+
+		@assert L == ("Layer",layer)
+		@assert L_l == ("Layer",left) 
+
+
+		cond = LinearAlgebra.tr(cond_matrix[slice...,slice...])
+	
+		@assert isapprox(imag(cond),0,atol=1e-8) cond 
+
+
+
+		selectdim(xy, dim, i_rel) .= Ra/2+Rb/2 
+
+		selectdim(dxy, dim, i_rel) .= real(cond) * LinearAlgebra.normalize(Rb-Ra)
+
+	end 
+
+	return ij,xy, dxy
+
+end 
 
 
 

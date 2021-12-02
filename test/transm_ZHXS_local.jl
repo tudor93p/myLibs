@@ -3,7 +3,7 @@ PyPlot.close(101)
 PyPlot.close(102) 
 
 
-fig1,Ax1 = PyPlot.subplots(1,3,num=101,figsize=(14.5,6))
+fig1,Ax1 = PyPlot.subplots(2,4,num=101,figsize=(20,12),sharex="col",sharey="col")
 
 fig1.tight_layout()
 
@@ -11,7 +11,7 @@ sleep(0.1)
 
 
 
-function figure101(ax, ax3=nothing)
+function figure101(ax, ax_)
 
 	nr_layers = 20 
 
@@ -22,20 +22,36 @@ function figure101(ax, ax3=nothing)
 	widths[1] = 40
 
 	BasisInfo = HoppingTerms.basis_info(HamiltBasis(true,true))
+	dig3(x) = rstrip(rstrip(string(round(x,digits=3)),'0'),'.')
 
-	MUS0 = [[0.15,1.6] for i=1:2]
 
-	mu_min = min(0,minimum(minimum, MUS0))
-	mu_max = max(1.7,maximum.(MUS0)...)
+	mu_max = 1.7
+	mu_min = 0 
+
+	MUS0 = LinRange(mu_min,mu_max,5)[[2,3,4]]
+
+
+	MUS0 = MUS0 .+ (rand(3).- 0.5)*(MUS0[2]-MUS0[1])*0.7
+
+
+
+	#MUS0 = [0.15,0.66,1.6].+(2rand(3).-1)*0.001
+
+
+	MUS0 = round.(MUS0,digits=3)
+
+	MUS0 = [0.474, 0.813, 1.378]
+
+	@show MUS0
+
+	mu_min = min(mu_min,MUS0...)
+	mu_max = max(mu_max,MUS0...)
 	
 
-	nr_MUS = 20 
+	nr_MUS = 23 
 
-#	MUS = sort(unique(vcat(MUS0...,
-#												 Utils.uniqlinsp(mu_min, mu_max, nr_MUS, 2; Trunc=true)
-#												 )))
+	MUS = Utils.uniqlinsp(mu_min, mu_max, nr_MUS, 3; Trunc=true)
 
-	MUS = Utils.uniqlinsp(mu_min, mu_max, nr_MUS, 2; Trunc=true)
 
 	for mu in vcat(MUS0...)
 
@@ -45,8 +61,9 @@ function figure101(ax, ax3=nothing)
 	
 
 
+	iMUS0 = indexin(MUS0, MUS) 
 
-	iMUS0 = indexin.(MUS0,[MUS]) 
+	@assert all(!isnothing, iMUS0)
 
 	delta = 1e-4
 
@@ -54,20 +71,19 @@ function figure101(ax, ax3=nothing)
 
 	m = -0.5 
 
-	for (i_w, nr_at) in enumerate(widths) 
+	i_w = 1 
 
-		i_w==1||continue 
+	nr_at =40 
 
 		println() 
 
 		@show nr_at 
 
 
-#		ax1 = ax[i_w,[1,3]]
 
-		ax2 = [ax,ax3][i_w][2]
+		ax2 = ax[2]
 
-
+		ax4 = ax_[2]
 
 
 		LAR = slices_ribbon(nr_layers, nr_at)  
@@ -112,9 +128,13 @@ function figure101(ax, ax3=nothing)
 		T,Tl,Tc = [zeros(length(MUS)) for i=1:3]
 	
 		A, B = lead_labels 
-	
-		ax2.plot(fill(sqrt(m^2 -Delta^2),2),[0,1.1],color="green",ls="--",alpha=0.5)
-		ax2.plot(extrema(MUS), fill(1/4,2),color="red",ls="--",alpha=0.5)
+
+		for a in [ax2,ax4]
+
+			a.plot(fill(sqrt(m^2 -Delta^2),2),[0,1.1],color="green",ls="--",alpha=0.5)
+			a.plot(extrema(MUS), fill(1/4,2),color="red",ls="--",alpha=0.5)
+
+		end
 	
 	
 		lead_hopping = ZHXS_hopping(0, m, 0) 
@@ -134,7 +154,11 @@ function figure101(ax, ax3=nothing)
 		
 			NG_ret = NewGeometry(LAR, lead_conts, leads_ret, dev_hopping)
 			G_ret = GF(dev_hopping, NG_ret)(0)
-			se = get_SE(G_ret, NG_ret)
+			se = get_SE(G_ret, NG_ret) 
+
+
+
+
 
 			NG_adv = NewGeometry(LAR, lead_conts, leads_adv, dev_hopping)
 			
@@ -155,7 +179,13 @@ function figure101(ax, ax3=nothing)
 			for (t,lab,col) in [(T,"T","blue"),
 															(Tc,"T_C","k"),(Tl,"T_L","red")]
 
-				length(MUS)<=50&& ax2.scatter(mu,t[imu],color=col, alpha=0.8,s=4)
+				if length(MUS)<=50 
+					
+					for a in [ax2,ax4]
+						a.scatter(mu,t[imu],color=col, alpha=0.8,s=4)
+					end
+				end 
+
 
 				if imu>1 
 	
@@ -165,76 +195,201 @@ function figure101(ax, ax3=nothing)
 
 					imu==2 && setindex!(kw, lab, :label)
 
-					ax2.plot(MUS[I], t[I]; kw...)
+					[a.plot(MUS[I], t[I]; kw...) for a in [ax2,ax4]]
 
 				end  
 
 			end 
 	
 
-			k = only(indexin(imu,iMUS0[i_w]))
+			k = only(indexin(imu,iMUS0))
 			
 			if !isnothing(k)
 
-				col = ["forestgreen","deeppink"][k]
+				col = ["forestgreen","deeppink","olive"][k]
 
-				ax1 = [ax,ax3][i_w][[1,3][k]]
+				ax1 = ax[[1,3,4][k]]
+				ax3 = ax_[[1,3,4][k]]
 
-				ax2.plot([mu,mu],[0,1.1],lw=1,c=col,alpha=0.8,linestyle=":")
+				[a.plot([mu,mu],[0,1.1],lw=1,c=col,alpha=0.8,linestyle=":") for a in [ax2,ax4]]
 
-				ax2.scatter(mu,T[imu],c=col,s=10,zorder=10)
+				for t in (T,Tc,Tl)
+
+					[a.scatter(mu,t[imu],c=col,s=30,zorder=10) for a in [ax2,ax4]]
+
+				end
 				
 				
 				alpha = 0.3
 
 #				ax1.set_title(title)
 
-				LayeredSystem.plot_layers(ax1; LAR..., s=3,alpha=alpha,zorder=0)
+				[LayeredSystem.plot_layers(a; LAR..., s=3,alpha=alpha,zorder=0) for a in [ax1,ax3]]
 
-				for ll in lead_latts, n = 0:5
+				for ll in lead_latts, n = 0:1, a in [ax1,ax3]
 
-					Lattices.plot_atoms(Lattices.Atoms_ManyUCs(ll; Ns=n),ax1;s=3,max_atoms=51,alpha=alpha,color=["peru","dodgerblue"][isodd(n)+1],zorder=0)
+					Lattices.plot_atoms(Lattices.Atoms_ManyUCs(ll; Ns=n),a;s=3,max_atoms=51,alpha=alpha,color=["peru","dodgerblue"][isodd(n)+1],zorder=0)
 	
 				end  
+			
+			
+				siteT = zeros(2,size(dev_at,2))
+
+
 
 				for layer in 1:LAR[:NrLayers]
 
-					XY,dXY = transversal_current(G_ret, G_adv, 
+
+					IJ,XY,dXY = transversal_current(G_ret, G_adv, 
 																			 GreensFunctions.DecayWidth∘se,
 																			 layer, A; dev_hopping..., LAR..., dim=2)
-			
-					for (xy,dxy) in zip(eachcol(XY),eachcol(dXY))
 
-						plot_arrow(ax1, xy, dxy; color=col, zorder=20)
+					for ((i,j),t) in zip(eachcol(IJ),eachcol(dXY))
+
+						siteT[:,i] += t 
+						siteT[:,j] += t 
 
 					end 
 
+
+					layer in [1,LAR[:NrLayers]] && continue 
+
+
+					dev_hopp_mat = Utils.add_args_kwargs(TBmodel.HoppingMatrix;
+																						 dev_hopping...)
+
+
+					IJ,XY,dXY = longitudinal_current(G_ret, G_adv, layer, dev_hopp_mat, NG_ret[2]; LAR..., dim=2)
+
+					plot_arrows(ax1, XY, dXY; color=col, zorder=20, min_abs_len=0.1)
+
+
+
+					if layer==div(LAR[:NrLayers],2) 
+					
+						s = sum(dXY)/2 
+
+						println("\nNet longitudinal: 2*",dig3(s))
+						
+						for (t,lab,col) in [(T,"T","blue"),
+															(Tc,"T_C","k"),(Tl,"T_L","red")] 
+
+							println("$lab: ",dig3(t[imu]))
+
+						end 
+
+						plot_arrows(ax1, XY, dXY; color="k", zorder=30, min_abs_len=0.1)
+
+
+						V = Utils.vectors_of_integers(3,1)
+						u = [T[imu],Tc[imu],Tl[imu]]
+
+
+						best_vs = V[partialsortperm(abs.(V*u .- s), 1:2),:]
+
+						for v in eachrow(best_vs)
+
+							q = findall(v.!=0) 
+
+							isempty(q) && continue 
+
+							str = join(string(v[qi] > 0 ? "+" : "-", ["T","TC","TL"][qi]) for qi in q)
+
+							println("*) ",lstrip(str,'+'),"=",	dig3(LinearAlgebra.dot(v,u)))
+
+						
+						end 
+
+						#println()
+
+
+
+
+					end 
+						
+
+					for ((i,j),t) in zip(eachcol(IJ),eachcol(dXY))
+
+						siteT[:,i] += t 
+						siteT[:,j] += t 
+
+					end 
+
+#					plot_arrows(ax1, XY, dXY; color=col, zorder=20)
+
+				end  
+
+
+
+#				I = sort(Utils.flatmap(LAR[:IndsAtomsOfLayer], 2:LAR[:NrLayers]-1))
+
+
+				i_mid_slice = LAR[:IndsAtomsOfLayer](div(LAR[:NrLayers],2)) 
+				i_prev_mid_slice = LAR[:IndsAtomsOfLayer](div(LAR[:NrLayers],2)-1) 
+
+
+
+				ax1.set_title("transm_ZHXS")
+
+#				plot_arrows(ax1, dev_at, siteT; color=col, zorder=20,inds=I)
+
+				ax3.set_title("ObservablesFromGF")
+
+#				siteT3 = ObservablesFromGF.SiteTransmission(G_ret, hoppings_bonds, inds_bonds, Rs_bonds, se, A, 2; dim=2) 
+
+#				plot_arrows(ax3, dev_at, siteT3; color=col, zorder=20,inds=I)
+
+
+				only_horiz = [Ra[2]≈Rb[2] for (Ra,Rb) in Rs_bonds]
+
+				bondT3 = -ObservablesFromGF.BondTransmission(G_ret, hoppings_bonds, inds_bonds, se, B, 2; dim=2) 
+
+
+				inds_bonds_mid = map(inds_bonds) do (i,j)
+
+					for (i0,j0) in zip(i_prev_mid_slice,i_mid_slice)
+
+						i0==i && j0==j && return true 
+
+					end 
+
+					return false 
+
 				end 
 
-#				siteT = ObservablesFromGF.SiteTransmission(G_ret, hoppings_bonds, inds_bonds, Rs_bonds, se, A, 1; dim=2)
-#
-#				max_norm = maximum(LinearAlgebra.norm, eachcol(siteT))
-#
-#
-#			for (xy,dxy) in zip(eachcol(dev_at),eachcol(siteT))
-#
-#				LinearAlgebra.norm(dxy)<0.07max_norm && continue 
-#
-#				#ax1.quiver(eachrow(dev_at)...,  eachrow(siteT)..., color=col,zorder=20,pivot="mid", length_includes_head=true, width=0.1, head_width=0.41, head_length=0.2)
-#
-#				plot_arrow(ax1, xy, dxy; color=col, zorder=20)
-#
-#			end
 
 
+
+
+
+
+#				bondT3.*only_horiz.*[in(i,i_mid_slice)-in(j,i_mid_slice) for (i,j) in inds_bonds] |>sum |> println
+
+
+
+				XY = mapreduce(Algebra.Mean, hcat, Rs_bonds)
+
+				dXY = hcat((t*LinearAlgebra.normalize(Rb-Ra) for (t,(Ra,Rb)) in zip(bondT3,Rs_bonds))...)
+
+
+
+				plot_arrows(ax3, XY, dXY; color=col, zorder=20, min_abs_len=0.1,inds=only_horiz)
+				
+				println("Net longitudinal method2: ",
+								dig3(sum(dXY[1,inds_bonds_mid])))
+
+				plot_arrows(ax3, XY, dXY; color="k", zorder=21, min_abs_len=0.1,inds=only_horiz.&inds_bonds_mid)
+#				@show sum(siteT[1,i_mid_slice]) sum(siteT3[1,i_mid_slice])
+
+				println()
 			end 
 	
-			ax2.set_ylim(0,1.1) 
+			[a.set_ylim(0,1.1) for a in [ax2,ax4]]
 
 
 			pad = 0.0
 
-			ax2.set_xlim(mu_min - pad*(mu_max-mu_min), mu_max + pad*(mu_max-mu_min))
+			[a.set_xlim(mu_min - pad*(mu_max-mu_min), mu_max + pad*(mu_max-mu_min)) for a in [ax2,ax4]]
 
 
 
@@ -246,8 +401,7 @@ function figure101(ax, ax3=nothing)
 		end 
 		println()	
 	
-		ax2.legend()
-	end	
+		[a.legend() for a in [ax2,ax4]]
 	
 
 #Ax2_[2,2].legend()
@@ -256,5 +410,5 @@ end
 
 
 
-figure101(Ax1)
+figure101(Ax1[1,:],Ax1[2,:])
 
