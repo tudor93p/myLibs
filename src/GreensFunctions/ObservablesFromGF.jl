@@ -556,9 +556,9 @@ end
 #---------------------------------------------------------------------------#
 
 
-function BondTij(Gi::AbstractMatrix{ComplexF64},
-								 W::AbstractMatrix{ComplexF64},
-								 Gj::AbstractMatrix{ComplexF64},
+function BondTij(Gr_iL::AbstractMatrix{ComplexF64},
+								 W_L::AbstractMatrix{ComplexF64},
+								 Ga_Lj::AbstractMatrix{ComplexF64},
 								 Hji::AbstractMatrix{ComplexF64};
 								 kwargs...
 								)::Float64
@@ -567,112 +567,161 @@ function BondTij(Gi::AbstractMatrix{ComplexF64},
 # 
 # "im" comes already from the difference (i->j) - (j->i)! 
 
-	BondTij(Gi*W*Gj', Hji; kwargs...)
+	BondTij(Gr_iL * W_L * Ga_Lj, Hji; kwargs...)
 
 end 
 
 
-function BondTij(GiW::AbstractMatrix{ComplexF64},
-								 Gj::AbstractMatrix{ComplexF64},
+function BondTij(GriW::AbstractMatrix{ComplexF64},
+								 Gaj::AbstractMatrix{ComplexF64},
 								 Hji::AbstractMatrix{ComplexF64};
 								 kwargs...)::Float64
 
-	BondTij(GiW*Gj',Hji; kwargs...)
+	BondTij(GriW*Gaj,Hji; kwargs...)
 
 end 
 
-function BondTij(Gi_W_Gjdagg::AbstractMatrix{ComplexF64},
+function BondTij(Gri_W_Gaj::AbstractMatrix{ComplexF64},
 								 Hji::AbstractMatrix{ComplexF64};
 								 f::Function=LA.tr, 
 								 kwargs...)::Float64
 
-	-2.0*imag(f(Gi_W_Gjdagg*Hji))
+	-2.0*imag(f(Gri_W_Gaj * Hji))
 
 end 
 
 
 
 
-function BondTransmission(G::Function, 
+
+function BondTransmission_(
 													Hoppings::AbstractVector{<:AbstractMatrix},
 													 Bonds::AbstractVector{NTuple{2,Int}},
-													 SE_lead::Function, lead_args...;
+													 SE_lead::Function, 
+													 lead::AbstractString,
+													 nr_uc::Int,
+													 Gs::Vararg{Function}
+													 ;
 													 kwargs...)::Vector{Float64}
 
-	W = GreensFunctions.DecayWidth(SE_lead(lead_args...))
+	W = GreensFunctions.DecayWidth(SE_lead(lead,nr_uc))
 
 	bondT = zeros(Float64, length(Bonds))
 
-	for sector in Utils.IdentifySectors(first.(Bonds))
+	for sector in Utils.IdentifySectors(first, Bonds)
 							# for each atom, basically, provided Bonds are sorted
 
-		i = Bonds[sector[1]][1]
-
-		GiW = G("Atom", i, lead_args...)*W
-
-		for bond_index in sector 
-
-			j = Bonds[bond_index][2]
-
-			bondT[bond_index] = BondTij(GiW,
-																	G("Atom", j, lead_args...),
-																	Hoppings[bond_index]; kwargs...)
-		end
+		BondTiJ!(sector, bondT, Hoppings, Bonds, Gs..., W, lead, nr_uc; kwargs...)
 
 	end 
 
 	return bondT
 
 end
+
+
+function BondTiJ!(sector::AbstractVector{Int},
+									bondT::AbstractVector{Float64},
+									Hoppings::AbstractVector{<:AbstractMatrix},
+									Bonds::AbstractVector{NTuple{2,Int}},
+									args...; kwargs...)::Nothing 
+
+	BondTiJ!(view(bondT,sector), view(Hoppings, sector), view(Bonds,sector),
+					 Bonds[sector[1]][1], args...; kwargs...)
+
+end  
+
+function BondTiJ(sector::AbstractVector{Int},
+								#	bondT::AbstractVector{Float64},
+									Hoppings::AbstractVector{<:AbstractMatrix},
+									Bonds::AbstractVector{NTuple{2,Int}},
+									args...; kwargs...)::Vector{Float64}
+
+	bondT = zeros(length(sector))
+
+	BondTiJ!(bondT, view(Hoppings, sector), view(Bonds,sector),
+					 Bonds[sector[1]][1], args...; kwargs...)
+
+	return bondT
+
+end  
+
+
+function BondTiJ!(bondT::AbstractVector{Float64},
+									Hoppings::AbstractVector{<:AbstractMatrix},
+									Bonds::AbstractVector{NTuple{2,Int}},
+									i::Int,
+									Gr::Function, #Ga::Function,
+									SE_lead::AbstractMatrix,
+									lead...; kwargs...)::Nothing
+	
+	BondTiJ!(bondT, Hoppings, Bonds, Gr("Atom",i,lead...)*SE_lead, 
+					 adjoint∘Gr∘reverse, lead...; kwargs...)
+
+end 
+
+function BondTiJ!(bondT::AbstractVector{Float64},
+									Hoppings::AbstractVector{<:AbstractMatrix},
+									Bonds::AbstractVector{NTuple{2,Int}},
+									i::Int,
+									Gr::Function, Ga::Function,
+									SE_lead::AbstractMatrix,
+									lead...; kwargs...)::Nothing
+	
+	gr = Gr("Atom",i,lead...)
+	
+	@assert gr ≈ Ga(lead..., "Atom", i)'
+
+	BondTiJ!(bondT, Hoppings, Bonds, gr*SE_lead, Ga, lead...; kwargs...)
+
+end 
+
+
+
+function BondTiJ!(bondT::AbstractVector{Float64},
+									Hoppings::AbstractVector{<:AbstractMatrix},
+									Bonds::AbstractVector{NTuple{2,Int}},
+									GiW::AbstractMatrix{ComplexF64},
+									Ga::Function,
+									lead...; kwargs...)::Nothing
+
+	for (ibt, (H,(i,j))) in enumerate(zip(Hoppings,Bonds))
+
+		bondT[ibt] = BondTij(GiW, Ga((lead,("Atom",j))), H; kwargs...)
+
+	end 
+
+	return 
+
+end  
+
+
+
+
+function BondTransmission(Gr::Function, 
+													Hoppings::AbstractVector{<:AbstractMatrix},
+													args...; kwargs...)::Vector{Float64}
+
+	BondTransmission_(Hoppings, args..., Gr; kwargs...)
+
+end
+
+
 
 function BondTransmission(Gr::Function, Ga::Function,
-													Hoppings::AbstractVector{<:AbstractMatrix},
-													 Bonds::AbstractVector{NTuple{2,Int}},
-													 SE_lead::Function, lead_args...;
-													 kwargs...)::Vector{Float64}
+													args...; kwargs...)::Vector{Float64}
 
-	W = GreensFunctions.DecayWidth(SE_lead(lead_args...))
-
-	bondT = zeros(Float64, length(Bonds))
-
-	for (bond_index,(i,j)) in enumerate(Bonds)
-
-#	for sector in Utils.IdentifySectors(first.(Bonds))
-							# for each atom, basically, provided Bonds are sorted
-
-#		i = Bonds[sector[1]][1]
-
-		gr_iL = Gr("Atom",i, lead_args...)
-
-		ga_Lj = Ga(lead_args..., "Atom", j)
-
-		gr_jL = Gr("Atom", j, lead_args...)
-
-		@assert gr_jL' ≈ ga_Lj 
-
-
-		bondT[bond_index] = -2imag(LA.tr(gr_iL*W*ga_Lj * Hoppings[bond_index]))
-
-	
-		#GiW = G("Atom", i, lead_args...)*W
-
-#		for bond_index in sector 
-
-		#	j = Bonds[bond_index][2]
-
-	#		bondT[bond_index] = BondTij(GiW,
-#																	G("Atom", j, lead_args...),
-#																	Hoppings[bond_index]; kwargs...)
-#		end
-
-	end 
-
-	return bondT
+	BondTransmission_(args..., Gr, Ga; kwargs...)
 
 end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -688,33 +737,36 @@ function SiteTransmission(G::Function,
 	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
 															[2,1][dim] => length(RBonds[1][1]))
 
-
 	W = GreensFunctions.DecayWidth(SE_lead(lead_args...))
 
-	for sector in Utils.IdentifySectors(first.(Bonds))
+	for sector in Utils.IdentifySectors(first, Bonds)
 							# for each atom, basically, provided Bonds are sorted
 
-		i = Bonds[sector[1]][1]
-
-		GiW = G("Atom", i, lead_args...)*W
-
-		for bond_index in sector 
-
-			j = Bonds[bond_index][2]
-
-			bt = BondTij(GiW, G("Atom", j, lead_args...), Hoppings[bond_index];
-									 kwargs...) 
-
-			addSiteTiTj!(siteT, dim, (i,j), RBonds[bond_index], bt) 
-
-		end
+		addSiteTiTJ!(sector, siteT, Hoppings, Bonds, RBonds, G, W, lead_args...; 
+								 dim=dim, kwargs...)
 
 	end 
 
 	return siteT
 
 end
+ 
 
+
+
+function addSiteTiTJ!(sector::AbstractVector{Int},
+											siteT::AbstractMatrix{Float64},
+											Hoppings::AbstractVector{<:AbstractMatrix},
+											Bonds::AbstractVector{NTuple{2,Int}},
+											RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
+											args...; kwargs...)::Nothing
+
+	SiteTransmission_fromBondT!(siteT,
+															view(Bonds,sector), view(RBonds, sector), 
+															BondTiJ(sector, Hoppings, Bonds, args...; 
+																			kwargs...); kwargs...)
+
+end 
 
 function SiteTransmission(Gr::Function, Ga::Function,
 													Hoppings::AbstractVector{<:AbstractMatrix},
@@ -846,13 +898,22 @@ function SiteTransmission_fromBondT(BondT::AbstractVector{<:Real},
 	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
 															[2,1][dim] => length(RBonds[1][1]))
 
-	for BRT in zip(Bonds, RBonds, BondT)
+	SiteTransmission_fromBondT!(siteT, Bonds, RBonds, BondT; dim=dim)
+															
+	return siteT 
+
+end
+
+function SiteTransmission_fromBondT!(siteT::AbstractMatrix{Float64},
+																		 args...; dim::Int)::Nothing 
+
+	for BRT in zip(args...)
 
 		addSiteTiTj!(siteT, dim, BRT...)
 
 	end
 
-	return siteT 
+	return 
 
 end
 

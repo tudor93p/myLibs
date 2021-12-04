@@ -455,34 +455,66 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 	end
 	
 
-	return if	isnothing(translate)
-		
-						function out1(name1::String,index1::Int64,
-												 	name2::String=name1,index2::Int64=index1;
-																							dir::String="both")
-				
-							return G(node(name1,index1,name2,index2)...,dir)
-				
-						end
-
-				
-				else
 
 
-					function out2(name1::String,index1::Int64,
-											 	name2::String=name1,index2::Int64=index1;
-																										dir::String="both")
-					
-						n1i1n2i2,slice = translate(name1,index1,name2,index2) 
+	if	isnothing(translate)
+	
+		function out1(name1::AbstractString,index1::Int64,
+								 	name2::AbstractString=name1,index2::Int64=index1;
+									dir::AbstractString="both")::AbstractMatrix
+	
+			G(node(name1,index1,name2,index2)...,dir)
+	
+		end
 
-						@assert length(slice)==2
+
+		function out1((name1,index1)::Tuple{AbstractString,Int},
+									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
+									kwargs...)::AbstractMatrix
+
+			out1(name1, index1, name2, index2)
+
+		end 
+
+		function out1(ni1ni2::Tuple{Tuple,Tuple}; kwargs...)::AbstractMatrix
+
+			out1(ni1ni2...)
+
+		end
+
+		return out1
+
+	
+	else
 
 
-						return G(node(n1i1n2i2...)...,dir)[slice...]
+		function out2(name1::AbstractString, index1::Int64,
+								 	name2::AbstractString=name1, index2::Int64=index1;
+									dir::AbstractString="both")::AbstractMatrix
 
-					end
+			n1i1n2i2,slice = translate(name1,index1,name2,index2) 
 
-				end
+			@assert length(slice)==2
+
+			return G(node(n1i1n2i2...)...,dir)[slice...]
+
+		end 
+
+		function out2((name1,index1)::Tuple{AbstractString,Int},
+									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
+									kwargs...)::AbstractMatrix
+
+			out2(name1, index1, name2, index2)
+
+		end 
+
+		function out2(ni1ni2::Tuple{Tuple,Tuple}; kwargs...)::AbstractMatrix
+
+			out2(ni1ni2...)
+
+		end
+
+	end
 
 end
 

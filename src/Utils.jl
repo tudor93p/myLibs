@@ -667,13 +667,7 @@ function IdentifySectors(list::AbstractVector{T}; tol=1e-8, kwargs...
 														<:AbstractVector{<:Union{<:ComplexF64,<:Float64}},
 																	}
 
-	ntol,ftol = tolNF(tol)
-	
-	return IdentifySectors_(list) do a,b
-
-		isapprox(a,b, atol=ftol)
-
-	end 
+	IdentifySectors_(fSame(tolNF(tol)[2]), list) 
 
 end 
 

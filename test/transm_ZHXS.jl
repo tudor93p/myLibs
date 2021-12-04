@@ -306,10 +306,108 @@ end
 
 
 
+function get_local_bonds(show_transversal::Bool,
+												 show_longitudinal::Bool,
+												 inds_bonds,
+												 Rs_bonds; 
+												 IndsAtomsOfLayer::Function,
+												 kwargs...)::Function 
+	
+	function glb(layer::Int)::BitVector 
+
+		i_slice = IndsAtomsOfLayer(layer) 
+
+		i_prev_slice = if show_longitudinal 
+		
+									IndsAtomsOfLayer(layer-1)
+
+								else 
+
+									nothing 
+
+								end
+	
+		return map(collect(1:length(inds_bonds))) do I
+	
+			Ra,Rb = Rs_bonds[I]
+			i,j = inds_bonds[I] 
+	
+			if show_transversal && !show_longitudinal
+				
+				Ra[1]≈Rb[1]	|| return false 
+	
+			elseif show_longitudinal && !show_transversal
+	
+				Ra[2]≈Rb[2] || return false 
+	
+			end 
+	
+	
+			for j0 in i_slice 
+			
+				j0==j || continue 
+	
+				if show_longitudinal  
+					
+					for i0 in i_prev_slice 
+	
+						i0==i && return true 
+	
+					end 
+	
+				end 
+				
+				if show_transversal
+	
+					for i0 in i_slice 
+
+#						i0==i && @show (i,j)
+
+						i0==i && return true 
+	
+					end 
+	
+				end 
+	
+			end 
+	
+			return false 
+	
+		end 
+	end 
+
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function transversal_current(Gr::Function, Ga::Function,
 														 gamma::Function,
 														 layer::Int,
-														 lead::AbstractString;
+														 lead...;#lead::AbstractString,uc_lead::Int;
 														 Hopping::Function,
 														 AtomsOfLayer::Function,
 														 IndsAtomsOfLayer::Function,
@@ -346,23 +444,23 @@ function transversal_current(Gr::Function, Ga::Function,
 
 		@assert any(abs.(t_ab).>0.1) t_ab
 
-		ga_La = Ga(lead,1,"Atom",a)
+		ga_La = Ga(lead...,"Atom",a)
 
-		gr_aL = Gr("Atom",a,lead,1) 
+		gr_aL = Gr("Atom",a,lead...)
 
-		gr_bL = Gr("Atom",b,lead,1)
+		gr_bL = Gr("Atom",b,lead...)
 
-		ggg_ba = gr_bL*gamma(lead,1)*ga_La
+		ggg_ba = gr_bL*gamma(lead...)*ga_La
 
 
-		ga_Lb = Ga(lead,1,"Atom",b)
+		ga_Lb = Ga(lead..., "Atom", b)
 
 
 		@assert isapprox(ga_La,gr_aL',rtol=1e-8) && isapprox(ga_Lb,gr_bL',rtol=1e-8)
 
 
 
-		ggg_ab = gr_aL*gamma(lead,1)*ga_Lb
+		ggg_ab = gr_aL*gamma(lead...)*ga_Lb
 
 		cond = -1im*LinearAlgebra.tr(t_ab*ggg_ba - t_ab'*ggg_ab)  
 
@@ -385,7 +483,7 @@ end
 
 
 function longitudinal_current(Gr::Function, Ga::Function,
-														 layer::Int,
+														 layer_::Int,
 														 hopp::Function,
 														 LeadLayerSlicer::Function,
 														 ;
@@ -394,19 +492,31 @@ function longitudinal_current(Gr::Function, Ga::Function,
 														 dim::Int,
 														 kwargs...)
 
-	left = layer-1 
-	right = layer+1 
+#	dir_left,left_ = "left",-1
+#	current = 0 
+#	dir_right,right_ = "right",+1 
 
-	atoms_left = AtomsOfLayer(left) 
+	dir_left,left_ = "right",1
+	current = 0
+	dir_right,right_ = "left",-1
+
+	left,layer,right = [left_,current,right_] .+ layer_
+
+
+
+
+	atoms_left = AtomsOfLayer(left)  
+
 	atoms = AtomsOfLayer(layer)
+
 	atoms_right = AtomsOfLayer(right) 
 
 
 	sigma_left = GreensFunctions.SelfEn(hopp(atoms_left,atoms),
-																			Gr("Layer",left,dir="left"))
+																			Gr("Layer",left,dir=dir_left))
 	
 	sigma_right = GreensFunctions.SelfEn(hopp(atoms_right,atoms),
-																			 Gr("Layer",right,dir="right"))
+																			 Gr("Layer",right,dir=dir_right))
 
 	gamma_right = GreensFunctions.DecayWidth(sigma_right)
 	gamma_left = GreensFunctions.DecayWidth(sigma_left)
@@ -451,7 +561,8 @@ function longitudinal_current(Gr::Function, Ga::Function,
 		ij[:,i_rel] .= [i_abs_left,i_abs]
 
 
-		L,slice = LeadLayerSlicer("Atom",i_abs)
+		L,slice = LeadLayerSlicer("Atom",i_abs) 
+
 		L_l,slice_l = LeadLayerSlicer("Atom",i_abs_left)
 
 		@assert L == ("Layer",layer)
@@ -473,6 +584,7 @@ function longitudinal_current(Gr::Function, Ga::Function,
 	return ij,xy, dxy
 
 end 
+
 
 
 
