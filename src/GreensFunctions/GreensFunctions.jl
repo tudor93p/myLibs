@@ -22,6 +22,7 @@ import ..Graph, ..LayeredSystem
 GF(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
 
 
+
 """ the system S is now coupled to another system S'
  									such that the self-energy is SE			"""
 
@@ -314,9 +315,9 @@ function GF_Decimation(Hopping::AbstractDict,
 	return GF_Decimation(HoppMatr, NrLayers;
 											 VirtLeads..., 
 											 translate=LeadLayerSlicer,
-											 plot_graph=(graph_fname,IndsAtomsOfLayer))
+											 plot_graph=(graph_fname,IndsAtomsOfLayer),
+											 kwargs...)
 	
-
 
 
 end
@@ -326,7 +327,8 @@ end
 
 function GF_Decimation(HoppMatr::Function, NrLayers::Int64; 
 											 LeftLead=nothing, RightLead=nothing, 
-											 translate=nothing, plot_graph=nothing)
+											 translate=nothing, plot_graph=nothing,
+											 kwargs...)
 
 	g = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers; 
 																					LeftLead=LeftLead, 
@@ -352,7 +354,7 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 
 	return function gf(Energy::Number)
 		
-		GF_Decimation_fromGraph(Energy, g, translate)
+		GF_Decimation_fromGraph(Energy, g, translate; kwargs...)
 
 	end 
 
@@ -360,7 +362,17 @@ end
 
 
 
-function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
+function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
+#																 leads_have_imag::Bool=false,
+																 kwargs...
+																 )::Function
+
+	@assert haskey(kwargs,:leads_have_imag)
+	leads_have_imag = kwargs[:leads_have_imag]
+
+
+
+
 
 	setEnergy_LeadGF,
 	islead,
@@ -371,6 +383,8 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 	bring_closer,
 	node	= GraphLayeredSystem_Utils(g)
 
+
+	reEnergy = leads_have_imag ? Energy::Real : real(Energy::Complex)
 
 
 	SemiInfLeadGF = setEnergy_LeadGF(g,Energy)
@@ -404,7 +418,7 @@ function GF_Decimation_fromGraph(Energy::Number, g,translate=nothing)
 		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
 																			coupling_toSystem(n,dir)...)
 	
-		return GF(Energy, H(n), coupling(n,dir)... ) #real( Energy)
+		return GF(reEnergy, H(n), coupling(n,dir)... ) 
 	
 	end
 
@@ -538,11 +552,10 @@ end
 
 function GF_Surface(latt::Lattices.Lattice,
 										target_arg::AbstractString,
-										hopping::AbstractDict,
-										delta::Real,
+										args...
 									)::Function
 
-	first ∘ GF_Surface(latt, [target_arg], hopping, delta)
+	first ∘ GF_Surface(latt, [target_arg], args...)
 
 
 end
@@ -553,6 +566,31 @@ function GF_Surface(latt::Lattices.Lattice,
 										delta::Real,
 										)::Function
 
+#	gf_ = GF_Surface(latt, target_arg, hopping)
+
+	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, Lattices.NearbyUCs, hopping)
+	
+	@assert Lattices.LattDim(latt)==1 
+
+	intra_, inter_ = intra(), only(values(inter))
+		
+
+	return function gf(E::Real)::Vector{Matrix{ComplexF64}}
+		
+		gfs = GreensFunctions.GF_SanchoRubio(E+delta*im, intra_, inter_;
+																				 target=join(target_arg))
+
+		return [gfs[t] for t in target_arg]
+
+	end
+
+end
+
+function GF_Surface(latt::Lattices.Lattice,
+										target_arg::AbstractVector{<:AbstractString},
+										hopping::AbstractDict,
+										)::Function
+
 	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, Lattices.NearbyUCs, hopping)
 	
 	@assert Lattices.LattDim(latt)==1 
@@ -560,9 +598,9 @@ function GF_Surface(latt::Lattices.Lattice,
 	intra_, inter_ = intra(), only(values(inter))
 		
 	
-	return function gf(E::Real)::Vector{Matrix{ComplexF64}}
+	return function gf(E::ComplexF64)::Vector{Matrix{ComplexF64}}
 
-		gfs = GreensFunctions.GF_SanchoRubio(E+delta*im, intra_, inter_;
+		gfs = GreensFunctions.GF_SanchoRubio(E, intra_, inter_;
 																				 target=join(target_arg))
 
 		return [gfs[t] for t in target_arg]
@@ -869,14 +907,154 @@ end
 
 
 
-
 #===========================================================================#
 #
-#
+# Helper function, prepares the lead dictionary for further operations
+# 			:label and :coupling must be additionally provided
 #
 #---------------------------------------------------------------------------#
 
 
+""" 
+	- Lead -- aligned and attached to Atoms
+
+	- BridgeAtoms::Matrix{Float64} is non-empty only for unregular lead-atom
+				iterfaces. Contains additional atoms to ensure maximum contact
+
+	- HoppMatr::Function(atoms1,atoms2) gives the Hamiltonian
+
+	- LeadGF::Function(E) lead GF, computed elsewhere
+
+"""
+
+function PrepareLead(atoms::AbstractMatrix{<:Number})::Dict{Symbol,Any}
+
+	Dict{Symbol,Any}(:head=>[atoms])
+
+end 
+
+
+function PrepareLead(label::AbstractString, 
+										 LeadAtoms::AbstractMatrix{<:Number}
+										 )::Dict{Symbol,Any}
+
+	merge!(Dict{Symbol,Any}(:label => label), PrepareLead(LeadAtoms))
+	
+end  
+
+
+function PrepareLead(label::AbstractString, Lead::Lattices.Lattice
+										 )::Dict{Symbol,Any}
+
+	PrepareLead(label, Lattices.PosAtoms(Lead))
+
+end 
+
+
+function PrepareLead(label::AbstractString, 
+										 Lead::Union{Lattices.Lattice, AbstractMatrix{<:Number}},
+										 BridgeAtoms::AbstractMatrix{<:Number}
+										 )::Dict{Symbol,Any}
+
+	merge!(vcat, PrepareLead(BridgeAtoms), PrepareLead(label, Lead)) 
+
+end 
+
+function PrepareLead(label::AbstractString,
+										 lead_latt::Lattices.Lattice,
+										 lead_hopp::AbstractDict,
+										 delta::Vararg{Float64},
+										 )::Dict{Symbol,Any} 
+
+	PrepareLead(label, lead_latt, lead_hopp, lead_hopp, delta...)
+
+end 
+
+function PrepareLead(label::AbstractString,
+										 lead_latt::Lattices.Lattice,
+										 coupl_hopp::AbstractDict,
+										 lead_hopp::AbstractDict,
+										 delta::Vararg{Float64},
+										 )::Dict{Symbol,Any}
+
+	PrepareLead(label, 
+							lead_latt,
+							Utils.add_args_kwargs(TBmodel.HoppingMatrix; coupl_hopp...),
+							Utils.add_args_kwargs(TBmodel.HoppingMatrix; lead_hopp...),
+							GF_Surface(lead_latt, "+", lead_hopp, delta...))
+
+end
+
+
+
+function PrepareLead(label::AbstractString, 
+										 Lead::Lattices.Lattice,
+										 coupling::Function,
+										 LeadHoppMatr::Function,
+										 LeadGF::Function,
+										 )::Dict{Symbol,Any}
+
+	LeadAtoms0, LeadAtoms1 = [Lattices.Atoms_ManyUCs(Lead; Ns=n) for n=[0,1]]
+
+
+	return merge!(PrepareLead(label, LeadAtoms0), Dict(	
+
+						:coupling => coupling,
+
+						:intracell => [LeadHoppMatr(LeadAtoms0)],
+
+						:intercell => [LeadHoppMatr(LeadAtoms0, LeadAtoms1)],
+
+						:GF => function GF(E::Number)::Vector{Matrix} 
+						
+												[LeadGF(E)] 
+											
+									end
+
+								)
+							)
+
+end 
+
+
+
+function PrepareLead(label::AbstractString, 
+										 Lead::Lattices.Lattice,
+										 BridgeAtoms::AbstractMatrix,
+										 coupling::Function,
+										 LeadHoppMatr::Function,
+										 LeadGF::Function,
+										 )::Dict{Symbol,Any}
+
+	BridgeIntra = LeadHoppMatr(BridgeAtoms) 
+
+	BridgeToLead = LeadHoppMatr(BridgeAtoms, Lattices.PosAtoms(Lead))
+
+
+	out = merge!(vcat,
+							 Dict{Symbol,Any}(:intracell=>[BridgeIntra], 
+																:intercell=>[BridgeToLead]),
+							PrepareLead(label, Lead, coupling, LeadHoppMatr, LeadGF))
+				
+				
+	out[:GF] = function GF(E::Number)::Vector{Matrix}
+	
+				g = LeadGF(E)
+
+				g1 = GF(E, BridgeIntra, BridgeToLead', g)
+				
+				g11 = inv(Array(E*LA.I - BridgeIntra - BridgeToLead*g*BridgeToLead'))
+
+				@show g1≈g11
+				@assert g1≈g11 LA.norm(g1-g11)
+
+				return [g1, g]
+
+		end
+
+	return out
+
+end
 
 
 

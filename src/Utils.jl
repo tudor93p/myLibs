@@ -1380,7 +1380,17 @@ function uniqsp(getsp::Function)::Function
 	function uniqsp_(start::Real, stop::Real, Len::Int64, tol::Real; 
 									 Trunc::Bool=false)::Vector{Float64}
 
-		ntol,ftol = tolNF(tol)
+		@assert Len>=0
+
+		ntol,ftol = tolNF(tol) 
+
+		if Len<=2 
+			
+			s = [start,stop][1:Len]
+
+			return Trunc ? trunc.(s,digits=ntol) : s
+
+		end 
 	
 		max_nr_steps = ftol>0 ? Int(floor(Float64(stop-start)/ftol)) : 100Len
 	
@@ -2461,7 +2471,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function vectors_of_integers(D::Int64, stop, start=-stop; dim::Int=1, sortby=nothing)
+function vectors_of_integers(D::Int64, stop, start=-stop; dim::Int=1, sortby=nothing)::Matrix{Int}
 
 	dim2 = [2,1][dim]
 
@@ -2484,15 +2494,14 @@ function vectors_of_integers(D::Int64, stop, start=-stop; dim::Int=1, sortby=not
 	Ls = [1;[f-i+1 for (i,f) in boundaries];1]
 
 
-	out = similar(Array{Int64}, [prod(Ls), D][[dim,dim2]]...)
+	out = similar(Matrix{Int}, [prod(Ls), D][[dim,dim2]]...)
 
 	
 	for (i,(a,b)) in enumerate(boundaries)
 
-		setindex!(out,
-							repeat(a:b, inner=prod(Ls[i+2:end]), outer=prod(Ls[1:i])),
-							[:,i][dim], [:,i][dim2]
-							)
+		selectdim(out, dim2, i) .= repeat(a:b; 
+																			inner=prod(Ls[i+2:end]), 
+																			outer=prod(Ls[1:i])) 
 
 
 	end
@@ -2503,6 +2512,29 @@ function vectors_of_integers(D::Int64, stop, start=-stop; dim::Int=1, sortby=not
 
 end
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function best_linear_combs_10(result::Number, nr_trials::Int,
+															components...
+															)::Tuple{Vector{<:Number}, Vector{Vector{Int}}}
+
+	V = vectors_of_integers(length(components), 1; 
+													dim=2, sortby=LA.norm)[:,2:end]
+
+	trials = [LA.dot(v,components) for v in eachcol(V)]
+
+	I = partialsortperm(abs.(trials .- result), 1:nr_trials)
+
+	return (trials[I], [V[:,i] for i in I])
+
+end 
 
 
 

@@ -159,21 +159,23 @@ end
 
 two_lead_args(;NrLayers::Int, kwargs...) =  [(1, -1, "Left"), (NrLayers, 1, "Right")] 
 
-prep_lead(label, latt, lead_hopp, del) = prep_lead(label, latt, lead_hopp, lead_hopp, del)
+prep_lead = GreensFunctions.PrepareLead
 
-function prep_lead(label, latt, lead_hopp, coupl_hopp, del)
-
-	LayeredSystem.PrepareLead(label, 
-														latt, 
-														Utils.add_args_kwargs(TBmodel.HoppingMatrix;
-																						 coupl_hopp...),
-														Utils.add_args_kwargs(TBmodel.HoppingMatrix; 
-																						 lead_hopp...),
-														GreensFunctions.GF_Surface(latt, "+", lead_hopp, del))
-
-end 
-
-
+#prep_lead(label, latt, lead_hopp::AbstractDict, del::Vararg{Float64}) = prep_lead(label, latt, lead_hopp, lead_hopp, del...)
+#
+#function prep_lead(label, latt::Lattices.Lattice, lead_hopp::AbstractDict, coupl_hopp::AbstractDict, del::Vararg{Float64})
+#
+#	LayeredSystem.PrepareLead(label, 
+#														latt, 
+#														Utils.add_args_kwargs(TBmodel.HoppingMatrix;
+#																						 coupl_hopp...),
+#														Utils.add_args_kwargs(TBmodel.HoppingMatrix; 
+#																						 lead_hopp...),
+#														GreensFunctions.GF_Surface(latt, "+", lead_hopp, del...))
+#
+#end 
+#
+#
 
 
 
@@ -205,10 +207,10 @@ end
 
 
 
-function GF(dev_hopp, (LayerAtom,Slicer,LeadRels,VirtLeads))
+function GF(dev_hopp, (LayerAtom,Slicer,LeadRels,VirtLeads); kwargs...)
 
 	GreensFunctions.GF_Decimation(dev_hopp, VirtLeads, Slicer;
-																			 LayerAtom...)
+																LayerAtom..., kwargs...)
 
 end 
 
@@ -300,7 +302,7 @@ function plot_arrows(ax, XY_, dXY_; min_abs_len=nothing,
 
 	end 
 
-	sleep(0.01)
+	sleep(0.005)
 
 end 
 
@@ -486,19 +488,25 @@ function longitudinal_current(Gr::Function, Ga::Function,
 														 layer_::Int,
 														 hopp::Function,
 														 LeadLayerSlicer::Function,
-														 ;
+														 proj1::Function=identity,
+														 proj2::Function=identity;
 														 AtomsOfLayer::Function,
 														 IndsAtomsOfLayer::Function,
 														 dim::Int,
 														 kwargs...)
 
-#	dir_left,left_ = "left",-1
-#	current = 0 
-#	dir_right,right_ = "right",+1 
+	dir_left,left_ = "left",-1
+	current = 0 
+	dir_right,right_ = "right",+1 
 
-	dir_left,left_ = "right",1
-	current = 0
-	dir_right,right_ = "left",-1
+# equivalent to current due to the *left* lead 
+	
+
+#	dir_left,left_ = "right",1
+#	current = 0
+#	dir_right,right_ = "left",-1
+
+
 
 	left,layer,right = [left_,current,right_] .+ layer_
 
@@ -513,13 +521,16 @@ function longitudinal_current(Gr::Function, Ga::Function,
 
 
 	sigma_left = GreensFunctions.SelfEn(hopp(atoms_left,atoms),
-																			Gr("Layer",left,dir=dir_left))
+																			Gr("Layer",left,dir=dir_left)
+																			)|>proj1
 	
 	sigma_right = GreensFunctions.SelfEn(hopp(atoms_right,atoms),
-																			 Gr("Layer",right,dir=dir_right))
+																			 Gr("Layer",right,dir=dir_right)
+																			 )|>proj2
+
 
 	gamma_right = GreensFunctions.DecayWidth(sigma_right)
-	gamma_left = GreensFunctions.DecayWidth(sigma_left)
+#	gamma_left = GreensFunctions.DecayWidth(sigma_left)
 
 
 	gr = Gr("Layer",layer) 
@@ -571,7 +582,7 @@ function longitudinal_current(Gr::Function, Ga::Function,
 
 		cond = LinearAlgebra.tr(cond_matrix[slice...,slice...])
 	
-		@assert isapprox(imag(cond),0,atol=1e-8) cond 
+		@assert isapprox(imag(cond),0,atol=1e-7) cond 
 
 
 
@@ -587,6 +598,7 @@ end
 
 
 
+best_linear_comb = Utils.best_linear_combs_10 
 
 
 
