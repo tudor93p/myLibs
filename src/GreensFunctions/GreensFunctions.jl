@@ -367,8 +367,6 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 																 kwargs...
 																 )::Function
 
-	@assert haskey(kwargs,:leads_have_imag)
-	leads_have_imag = kwargs[:leads_have_imag]
 
 
 
@@ -384,8 +382,16 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 	node	= GraphLayeredSystem_Utils(g)
 
 
-	reEnergy = leads_have_imag ? Energy::Real : real(Energy::Complex)
+	reEnergy = if haskey(kwargs, :leads_have_imag)
 
+				kwargs[:leads_have_imag] ? Energy::Real : real(Energy::Complex)
+
+							else 
+
+								Energy
+
+							end
+	
 
 	SemiInfLeadGF = setEnergy_LeadGF(g,Energy)
 
@@ -599,6 +605,8 @@ function GF_Surface(latt::Lattices.Lattice,
 		
 	
 	return function gf(E::ComplexF64)::Vector{Matrix{ComplexF64}}
+
+		@assert abs(imag(E))>1e-8 "Small imaginary part needed"
 
 		gfs = GreensFunctions.GF_SanchoRubio(E, intra_, inter_;
 																				 target=join(target_arg))
@@ -974,7 +982,7 @@ function PrepareLead(label::AbstractString,
 										 lead_latt::Lattices.Lattice,
 										 coupl_hopp::AbstractDict,
 										 lead_hopp::AbstractDict,
-										 delta::Vararg{Float64},
+										 delta::Vararg{Real},
 										 )::Dict{Symbol,Any}
 
 	PrepareLead(label, 

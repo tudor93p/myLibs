@@ -633,7 +633,7 @@ function LayerSlicer(;LayerOfAtom::Function,
 	
 	end 
 
-
+	return slicer
 		
 end
 
