@@ -206,12 +206,19 @@ function figure101(ax, ax_)
 	
 	
 	
-		T[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj)
+T[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj)
 	
-		Tl[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, el_proj, hole_proj)
+Tl[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, el_proj, hole_proj)
 	
-	
-		Tc[imu] = real(ObservablesFromGF.CaroliConductance(G_ret, G_adv, se, A, B, el_proj, hole_proj))
+Tc[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj, hole_proj)
+
+		@assert Tc[imu] ≈ real(ObservablesFromGF.CaroliConductance(G_ret, G_adv, se, A, B, el_proj, hole_proj))
+
+#		ObservablesFromGF.DOS_Decimation(G_ret; LAR..., proj=el_proj, dim=2, NG_ret[4]...)|>println
+
+#ObservablesFromGF.ComputeDOSLDOS_Decimation(G_ret, nr_layers, LAR[:IndsAtomsOfLayer], el_proj,NG_ret[4]; dos=true,ldos=true,dim=2) |> typeof |> println
+
+#		continue 
 
 		for (t,lab,col) in [(T,"T","blue"),
 														(Tc,"T_C","k"),(Tl,"T_L","red")]
@@ -422,7 +429,7 @@ function figure101(ax, ax_)
 #						println("Black 1: [",join(dig3.(X[abs.(X).>0.1]),", "),"]")
 
 
-						for (trial,v) in zip(best_linear_comb(s, 2, T[imu], Tc[imu], Tl[imu])...)
+						for (trial,v) in zip(best_linear_comb(s, 1, 2, T[imu], Tc[imu], Tl[imu])...)
 							q = findall(v.!=0) 
 		
 							str = join(string(v[qi] > 0 ? "+" : "-", ["T","TC","TL"][qi]) for qi in q)

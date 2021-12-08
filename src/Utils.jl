@@ -35,6 +35,11 @@ function add_args_kwargs(f::Function, args...; kwargs...)::Function
 
 end 
 
+function add_args_kwargs_1(f::Function, args...; kwargs...)::Function
+
+	F(a...; kw...) = f(args..., a...; kwargs..., kw...)
+
+end 
 
 #===========================================================================#
 #
@@ -2521,21 +2526,64 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function best_linear_combs_10(result::Number, nr_trials::Int,
-															components...
-															)::Tuple{Vector{<:Number}, Vector{Vector{Int}}}
+function best_linear_combs_int(result::T, n_max::Int, nr_trials::Int,
+															components::Vararg{T,N} 
+															)::Tuple{Vector{T}, Vector{Vector{Int}}
+																			 } where T<:Union{Number,AbstractArray} where N
 
-	V = vectors_of_integers(length(components), 1; 
+	V = vectors_of_integers(N, n_max; 
 													dim=2, sortby=LA.norm)[:,2:end]
 
-	trials = [LA.dot(v,components) for v in eachcol(V)]
 
-	I = partialsortperm(abs.(trials .- result), 1:nr_trials)
+	trials = [sum(x*y for (x,y) in zip(v,components)) for v in eachcol(V)]
+			
+	I = partialsortperm([LA.norm(t-result) for t in trials], 1:nr_trials)
 
 	return (trials[I], [V[:,i] for i in I])
 
 end 
 
+
+function best_linear_comb(result::AbstractArray{T,N},
+													components::Vararg{<:AbstractArray{Q,N}},
+													)::Tuple{Array{promote_type(T,Q),N},
+																	 Vector{promote_type(T,Q)}} where {T,Q,N}
+
+	A = [LA.dot(c1,c2) for c1 in components, c2 in components]
+	
+	b = [LA.dot(result, c) for c in components]
+
+	coeffs = A\b
+
+	return (sum(c*a for (c,a) in zip(coeffs,components)), coeffs)
+
+end 
+
+function linear_comb(coeffs::AbstractVector{<:Number}, 
+										 components::Vararg{<:Number})::Number 
+
+	LA.dot(coeffs, components)
+
+end 
+
+function linear_comb(coeffs::AbstractVector{<:Number}, 
+										 components::Vararg{<:AbstractArray})::Array 
+
+	sum(c*a for (c,a) in zip(coeffs, components))
+
+end 
+
+
+function linear_comb(coeffs::AbstractVector{<:Number}, 
+										 components::Vararg{<:AbstractDict})::Dict 
+
+
+	Dict(k=>linear_comb(coeffs, (c[k] for c in components)...) for k in keys(first(components)))
+
+end 
+
+
+							
 
 
 #===========================================================================#

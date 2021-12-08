@@ -1277,7 +1277,7 @@ end
 
 function Projector(Op::Number, args...; kwargs...)::Function
 
-	isapprox(Op,1,atol=1e-7) && return identity 
+	isapprox(Op, 1, atol=1e-7) && return identity 
 
 	return function f0(X::AbstractArray{<:Number, N}; kwa...
 										 )::Array{<:Number, N} where N

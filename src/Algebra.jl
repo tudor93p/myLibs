@@ -1341,9 +1341,6 @@ function dot(A, B::AbstractArray{T,0})::Number where T
 end
 
 
-
-
-
 function dot(A::AbstractVector, B::AbstractVector)::Number
 
   i = 1:min(length(A), length(B))

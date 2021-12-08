@@ -15,23 +15,23 @@ import ..GreensFunctions, ..Utils, ..Algebra, ..Operators, ..LayeredSystem, ..Ar
 
 
 function LDOS(Gr::AbstractMatrix{ComplexF64}; 
-							Op=1, kwargs...)::Vector{Float64}
+							proj::Function=identity, kwargs...)::Vector{Float64}
 
-	trace = Operators.Trace("orbitals", Op; sum_up=false, kwargs...)
+	trace = Operators.Trace(:orbitals; sum_up=false, kwargs...)
 	
-	return trace(-1/pi*imag(LA.diag(Gr)))
+	return trace(proj(-1/pi*imag(LA.diag(Gr))))
 
 end
 
 
 function DOS(Gr::AbstractMatrix{ComplexF64}; 
-						 Op=1, kwargs...)::Float64
+						 proj::Function=identity, kwargs...)::Float64
 
-	D = -1/pi*imag(LA.diag(Gr)) 
+	sum(proj(-1/pi*imag(LA.diag(Gr))))
 
-	length(Op)==1 && return only(Op)*sum(D) 
+#	length(Op)==1 && return only(Op)*sum(D) 
 
-	return Operators.Trace("orbitals", Op; sum_up=true, kwargs...)(D)
+#	return Operators.Trace("orbitals", Op; sum_up=true, kwargs...)(D)
 
 end
 
@@ -51,7 +51,7 @@ function LDOS_Decimation(GD::Function;
 end
 
 function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
-												 Op=1, dim::Int, VirtLeads...)::Vector{Float64}
+												 proj::Function=identity, dim::Int, VirtLeads...)::Vector{Float64}
 
 
 	dev_atoms = Dict(("Layer",L) => indsLayer(L) for L in 1:NrLayers)
@@ -67,7 +67,7 @@ function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 		g = GD(key...)
 
-		ldos[inds] = LDOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1), dim=dim)
+		ldos[inds] = LDOS(g; proj=proj, nr_at=length(inds), size_H=size(g,1), dim=dim)
 
 	end
 
@@ -77,10 +77,18 @@ end
 
 
 
+function DOS_Decimation(GD::Function; 
+												 NrLayers::Int, 
+												 IndsAtomsOfLayer::Function,
+												 kwargs...)::Float64
+
+	DOS_Decimation(GD, NrLayers, IndsAtomsOfLayer; kwargs...)
+
+end
 
 
 function DOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
-												Op=[1], dim::Int, VirtLeads...)::Float64
+												proj::Function=identity, dim::Int, VirtLeads...)::Float64
 
 	out = 0.0
 
@@ -91,7 +99,7 @@ function DOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 			g = GD(key...) 
 
-			out += DOS(g; Op=Op, nr_at=length(inds), size_H=size(g,1), dim=dim)
+			out += DOS(g; proj=proj, nr_at=length(inds), size_H=size(g,1), dim=dim)
 			
 		end 
 
@@ -112,7 +120,8 @@ end
 #---------------------------------------------------------------------------#
 
 function ComputeDOSLDOS_Decimation(
-										G, NrLayers::Int, IndsAtomsOfLayer, Op=[1], VirtLeads=[];
+										G::Function, NrLayers::Int, IndsAtomsOfLayer::Function, 
+										proj::Function=identity, VirtLeads=[];
 										dos::Bool=true, ldos::Bool=true, 
 										doskey=nothing, ldoskey=nothing,
 										kwargs...)
@@ -120,7 +129,7 @@ function ComputeDOSLDOS_Decimation(
 	if ldos
 
 		LDOS_ = LDOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
-													 Op=Op, VirtLeads..., kwargs...)
+													 proj=proj, VirtLeads..., kwargs...)
 		
 		if !dos 
 
@@ -138,12 +147,12 @@ function ComputeDOSLDOS_Decimation(
 
 	elseif dos
 
-		DOS = DOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
-												 Op=Op, VirtLeads..., kwargs...)
+		DOS_ = DOS_Decimation(G, NrLayers, IndsAtomsOfLayer; 
+												 proj=proj, VirtLeads..., kwargs...)
 
-		isnothing(doskey) && return (DOS, nothing)
+		isnothing(doskey) && return (DOS_, nothing)
 
-		return Dict(doskey=>DOS)
+		return Dict(doskey=>DOS_)
 
 	end
 
