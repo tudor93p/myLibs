@@ -754,7 +754,14 @@ end
 
 
 
+function MatrixElem(P1::Union{Number,AbstractVector},
+										Op::AbstractVector{<:Number},
+										P2::Union{Number,AbstractVector},
+										args...)::Vector 
 
+	LA.diag(MatrixElem(P1, LA.Diagonal(Op), P2, args...))
+
+end 
 
 
 function ExpectVal(P::AbstractMatrix{<:Number}, 
@@ -1268,16 +1275,39 @@ end
 
 #disabled sums; they may have different meanings for matrix elements 
 
-function Projector(args...;
+function Projector(Op::Number, args...; kwargs...)::Function
+
+	isapprox(Op,1,atol=1e-7) && return identity 
+
+	return function f0(X::AbstractArray{<:Number, N}; kwa...
+										 )::Array{<:Number, N} where N
+
+		@assert N==1 || N==2 
+
+		abs2(Op) * X
+
+	end 
+
+end
+
+
+
+function Projector(Op::AbstractVecOrMat, args...;
 									 sum_atoms=nothing, sum_orbitals=false, trace=nothing,
 									 size_H=nothing,
 									 kwargs...)::Function
 
+	length(Op)==1 && return Projector(only(Op))
+
+
 	if get_nratorbH(; size_H=size_H, kwargs...)[2] 
 
-		H = Operator(args...; size_H=size_H, trace=:all, kwargs...)
+		H = Operator(Op, args...; size_H=size_H, trace=:all, kwargs...)
 		
-		return function f1(X::AbstractMatrix{<:Number}; kwa...)::Matrix{<:Number}
+		return function f1(X::AbstractArray{<:Number, N}; 
+											 kwa...)::Array{<:Number, N} where N
+
+			@assert N==1 || N==2 
 
 			MatrixElem(H.data, X, H.data, H.csdim, H.inds)
 
@@ -1285,9 +1315,12 @@ function Projector(args...;
 
 	else 
 		
-		return function f2(X::AbstractMatrix{<:Number}; kwa...)::Matrix{<:Number}
+		return function f2(X::AbstractArray{<:Number, N}; 
+											 size_H=size(X,1), kwa...)::Array{<:Number, N} where N
 
-			H = Operator(args...; size_H=LA.checksquare(X), trace=:all, kwargs..., kwa...)
+			@assert N==1 || N==2 
+
+			H = Operator(Op, args...; size_H=size_H, trace=:all, kwargs..., kwa...)
 
 			return MatrixElem(H.data, X, H.data, H.csdim, H.inds)
 
@@ -1296,7 +1329,6 @@ function Projector(args...;
 	end 
 
 end 
-
 
 
 
