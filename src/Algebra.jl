@@ -132,7 +132,9 @@ function InvPartRatio(P::AbstractVector{<:Real})::Float64
 	# ipr=1 means perfectly localized on one atom; 
 	# ipr=length(P) means equally distributed on all sites
 
-	1.0/mapreduce(abs2, +, LA.normalize(P, 1), init=0) 
+	S = sum(abs, P, init=0.0)
+	
+	return S<EPSILON ? length(P) : S^2/mapreduce(abs2, +, P)
 
 end  
 
@@ -1915,7 +1917,7 @@ function bondRs_fromInds(bond_indices::AbstractVector{Tuple{Int,Int}},
 												 same_batches::Bool=true,
 												 kwargs...)::Vector{Vector{Vector{<:Real}}}
 
-	bondRs_fromInds(bondRs_fromInds, atoms, atoms; 
+	bondRs_fromInds(bond_indices, atoms, atoms; 
 									same_batches=same_batches,
 									kwargs...)
 
