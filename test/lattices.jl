@@ -11,6 +11,7 @@ import LinearAlgebra
 
 	@show Lattices.sublatt_labels(latt)
 
+	@show Lattices.get_Bonds(latt)
 
 #	n = rand(1:21,2,2)
 
@@ -18,6 +19,9 @@ n = [3,5]
 
 	l1 = Lattices.Superlattice(latt, n)#[5,1])
 
+
+
+	
 	@show size(Lattices.PosAtoms(l1)) 
 
 	@show Lattices.LattVec(l1)

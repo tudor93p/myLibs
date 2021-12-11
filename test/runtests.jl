@@ -10,7 +10,7 @@ for f in (
 
 #"lattices_vecs" |> pr_in
 
-#"lattices" |> pr_in 
+"lattices",
 
 #"geometry" |> pr_in 
 
@@ -40,7 +40,7 @@ for f in (
 #"transm_ZHXS_Fig3", 
 #"transm_ZHXS_Fig5", 
 #"transm_ZHXS_Fig7", 
-"transm_ZHXS_local", 
+#"transm_ZHXS_local", 
 
 #"rgf" |> pr_in
 #"gf",

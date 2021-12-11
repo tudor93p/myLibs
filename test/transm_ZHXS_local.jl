@@ -18,8 +18,8 @@ function figure101(ax, ax_)
 	m = -0.5 
 
 	show_transversal = false 
-	show_longitudinal = true
-	show_site = false
+	show_longitudinal = false
+	show_site = true
 
 
 	min_abs_len = 0.2
@@ -206,12 +206,12 @@ function figure101(ax, ax_)
 	
 	
 	
-T[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj)
-	
-Tl[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, el_proj, hole_proj)
-	
-Tc[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj, hole_proj)
-
+		T[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj)
+			
+		Tl[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, el_proj, hole_proj)
+			
+		Tc[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj, hole_proj)
+		
 		@assert Tc[imu] ≈ real(ObservablesFromGF.CaroliConductance(G_ret, G_adv, se, A, B, el_proj, hole_proj))
 
 #		ObservablesFromGF.DOS_Decimation(G_ret; LAR..., proj=el_proj, dim=2, NG_ret[4]...)|>println
@@ -301,10 +301,13 @@ Tc[imu] = ObservablesFromGF.CaroliConductance(G_ret, se, A, B, el_proj, hole_pro
 																									hoppings_bonds, 
 																									inds_bonds, se, 
 																									T3_lead...) 
-			
+		
+
 			siteT3 = ObservablesFromGF.SiteTransmission(G_ret, hoppings_bonds, inds_bonds, Rs_bonds, se, T3_lead...; dim=2)
 
 			@assert siteT3 ≈ ObservablesFromGF.SiteTransmission(G_ret, G_adv, hoppings_bonds, inds_bonds, Rs_bonds, se, T3_lead...; dim=2)
+
+			siteT3 = ObservablesFromGF.SiteTransmission0(G_ret, hoppings_bonds, inds_bonds, Rs_bonds; dim=2)
 
 			
 			@assert bondT3 ≈ ObservablesFromGF.BondTransmission(G_ret, hoppings_bonds, inds_bonds, se, T3_lead...)

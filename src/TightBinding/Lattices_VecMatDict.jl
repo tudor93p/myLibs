@@ -1,20 +1,21 @@
 
 const TOLERANCE = 1e-5  
 
-approx(args...)::Bool = isapprox(args...; atol=TOLERANCE)
+#approx(args...)::Bool = isapprox(args...; atol=TOLERANCE)
 
+approx = Utils.fSame(TOLERANCE)
 
 
 const VECTOR_STORE_DIM = 2 
 const VECTOR_AXIS = [2,1][VECTOR_STORE_DIM] 
 
+@assert Set([VECTOR_STORE_DIM,VECTOR_AXIS])==Set(1:2)
 
 
 Unique, Unique!, EnumUnique = [Utils.add_args_kwargs(F; tol=TOLERANCE, dim=VECTOR_STORE_DIM) for F in [Utils.Unique, Utils.Unique!, Utils.EnumUnique]]
 
 
 
-@assert Set([VECTOR_STORE_DIM,VECTOR_AXIS])==Set(1:2)
 
 Cat = [vcat,hcat][VECTOR_STORE_DIM]
 

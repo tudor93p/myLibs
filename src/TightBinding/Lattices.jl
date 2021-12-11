@@ -2333,12 +2333,11 @@ function get_Bonds(latt::Lattice;
 
 	AtomsUC = PosAtoms(latt; kwargs...)
 
-	size(AtomsUC,2) > 5000 && error("Not enough memory")
+	NrVecs(AtomsUC) > 5000 && error("Not enough memory")
 
 	UCs = UnitCells(latt, nr_uc)
 
 	outside = map(!approx(ZeroVecs(latt, 1)), eachvec(UCs))
-
 
 	ud,ui = Unique(FlatOuterDist(AtomsUC, FlatOuterSum(AtomsUC,UCs)),
 								 sorted=true, inds=:all)
