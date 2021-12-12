@@ -53,7 +53,7 @@ for f in (
 #"utils",
 
 #"utils_splitws",
-"oper" ,
+#"oper" ,
 
 #"bandstr" |> pr_in
 
@@ -62,7 +62,7 @@ for f in (
 
 ##"param" #|> pr_in 
 
-#"param2" |>pr_in 
+"param2",
 
 )
 

@@ -935,6 +935,8 @@ end
 
 """
 
+#PrepareLead(tup::Tuple)::Dict{Symbol,Any} = PrepareLead(tup...)
+
 function PrepareLead(atoms::AbstractMatrix{<:Number})::Dict{Symbol,Any}
 
 	Dict{Symbol,Any}(:head=>[atoms])

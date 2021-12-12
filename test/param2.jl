@@ -165,10 +165,10 @@ get_fname = Parameters.
 construct_get_fname(ROOT, ((args[:usedkeys], args[:digits]) for args in (args1, args2))...)
 
 
-fname = get_fname(P...)
+fname72 = get_fname(P...)
 
 
-@show fname("test")
+@show fname72("test")
 
 println()
 println()
@@ -177,9 +177,9 @@ get_fname = Parameters.construct_get_fname(ROOT, args1[:usedkeys], args1[:digits
 
 
 
-fname = get_fname(P[1]) 
+fname72 = get_fname(P[1]) 
 
-@show fname("test")
+@show fname72("test")
 
 
 println()
@@ -510,7 +510,7 @@ Parameters.convertParams_toPlot(c) |>println
 
 
 
-abc 
+#error() 
 
 pickfirst(l,P...)=Utils.DictFirstVals(P[l])
 
