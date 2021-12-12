@@ -307,7 +307,7 @@ function figure101(ax, ax_)
 
 			@assert siteT3 ≈ ObservablesFromGF.SiteTransmission(G_ret, G_adv, hoppings_bonds, inds_bonds, Rs_bonds, se, T3_lead...; dim=2)
 
-			siteT3 = ObservablesFromGF.SiteTransmission0(G_ret, hoppings_bonds, inds_bonds, Rs_bonds; dim=2)
+#			siteT3 = ObservablesFromGF.SiteTransmission0(G_ret, hoppings_bonds, inds_bonds, Rs_bonds; dim=2)
 
 			
 			@assert bondT3 ≈ ObservablesFromGF.BondTransmission(G_ret, hoppings_bonds, inds_bonds, se, T3_lead...)

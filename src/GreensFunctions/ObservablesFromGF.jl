@@ -252,7 +252,27 @@ function test_CaroliConductance(gSS::AbstractMatrix,
 
 end 
 
+function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix)::Nothing
 
+	g2 = g2' 
+
+	if !isapprox(g1,g2,rtol=1e-5)
+
+		dg = g1-g2 
+
+		N = LA.norm(dg)
+	
+		M = maximum(abs, dg)
+	
+		n = N/length(dg)
+	
+		@warn "Ga!=Gr': Norm: $N ($n per elem.), Max: $M"
+
+	end 
+
+	return  
+
+end 
 
 
 function CaroliConductance(G::Function, get_SE::Function,
@@ -360,8 +380,7 @@ function CaroliConductance(Gr::Function, Ga::Function,
 	SigmaS = get_SE(source, uc)
 
 
-	#	@assert isapprox(gDS_adv,gSD_ret',rtol=1e-5) "NO TRS"
-	isapprox(gDS_adv,gSD_ret',rtol=1e-5) || @warn "NO TRS? $(LA.norm(gDS_adv-gSD_ret'))"
+	test_Ga_Gr(gDS_adv,gSD_ret)
 
 	test_CaroliConductance(Gr(source, uc, source, uc), SigmaS; kwargs...)
 
@@ -673,6 +692,8 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 
 end 
 
+
+
 function BondTiJ!(bondT::AbstractVector{Float64},
 									Hoppings::AbstractVector{<:AbstractMatrix},
 									Bonds::AbstractVector{NTuple{2,Int}},
@@ -683,7 +704,7 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 	
 	gr = Gr("Atom",i,lead...)
 	
-	@assert gr ≈ Ga(lead..., "Atom", i)'
+	test_Ga_Gr(gr, Ga(lead..., "Atom", i)) 
 
 	BondTiJ!(bondT, Hoppings, Bonds, gr*SE_lead, Ga, lead...; kwargs...)
 
