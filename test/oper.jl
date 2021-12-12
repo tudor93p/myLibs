@@ -545,26 +545,30 @@ end
 @testset "Projectors" begin 
 
 
-	nr_orb = rand(1:10)
+	nr_orb = rand(1:10) 
+
 	nr_at = rand(1:10)
 
 
 	size_H = nr_orb*nr_at 
 
-	for p in [round.(rand(ComplexF64,size_H,size_H),digits=2), [1,0], 1]
+
+	for p in [round.(rand(ComplexF64,size_H,size_H),digits=2), 
+						setindex!(zeros(nr_orb),1,1),
+						1]
 
 
 		println()
+
 
 		P = Operators.Projector(p; nr_orb=nr_orb,nr_at=nr_at,dim=2)
 		
 		P2 = Operators.Projector(p; nr_orb=nr_orb, dim=2)
 	
-		
 
 		Pm = if p isa Number 
 
-			fill(p,size_H,1)
+			LinearAlgebra.Diagonal(fill(p,size_H))
 
 					else 
 

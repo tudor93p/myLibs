@@ -2394,7 +2394,7 @@ function indsSurfaceAtoms(atoms::AbstractMatrix{Float64},
 
 	indsAtoms_byNrBonds(atoms, len_or_f...) do nr_bonds::AbstractVector{Int}
 
-		nr_bonds .< maximum(nr_bonds)
+		isempty(nr_bonds) ? BitVector[] : nr_bonds .< maximum(nr_bonds)
 
 	end 
 	

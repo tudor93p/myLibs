@@ -110,12 +110,12 @@ for (i_latt_type,latt_type) in enumerate([:armchair,:zigzag])
 
 		get_SE_ret = get_SE(gr, NG_ret) 
 	
-		cc1 = ObservablesFromGF.CaroliConductance(gr, get_SE_ret, Labels..., 1)
+		cc1 = ObservablesFromGF.CaroliConductance(gr, get_SE_ret, Labels...)
 
 		setIndRe!(y, cc1, iE)
 
-		cc2 = ObservablesFromGF.CaroliConductance2(gr,ga, get_SE_ret,
-																							 reverse(Labels)..., 1)
+		cc2 = ObservablesFromGF.CaroliConductance(gr,ga, get_SE_ret,
+																							 reverse(Labels)...) 
 
 		setIndRe!(y2, cc2, iE)
 

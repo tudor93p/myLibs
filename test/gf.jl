@@ -15,7 +15,7 @@ colors = [colors[i,j] for i in axes(colors,1) for j in [3:size(colors,2);1:2]]
 
 PyPlot.close.(1:10)
 
-LENGTH = 60
+LENGTH = 20
 
 P1 = (length = LENGTH, Barrier_height = 2.0, Barrier_width = 0.03, SCDW_phasediff = 0., SCDW_p = 2, SCDW_width = 0.005, SCDW_position = 0, SCpx_magnitude = 0.4, delta = 0.008, width = max(1,div(LENGTH,2)), SCpy_magnitude = 0.4, Hopping=1.0, ChemicalPotential=2)
 
@@ -533,20 +533,15 @@ leads = map(zip(leadlabels, LeadLatts, coupling_Hparam, lead_Hparam, P3)) do (
 	@assert hopp_l[:Nr_UCs]<=1 
 
 
-	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, get_TBL, hopp_l)
 
 #	label=="A"&&@show intra() only(values(inter))
 
 	# intra might be a function of k,
 	# inter might be more than one matrix (m ∈ {1,2,...})
 
-	function gf(E::Real; k=[])::Matrix{ComplexF64}
+	gf = GreensFunctions.GF_Surface(latt, "+", hopp_l, P1.delta)
 
-		GreensFunctions.GF_SanchoRubio(E + 1im*P1.delta, intra(k), only(values(inter)), "+")
-		
-	end
-
-	return LayeredSystem.PrepareLead(label, latt, hc, hl, gf)
+	return GreensFunctions.PrepareLead(label, latt, hc, hl, gf)
 
 end 
 
@@ -646,9 +641,11 @@ default_LayerAtomRels = Dict(
 
 
 
-NewGeom = LayeredSystem.NewGeometry(DevAtoms, default_LayerAtomRels;
+NewGeom = LayeredSystem.NewGeometry(DevAtoms, 
+																		default_LayerAtomRels;
 #																		"forced"; 
-																		Leads=leads, isBond=isBond, dim=2,
+																		Leads=leads, 
+																		isBond=isBond, dim=2,
 																		dev_Hopping...)
 
 @assert length(NewGeom)==4
@@ -656,12 +653,14 @@ NewGeom = LayeredSystem.NewGeometry(DevAtoms, default_LayerAtomRels;
 
 println()
 
+
 LayerAtom,Slicer,LeadRels,VirtLeads=NewGeom 
 
 
 G = GreensFunctions.GF_Decimation(
 					dev_Hopping, VirtLeads, Slicer;
 					LayerAtom...,
+					leads_have_imag=true,
 					)
 
 function xy_PHS( E::AbstractVector{<:Real},
@@ -820,7 +819,7 @@ end
 PyPlot.legend()
 
 
-error()
+#error()
 
 hoppings = LayeredSystem.get_hoppings(dev_Hopping[:Hopping], 
 																			Slicer, 
@@ -831,7 +830,7 @@ BondHoppings = [hoppings(iR...)' for iR in zip(inds_DevBonds, Rs_DevBonds)]
 
 #G, Energy, observables, Slicer, VirtLeads 
 
-trace_bond = trace_atoms = LinearAlgebra.tr 
+#trace_bond = trace_atoms = LinearAlgebra.tr 
 
 #trace_bond = Operators.Trace("atoms", ones(4); dim=2, nr_orb=4, sum_up=true, nr_at=1)
 #trace_atoms = Operators.Trace("atoms", ones(4); dim=2, nr_orb=4, sum_up=true)
@@ -849,7 +848,7 @@ Energy = (rand()-0.5)*0.35
 
 @show Energy 
 
-g_ = G(Energy + P1.delta*im) 
+g_ = G(Energy)# + P1.delta*im) 
 
 
 
@@ -937,7 +936,7 @@ if LayerAtom[:NrLayers]>4
 	
 	
 	
-	nr_orb = 4
+	nr_orb = 2
 	
 	
 	
@@ -1139,315 +1138,318 @@ else
 
 
 
-
-
-#gA(i)::AbstractMatrix{ComplexF64} = g_("Atom",i,"A",2)
-
-bvt = ObservablesFromGF.BondTransmission(g_, 
-																				 BondHoppings,
-																	inds_DevBonds, 
-																	self_energy_, "A",2;
-																	f=trace_bond) 
-
-
-
-mask = [i_atom in I for I in inds_DevBonds]
-
-out2 = Dict() 
-
-println()
-@info "Old method"
-println()
-
-for (k,rs,v) in zip(inds_DevBonds[mask],Rs_DevBonds[mask], bvt[mask])
-
-	print_transm(k, rs, v, out2)
-
-	test = if haskey(out1,k)
-
-		isapprox(out1[k],v,atol=1e-10)
 	
-				elseif haskey(out1,reverse(k))
-
-		isapprox(out1[reverse(k)],-v,atol=1e-10)
-
-				elseif isapprox(v,0,atol=1e-10) 
-
-		true 
-
-				else 
-
-					error("Different bonds!\n",keys(out1))
-
+	
+	#gA(i)::AbstractMatrix{ComplexF64} = g_("Atom",i,"A",2)
+	
+	bvt = ObservablesFromGF.BondTransmission(g_, 
+																					 BondHoppings,
+																		inds_DevBonds, 
+																		self_energy_, "A",2;
+#																		f=trace_bond) 
+															)																		
+	
+	
+	
+	mask = [i_atom in I for I in inds_DevBonds]
+	
+	out2 = Dict() 
+	
+	println()
+	@info "Old method"
+	println()
+	
+	for (k,rs,v) in zip(inds_DevBonds[mask],Rs_DevBonds[mask], bvt[mask])
+	
+		print_transm(k, rs, v, out2)
+	
+		test = if haskey(out1,k)
+	
+			isapprox(out1[k],v,atol=1e-10)
+		
+					elseif haskey(out1,reverse(k))
+	
+			isapprox(out1[reverse(k)],-v,atol=1e-10)
+	
+					elseif isapprox(v,0,atol=1e-10) 
+	
+			true 
+	
+					else 
+	
+						error("Different bonds!\n",keys(out1))
+	
+		end 
+	
+		test && println("\t\t\tCoincide")
+	
+		!test && @warn "\t\tDifferent"
+	
 	end 
-
-	test && println("\t\t\tCoincide")
-
-	!test && @warn "\t\tDifferent"
-
-end 
-
-
-PyPlot.close(4) 
-
-println()
-
-# G already contains BondHoppings VirtLeads Slicer; but not inds -- needed? 
-
-
-#bvt2 = ObservablesFromGF.BondTransmission2(G,
-#																		Energy + P1.delta*im,
-#																		inds_DevBonds,
-#																		"A";
-#																		f=trace_bond)
-
-
-
-
-
-#@show isapprox(bvt,bvt2,atol=1e-10)
-#@assert isapprox(bvt,bvt2,atol=1e-10)
-
-#error()
-
-
-
-bvt0 = ObservablesFromGF.BondTransmission0(g_, 
-																BondHoppings,
-																	inds_DevBonds;
-																	f=trace_bond) 
-
-
-
-jx0_ = ObservablesFromGF.SiteTransmission0(g_, 
-																BondHoppings,
-																	inds_DevBonds, Rs_DevBonds;
-																	f=trace_bond, dim=1)
-#@show size(jx0_)
-
-close_to_dw = isapprox.(DevAtoms[1,:], minimum(abs,DevAtoms[1,:]))  
-
-
-jx = ObservablesFromGF.SiteTransmission_fromBondT(bvt, inds_DevBonds, Rs_DevBonds; dim=1)
-
-println("Site transmission: ",round.(jx[i_atom,:],digits=4)) 
-
-println()
-PyPlot.close(4)
-error()  
-
-@show transpose(jx[LayerAtom[:IndsAtomsOfLayer](layer),:])
-
-error() 
-
-
-jx_ = ObservablesFromGF.SiteTransmission(g_, 
-																				 BondHoppings,
-																	inds_DevBonds, Rs_DevBonds,
-																	self_energy_, "A",2;
-																	f=trace_bond, dim=1)
-
-
-
-
-@assert isapprox(jx,jx_)
-
-PyPlot.figure(4)
-
-#PyPlot.quiver(eachrow(DevAtoms)..., eachcol(jx)...; pivot="middle")
-
-PyPlot.quiver(eachrow(hcat(DevAtoms,A0))..., eachrow(hcat(transpose(jx),siteT))...; pivot="middle")
-
-
-
-#ObservablesFromGF.CaroliConductance2 
-
-gSD = g_("A", 2, "B", 2)
-
-
-sigmaS = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("A", 2)
-sigmaD = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("B", 2)
-
-cm = ObservablesFromGF.longitudinal_conductance_matrix(gSD, sigmaS, sigmaD)
-
-
-
-
-println("separate Caroli:")
-foreach(println∘real,
-				[
-				 ObservablesFromGF.CaroliConductance2(gSD, sigmaS, sigmaD),
-				 ObservablesFromGF.CaroliConductance(gSD, sigmaS, sigmaD),
-				 ObservablesFromGF.CaroliConductance(g_, GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer), "A", "B", 2),
-				 LinearAlgebra.tr(cm),
-				 ])
-println()
-
-lA = leads[1] 
-
-@assert lA[:label]=="A"
-
-
-atoms2 = lA[:head][1] 
-
-#atoms1 = Lattices.Atoms_ManyUCs(LeadLatts[1],Ns=1)
-
-@assert isapprox(atoms2, Lattices.Atoms_ManyUCs(LeadLatts[1],Ns=0))
-
-atoms(uc::Int=0) = Lattices.Atoms_ManyUCs(LeadLatts[1]; Ns=uc)  
-
-
-
-#tr_orb = Operators.Trace(:orbitals; dim=2, nr_orb=4, nr_at=size(atoms1,2))
-
-
-#@assert all(<(1e-12),imag(tr_orb(cm))) 
-#
-#lead_contacts = LayeredSystem.get_LeadContacts(DevAtoms; Leads=[lA], isBond=isBond)[1]
-#
-#
-#
-#atoms0 = DevAtoms[:,lead_contacts]
-#
-#gSD2 = g_("A", 1, "B", 2)
-#sigmaS2 = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("A", 1) 
-#sigmaD2 = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("B", 2)
-#
-#cm2 = real(tr_orb(ObservablesFromGF.longitudinal_conductance_matrix(gSD2, sigmaS2, sigmaD2)))
-
-
-
-lead_intra_bond_inds = Algebra.get_Bonds(atoms(), isBond) 
-
-lead_inter_bond_inds = Algebra.get_Bonds(atoms(0), atoms(1), isBond) 
-
-uc=3  # unit cell of interest 
-
-
-#siteT = zeros(2, size(atoms(uc),2))
-
-
-
-
-
-for i in 1:7 
-
-	@assert isapprox(self_energy_("A",i),self_energy_("A",uc))
-
-end 
-
-
-
-
-neighb_uc = uc#in [uc-1,uc+1]
-
-
-bondT = SparseArrays.spzeros(Float64, 
-														 size(atoms(uc),2), 
-														 size(atoms(neighb_uc),2))
-
-
-
-Gi = g_("A", uc, "A", neighb_uc)
-
-A = Gi*GreensFunctions.DecayWidth(self_energy_("A",neighb_uc))*Gi' 
-
-
-B = lA[:intracell][1]  
-
-#only i>j  should be considered 
-
-nr_orb = 4
-
-for j in axes(bondT,2)
-
-	J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
-
-	for i in axes(bondT,1)
-
+	
+	
+	PyPlot.close(4) 
+	
+	println()
+	
+	# G already contains BondHoppings VirtLeads Slicer; but not inds -- needed? 
+	
+	
+	#bvt2 = ObservablesFromGF.BondTransmission2(G,
+	#																		Energy + P1.delta*im,
+	#																		inds_DevBonds,
+	#																		"A";
+	#																		f=trace_bond)
+	
+	
+	
+	
+	
+	#@show isapprox(bvt,bvt2,atol=1e-10)
+	#@assert isapprox(bvt,bvt2,atol=1e-10)
+	
+	#error()
+	
+	
+	
+	bvt0 = ObservablesFromGF.BondTransmission0(g_, 
+																	BondHoppings,
+																		inds_DevBonds;
+																		#f=trace_bond
+																		) 
+	
+	
+	
+	jx0_ = ObservablesFromGF.SiteTransmission0(g_, 
+																	BondHoppings,
+																		inds_DevBonds, Rs_DevBonds;
+#																		f=trace_bond, 
+																		dim=1)
+	#@show size(jx0_)
+	
+	close_to_dw = isapprox.(DevAtoms[1,:], minimum(abs,DevAtoms[1,:]))  
+	
+	
+	jx = ObservablesFromGF.SiteTransmission_fromBondT(bvt, inds_DevBonds, Rs_DevBonds; dim=1)
+	
+	println("Site transmission: ",round.(jx[i_atom,:],digits=4)) 
+	
+	println()
+	PyPlot.close(4)
+	error()  
+	
+	@show transpose(jx[LayerAtom[:IndsAtomsOfLayer](layer),:])
+	
+	error() 
+	
+	
+	jx_ = ObservablesFromGF.SiteTransmission(g_, 
+																					 BondHoppings,
+																		inds_DevBonds, Rs_DevBonds,
+																		self_energy_, "A",2;
+#																		f=trace_bond, 
+																		dim=1)
+	
+	
+	
+	
+	@assert isapprox(jx,jx_)
+	
+	PyPlot.figure(4)
+	
+	#PyPlot.quiver(eachrow(DevAtoms)..., eachcol(jx)...; pivot="middle")
+	
+	PyPlot.quiver(eachrow(hcat(DevAtoms,A0))..., eachrow(hcat(transpose(jx),siteT))...; pivot="middle")
+	
+	
+	
+	
+	gSD = g_("A", 2, "B", 2)
+	
+	
+	sigmaS = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("A", 2)
+	sigmaD = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("B", 2)
+	
+	cm = ObservablesFromGF.longitudinal_conductance_matrix(gSD, sigmaS, sigmaD)
+	
+	
+	
+	
+	println("separate Caroli:")
+	foreach(println∘real,
+					[
+					 ObservablesFromGF.CaroliConductance(gSD, sigmaS, sigmaD),
+					 ObservablesFromGF.CaroliConductance(gSD, sigmaS, sigmaD),
+					 ObservablesFromGF.CaroliConductance(g_, GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer), "A", "B", 2),
+					 LinearAlgebra.tr(cm),
+					 ])
+	println()
+	
+	lA = leads[1] 
+	
+	@assert lA[:label]=="A"
+	
+	
+	atoms2 = lA[:head][1] 
+	
+	#atoms1 = Lattices.Atoms_ManyUCs(LeadLatts[1],Ns=1)
+	
+	@assert isapprox(atoms2, Lattices.Atoms_ManyUCs(LeadLatts[1],Ns=0))
+	
+	atoms(uc::Int=0) = Lattices.Atoms_ManyUCs(LeadLatts[1]; Ns=uc)  
+	
+	
+	
+	#tr_orb = Operators.Trace(:orbitals; dim=2, nr_orb=4, nr_at=size(atoms1,2))
+	
+	
+	#@assert all(<(1e-12),imag(tr_orb(cm))) 
+	#
+	#lead_contacts = LayeredSystem.get_LeadContacts(DevAtoms; Leads=[lA], isBond=isBond)[1]
+	#
+	#
+	#
+	#atoms0 = DevAtoms[:,lead_contacts]
+	#
+	#gSD2 = g_("A", 1, "B", 2)
+	#sigmaS2 = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("A", 1) 
+	#sigmaD2 = GreensFunctions.SelfEn_fromGDecim(g_, VirtLeads, Slicer)("B", 2)
+	#
+	#cm2 = real(tr_orb(ObservablesFromGF.longitudinal_conductance_matrix(gSD2, sigmaS2, sigmaD2)))
+	
+	
+	
+	lead_intra_bond_inds = Algebra.get_Bonds(atoms(), isBond) 
+	
+	lead_inter_bond_inds = Algebra.get_Bonds(atoms(0), atoms(1), isBond) 
+	
+	uc=3  # unit cell of interest 
+	
+	
+	#siteT = zeros(2, size(atoms(uc),2))
+	
+	
+	
+	
+	
+	for i in 1:7 
+	
+		@assert isapprox(self_energy_("A",i),self_energy_("A",uc))
+	
+	end 
+	
+	
+	
+	
+	neighb_uc = uc#in [uc-1,uc+1]
+	
+	
+	bondT = SparseArrays.spzeros(Float64, 
+															 size(atoms(uc),2), 
+															 size(atoms(neighb_uc),2))
+	
+	
+	
+	Gi = g_("A", uc, "A", neighb_uc)
+	
+	A = Gi*GreensFunctions.DecayWidth(self_energy_("A",neighb_uc))*Gi' 
+	
+	
+	B = lA[:intracell][1]  
+	
+	#only i>j  should be considered 
+	
+	nr_orb = 4
+	
+	for j in axes(bondT,2)
+	
+		J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
+	
+		for i in axes(bondT,1)
+	
+			I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb) 
+	
+			Tij = ObservablesFromGF.BondTij(view(A,I,J), view(B,J,I))
+	
+	#		transversal formula gives nonzero for lead intra-cell 
+	#		transversal formula gives zeros for lead inter-cell 
+	
+	
+	
+			isapprox(Tij,0,atol=1e-14) || setindex!(bondT, Tij, i, j)
+	
+		end 
+	
+	end 
+	
+	@show SparseArrays.findnz(bondT)
+	
+	
+	neighb_uc = uc-1  # ==drain. Source==uc
+	
+	bondTl = zeros(Float64, length(lead_inter_bond_inds))
+	
+	CM = ObservablesFromGF.longitudinal_conductance_matrix(
+																 g_("A",uc, "A", neighb_uc),
+																 self_energy_("A",uc),
+																 GreensFunctions.SelfEn(lA[:intercell][1],
+																												g_("A",neighb_uc)))
+	
+	
+	for (bond_index,(i,j)) in enumerate(lead_inter_bond_inds)
+	
 		I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb) 
-
-		Tij = ObservablesFromGF.BondTij(view(A,I,J), view(B,J,I))
-
-#		transversal formula gives nonzero for lead intra-cell 
-#		transversal formula gives zeros for lead inter-cell 
-
-
-
-		isapprox(Tij,0,atol=1e-14) || setindex!(bondT, Tij, i, j)
-
+		J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
+	
+		Tij = LinearAlgebra.tr(CM[I,J])
+	
+		@assert isapprox(imag(Tij),0,atol=1e-14)
+	
+		bondTl[bond_index] = real(Tij)
+	
 	end 
-
-end 
-
-@show SparseArrays.findnz(bondT)
-
-
-neighb_uc = uc-1  # ==drain. Source==uc
-
-bondTl = zeros(Float64, length(lead_inter_bond_inds))
-
-CM = ObservablesFromGF.longitudinal_conductance_matrix(
-															 g_("A",uc, "A", neighb_uc),
-															 self_energy_("A",uc),
-															 GreensFunctions.SelfEn(lA[:intercell][1],
-																											g_("A",neighb_uc)))
-
-
-for (bond_index,(i,j)) in enumerate(lead_inter_bond_inds)
-
-	I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb) 
-	J = TBmodel.Hamilt_indices(1:nr_orb, j, nr_orb)  
-
-	Tij = LinearAlgebra.tr(CM[I,J])
-
-	@assert isapprox(imag(Tij),0,atol=1e-14)
-
-	bondTl[bond_index] = real(Tij)
-
-end 
-
-
-
-#uc=>uc: bondT 
-#uc=>uc-1: bondTl 
-#uc-1=>uc: bondTl 
-
-
-
-siteT = zeros(Float64,size(atoms(uc)))
-
-
-A0 = atoms(uc)
-AL = atoms(uc-1)
-AR = atoms(uc+1) 
-
-nr_at = size(A0,2)
-
-
-for i in 1:nr_at, j in i+1:nr_at 
-
-	ObservablesFromGF.addSiteTiTj!(siteT, 2, (i,j), (A0[:,i],A0[:,j]), bondT[i,j])
-
-end 
-
-for (bond_index,(i,j)) in enumerate(lead_inter_bond_inds) 
-
-	ObservablesFromGF.addSiteTiTj!(siteT, 2, (i,j), 
-																 (A0[:,i], AL[:,j]), bondTl[bond_index])
-
-
-end 
-
-
-
-#PyPlot.quiver(eachrow(A0)..., eachrow(siteT)...; pivot="middle")
-
-
-
-
-
-
+	
+	
+	
+	#uc=>uc: bondT 
+	#uc=>uc-1: bondTl 
+	#uc-1=>uc: bondTl 
+	
+	
+	
+	siteT = zeros(Float64,size(atoms(uc)))
+	
+	
+	A0 = atoms(uc)
+	AL = atoms(uc-1)
+	AR = atoms(uc+1) 
+	
+	nr_at = size(A0,2)
+	
+	
+	for i in 1:nr_at, j in i+1:nr_at 
+	
+		ObservablesFromGF.addSiteTiTj!(siteT, 2, (i,j), (A0[:,i],A0[:,j]), bondT[i,j])
+	
+	end 
+	
+	for (bond_index,(i,j)) in enumerate(lead_inter_bond_inds) 
+	
+		ObservablesFromGF.addSiteTiTj!(siteT, 2, (i,j), 
+																	 (A0[:,i], AL[:,j]), bondTl[bond_index])
+	
+	
+	end 
+	
+	
+	
+	#PyPlot.quiver(eachrow(A0)..., eachrow(siteT)...; pivot="middle")
+	
+	
+	
+	
+	
+	
 
 
 
@@ -1510,7 +1512,6 @@ jx0 = jx0[close_to_dw,1]
 
 
 
-
 PyPlot.figure(5)
 y = DevAtoms[2,close_to_dw]
 
@@ -1526,6 +1527,7 @@ PyPlot.legend()
 
 
 
+end
 
 
 
@@ -1540,7 +1542,7 @@ out = Utils.RecursiveMerge(collect(enumerate(ENERGIES)); dim=2) do (iE,En)
 
 #	print("\rEnergy=",round(Energy,digits=3),"      ")
 
-	g = G(En + P1.delta*im)
+g = G(En)# + P1.delta*im)
 
 
 	
@@ -1557,11 +1559,13 @@ out = Utils.RecursiveMerge(collect(enumerate(ENERGIES)); dim=2) do (iE,En)
 
 	uc = 5
 
+	decay_width = GreensFunctions.DecayWidth∘self_energy 
+
 	d["QP-Caroli"] = ObservablesFromGF.CaroliConductance(
 												g(l, uc, k, uc), 
-												self_energy(l, uc), 
-												self_energy(k, uc);
-												f=trace_atoms,
+												decay_width(l, uc), 
+												decay_width(k, uc);
+	#											f=trace_atoms,
 												)
 
 	@assert isapprox(d["QP-Caroli"],
@@ -1571,7 +1575,7 @@ out = Utils.RecursiveMerge(collect(enumerate(ENERGIES)); dim=2) do (iE,En)
 
 	uc = 2
 
-	d["QP-Caroli2"] = ObservablesFromGF.CaroliConductance2(g, self_energy,
+	d["QP-Caroli2"] = ObservablesFromGF.CaroliConductance(g, self_energy,
 																												 l, k, uc) 
 
 	if iE==iE0 
@@ -1644,7 +1648,6 @@ isnothing(enlim) || PyPlot.ylim(enlim)
 PyPlot.xlim(0,1.5)
 
 PyPlot.legend()
-
 
 
 

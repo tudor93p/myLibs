@@ -235,16 +235,16 @@ for item in Utils.DistributeBallsToBoxes(1,3)
 
 end 
 
-g(x) = [x,-x]
-f = g
+g14(x) = [x,-x]
+f = g14
 #Utils.inv_abs 
 
 
 @time Utils.DistributeBallsToBoxes(2,3,f)
 @time Utils.DistributeBallsToBoxes(2,3,f)
 
-@time Utils.DistributeBallsToBoxes(2,3,g)
-@time Utils.DistributeBallsToBoxes(2,3,g) 
+@time Utils.DistributeBallsToBoxes(2,3,g14)
+@time Utils.DistributeBallsToBoxes(2,3,g14) 
 
 for item in Utils.DistributeBallsToBoxes(2,3,f)
 

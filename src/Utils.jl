@@ -1181,7 +1181,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Random_Items(list::List, n=rand(axes(list,1)); distinct=true)::List
+function Random_Items(list::List, n=rand(axes(list,1)); 
+											distinct::Bool=true)::List
 
 	if distinct
 	
@@ -1189,7 +1190,8 @@ function Random_Items(list::List, n=rand(axes(list,1)); distinct=true)::List
 
 		n>length(list) && error("Cannot have so many distinct items")
 
-		return list[Random.randperm(length(list))[1:n]]
+		return list[Random.randperm(length(list))[1:n]] 
+
 	else 
 
 		return [rand(list) for i=1:n]

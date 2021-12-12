@@ -1,4 +1,4 @@
-using myLibs:Lattices, LayeredSystem, Algebra
+using myLibs:Lattices, LayeredSystem, Algebra,GreensFunctions
 
 
 atoms = Lattices.PosAtoms(Lattices.Superlattice(Lattices.SquareLattice(), [10,7]))
@@ -6,7 +6,7 @@ atoms = Lattices.PosAtoms(Lattices.Superlattice(Lattices.SquareLattice(), [10,7]
 isBond = Algebra.EuclDistEquals(1.0; dim=2) 
 
 
-D = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2) 
+D, = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2) 
 
 
 @show D[:NrLayers]
@@ -36,19 +36,19 @@ label = "A"
 
 @show Lattices.LattVec(Lead) |> size 
 
-@show LayeredSystem.PrepareLead(label, Lead)[:head]
+@show GreensFunctions.PrepareLead(label, Lead)[:head]
 
 
 bridge = rand(2,1)
 
-@show LayeredSystem.PrepareLead(label, Lead, bridge)[:head] .|>size
+@show GreensFunctions.PrepareLead(label, Lead, bridge)[:head] .|>size
 
 
 hopp(x,y=x) = rand(2,2)
 
-@show LayeredSystem.PrepareLead(label, Lead, hopp, hopp, hopp)[:intracell]
+@show GreensFunctions.PrepareLead(label, Lead, hopp, hopp, hopp)[:intracell]
 
-@show LayeredSystem.PrepareLead(label, Lead, bridge, hopp, hopp, hopp)[:GF](rand()) .|>size
+@show GreensFunctions.PrepareLead(label, Lead, bridge, hopp, hopp, hopp)[:GF](rand()) .|>size
 
 
 

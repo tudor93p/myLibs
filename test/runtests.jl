@@ -10,11 +10,11 @@ for f in (
 
 #"lattices_vecs" |> pr_in
 
-"lattices",
+#"lattices",
 
-#"geometry" |> pr_in 
+#"geometry",
 
-#"lattices_attachleads" |> pr_in
+#"lattices_attachleads",
 
 #"sancho-rubio" |> pr_in 
 
@@ -33,6 +33,10 @@ for f in (
 
 #"rgf_B" |> pr_in 
 
+#"layeredsystem",
+#"gf",
+
+
 
 #"transm_ZHXS", 
 
@@ -42,29 +46,25 @@ for f in (
 #"transm_ZHXS_Fig7", 
 #"transm_ZHXS_local", 
 
-#"rgf" |> pr_in
-#"gf",
 
 
 #"tbmodel" |> pr_in 
 
-#"utils" |> pr_in 
+#"utils",
 
-#"utils_splitws" |> pr_in 
-#"oper" ,
+#"utils_splitws",
+"oper" ,
 
 #"bandstr" |> pr_in
 
 
 
-#"layeredsystem" |> pr_in
 
 ##"param" #|> pr_in 
 
 #"param2" |>pr_in 
 
 )
-
 
 	println("\n********* $f ********* \n")
 

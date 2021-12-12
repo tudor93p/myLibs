@@ -277,7 +277,7 @@ function prep_lead(label, latt, lead_hopp, coupl_hopp, del)
 	lead_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; lead_hopp...)
 	coupl_hopp_matr(args...) = TBmodel.HoppingMatrix(args...; coupl_hopp...)
 
-	return LayeredSystem.PrepareLead(label, latt, coupl_hopp_matr, lead_hopp_matr, gf)
+	return GreensFunctions.PrepareLead(label, latt, coupl_hopp_matr, lead_hopp_matr, gf)
 	
 end 
 
@@ -313,7 +313,7 @@ end
 
 function get_Bonds(; kwargs...)
 
-	inds_bonds = LayeredSystem.get_Bonds(1; kwargs...  dim=2)
+	inds_bonds = LayeredSystem.get_Bonds(1; kwargs... , dim=2)
 
 	Rs_bonds = LayeredSystem.bondRs_fromInds(inds_bonds; kwargs..., dim=2)
 

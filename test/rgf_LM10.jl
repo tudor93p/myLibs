@@ -112,7 +112,7 @@ for i=1:2
 
 #		println(isapprox(ga(A,uc,B,uc),gr(B,uc,A,uc)',rtol=1e-6))
 
-		cc2 = ObservablesFromGF.CaroliConductance2(gr, ga, get_SE_ret,
+		cc2 = ObservablesFromGF.CaroliConductance(gr, ga, get_SE_ret,
 																							Labels..., 2)
 
 		if !isapprox(cc1,cc2)

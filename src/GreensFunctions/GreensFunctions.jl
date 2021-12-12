@@ -1045,18 +1045,11 @@ function PrepareLead(label::AbstractString,
 							PrepareLead(label, Lead, coupling, LeadHoppMatr, LeadGF))
 				
 				
-	out[:GF] = function GF(E::Number)::Vector{Matrix}
+	out[:GF] = function gf(E::Number)::Vector{Matrix}
 	
 				g = LeadGF(E)
 
-				g1 = GF(E, BridgeIntra, BridgeToLead', g)
-				
-				g11 = inv(Array(E*LA.I - BridgeIntra - BridgeToLead*g*BridgeToLead'))
-
-				@show g1≈g11
-				@assert g1≈g11 LA.norm(g1-g11)
-
-				return [g1, g]
+				return [GF(E, BridgeIntra, BridgeToLead', g), g]
 
 		end
 

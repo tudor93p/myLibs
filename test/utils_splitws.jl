@@ -46,7 +46,6 @@ for si in s
 	println()
 end 
 
-error() 
 
 Q = [4, 28, 48, 8]
 @show Q 

@@ -191,9 +191,24 @@ function get_LeadContacts(Atoms; Leads=[], isBond=nothing,
 																			LeadContacts=nothing, 
 																			kwargs...)::Vector{Vector{Int}}
 
-	isnothing(LeadContacts) || return LeadContacts
 
-	isempty(Leads) | isnothing(Atoms) && return [Int[]]
+	isempty(Leads) && return [Int[]] 
+
+
+	if LeadContacts isa AbstractVector  
+
+		if length(Leads)==length(LeadContacts) 
+
+			if all(!isempty(lc) && Utils.isList(lc,Int) for lc in LeadContacts)
+
+				return LeadContacts 
+			
+			end  
+
+		end 
+		
+	end  
+
 
 	return [get_LeadContacts(Atoms, L[:head][1], isBond; kwargs...) for L in Leads]
 
@@ -258,6 +273,16 @@ end
 
 
 
+function LayerAtomRels_(Atoms::AbstractMatrix{<:Real}, 
+												(LayerAtom,LeadContacts)::Tuple{AbstractDict,Any};
+												kwargs...
+												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
+
+	@assert !haskey(kwargs, :LeadContacts) "Duplicate arg/kwarg"
+
+	LayerAtomRels_(Atoms, LayerAtom; kwargs..., LeadContacts=LeadContacts)
+
+end
 
 
 function LayerAtomRels_(Atoms::AbstractMatrix{<:Real}, 
@@ -345,7 +370,7 @@ function LayerAtomRels_((at_uc, R_, nr_layers)::Tuple{AbstractVector{<:AbstractM
 
 	uc(layer::Int)::Int = (n-1 + layer - div(layer,n)*n)%n +1 
  
-	nr_at_uc = size.(at_uc,dim)
+	nr_at_uc = size.(at_uc, dim)
 
 	nr_at(layer::Int) = nr_at_uc[uc(layer)]
 
@@ -533,7 +558,6 @@ end
 function NewGeometry(args...; Leads=[], nr_orb=nothing, kwargs...)
 
 	LayerAtom, LeadContacts = LayerAtomRels(args...; Leads=Leads, kwargs...)
-
 
 
 	VirtLeads, LeadRels = Distribute_Leads(Leads, LeadContacts; nr_orb=nr_orb, LayerAtom..., kwargs...)

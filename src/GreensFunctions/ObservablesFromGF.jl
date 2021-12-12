@@ -361,8 +361,7 @@ function CaroliConductance(Gr::Function, Ga::Function,
 
 
 	#	@assert isapprox(gDS_adv,gSD_ret',rtol=1e-5) "NO TRS"
-	
-	isapprox(gDS_adv,gSD_ret',rtol=1e-5) || @warn "NO TRS?"
+	isapprox(gDS_adv,gSD_ret',rtol=1e-5) || @warn "NO TRS? $(LA.norm(gDS_adv-gSD_ret'))"
 
 	test_CaroliConductance(Gr(source, uc, source, uc), SigmaS; kwargs...)
 
