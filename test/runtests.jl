@@ -44,7 +44,7 @@ for f in (
 #"transm_ZHXS_Fig3", 
 #"transm_ZHXS_Fig5", 
 #"transm_ZHXS_Fig7", 
-#"transm_ZHXS_local", 
+"transm_ZHXS_local", 
 
 
 
@@ -62,7 +62,7 @@ for f in (
 
 ##"param" #|> pr_in 
 
-"param2",
+#"param2",
 
 )
 

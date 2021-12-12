@@ -579,7 +579,7 @@ end
 PyPlot.close(101) 
 PyPlot.close(102) 
 
-figsize = [21,12]*0.65 
+figsize = [21,12]*0.5#65 
 
 
 fig1,Ax1 = PyPlot.subplots(2,4,num=101,figsize=figsize)#,sharex="col",sharey="col")

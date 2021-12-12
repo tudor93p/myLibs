@@ -178,7 +178,7 @@ function GraphLayeredSystem_Utils(g)
 
 	
 	
-	function H(args...)
+	function H(args...)::AbstractMatrix
 
 		ns = f(args...)
 		
@@ -195,19 +195,40 @@ function GraphLayeredSystem_Utils(g)
 	end
 	
 	
-	function setEnergy_LeadGF(g_,Energy)
+#	function setEnergy_LeadGF(g_,Energy)::Function
+#		for ll in get_prop(:LeadLabels)
+#			
+#			gfs = get_prop(:GFf,f(ll,1)[1])(Energy)	
+#		
+#			@show length(gfs)
+#
+#			for uc in 1:get_prop(:UCsLeads)
+#
+#				@show ll uc f(ll,uc)
+#
+#				Graph.set_prop!(g_,f(ll,uc)[1],:GF,gfs[min(uc,end)]) 
+#
+#			end 
+#
+#		end
 	
-		for ll in get_prop(:LeadLabels)
-			
-			gfs = get_prop(:GFf,f(ll,1)[1])(Energy)	
-		
-			for uc in 1:get_prop(:UCsLeads)
+	#return n->Graph.get_prop(g_, n, :GF)
+#end
+	
+	function LeadGF_atEnergy(g_,Energy)::Function
 
-				Graph.set_prop!(g_,f(ll,uc)[1],:GF,gfs[min(uc,end)])
-			end
-		end
-	
-		return n -> Graph.get_prop(g_,n,:GF)
+		all_lead_gfs = Dict(ll=>get_prop(:GFf,f(ll,1)[1])(Energy) for ll in get_prop(:LeadLabels))
+
+		return function get_gf(n::Int)::AbstractMatrix 
+
+			@assert !Graph.has_prop(g_, n, :GF) 
+
+			lead_name, lead_uc = Graph.get_prop(g_, n, :name)
+
+			return all_lead_gfs[lead_name][min(lead_uc,end)]
+
+		end  
+
 	end
 	
 	
@@ -272,7 +293,7 @@ function GraphLayeredSystem_Utils(g)
 
 
 
-	return 	setEnergy_LeadGF,
+	return 	LeadGF_atEnergy,#setEnergy_LeadGF,
 					islead,
 					meets_layer,
 					lead_extends,
@@ -306,7 +327,8 @@ function GF_Decimation(Hopping::AbstractDict,
 											 graph_fname::AbstractString="",
 											 kwargs...)
 
-	HoppMatr(args...) = TBmodel.HoppingMatrix(AtomsOfLayer.(args)...;Hopping...)
+	HoppMatr(args...) = TBmodel.HoppingMatrix(AtomsOfLayer.(args)...;
+																						Hopping...)
 
 	# will be called as 'HoppMatr(layer_n, layer_m)' or just 'HoppMatr(layer_n)'
 
@@ -372,7 +394,8 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 
 
-	setEnergy_LeadGF,
+#	setEnergy_LeadGF,
+	LeadGF_atEnergy,
 	islead,
 	meets_layer,
 	lead_extends,
@@ -393,7 +416,7 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 							end
 	
 
-	SemiInfLeadGF = setEnergy_LeadGF(g,Energy)
+	SemiInfLeadGF = LeadGF_atEnergy(g, Energy)
 
 
 	# ----- the dictionary where the values are stored -------- #
