@@ -216,24 +216,77 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Interp1D(x, y, k::Int)::Union{Function,Dierckx.Spline1D}
+#function Interp1D(x, y, k::Int)::Union{Function,Dierckx.Spline1D}
+#
+#	if k==0
+#
+#		get_ind = Interp1D(vcat(x...), 1:length(x), 1)
+#
+#		out(X::Real) = y[Int(round(get_ind(X)))]
+#
+#		out(X::AbstractVector) = y[Int.(round.(get_ind(X)))]
+#		
+#		return out 
+#
+#	end 
+#
+#
+#	return Dierckx.Spline1D(vcat(x...), vcat(y...), k=k)
+#
+#end 
 
-	if k==0
+function Interp1D_k0(x, y)::Function 
 
-		get_ind = Interp1D(vcat(x...), 1:length(x), 1)
+	get_ind = Interp1D(vcat(x...), 1:length(x), 1)
 
-		out(X::Real) = y[Int(round(get_ind(X)))]
+	T = eltype(first(y))
 
-		out(X::AbstractArray) = y[Int.(round.(get_ind(X)))]
-		
-		return out 
+	out(X::Real)::T = y[Int(round(get_ind(X)))]
 
-	end 
-
-
-	return Dierckx.Spline1D(vcat(x...), vcat(y...), k=k)
+	out(X::AbstractVector{<:Real})::Vector{T} = [y[Int(round(i))] for i in get_ind(X)]
+	
+	return out 
 
 end 
+
+
+function Interp1D_knon0(x::AbstractVector{<:Real}, 
+												y::AbstractVector{<:Real}, k::Int)::Dierckx.Spline1D 
+
+	Dierckx.Spline1D(x, y; k=k)
+
+end 
+
+
+function Interp1D_knon0(x::AbstractVector{<:Real}, 
+												y::AbstractVector{<:ComplexF64}, k::Int
+												)::Function 
+
+	f_re = Dierckx.Spline1D(x, real(y); k=k)
+	f_im = Dierckx.Spline1D(x, imag(y); k=k)
+
+	f(X::AbstractVector{<:Real})::Vector{ComplexF64} = f_re(X) + 1im*f_im(X)
+
+	f(X::Real)::ComplexF64 = f_re(X) + 1im*f_im(X)
+
+	return f 
+
+end 
+
+function Interp1D_knon0(x, y, k::Int)::Union{Function,Dierckx.Spline1D}
+
+	Interp1D_knon0(vcat(x...), vcat(y...), k)
+
+end 
+
+function Interp1D(x, y, k)
+
+	k==0 ? Interp1D_k0(x, y) : Interp1D_knon0(x, y, k)
+
+end 
+
+
+
 
 
 function Interp1D(x, y, k::Int, X)
@@ -241,6 +294,31 @@ function Interp1D(x, y, k::Int, X)
 	Interp1D(x,y,k)(X)
 
 end
+
+
+function LinearInterp1D(y1::AbstractArray{T1,N}, 
+												y2::AbstractArray{T2,N},
+												x1::Real=0, x2::Real=1
+												)::Function where {T1<:Number,T2<:Number,N} 
+
+	x1>x2 && return LinearInterp1D(y2, y1, x2, x1)
+
+	x_to_01 = Interp1D([x1,x2],[0,1],1)
+
+	slope = y2 - y1 
+
+	T = typeof(0.1*slope[1])
+
+	return function lin_interp_1D(x::Real)::Array{T,N} 
+
+		y1 + slope*x_to_01(x)
+
+	end 
+
+end 
+
+
+
 
 
 
