@@ -875,6 +875,26 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function Cartesian_from_spherical(phi::Real)::Vector{Float64}
+
+	Cartesian_from_spherical(1, phi)
+
+end
+
+
+function Cartesian_from_spherical(R::Real, phi::Real)::Vector{Float64}
+
+	[R*cos(phi), R*sin(phi)]
+
+end 
+
+function Cartesian_from_spherical(R::Real, theta::Real, phi::Real
+																 )::Vector{Float64}
+
+	vcat(sin(theta)*Cartesian_from_spherical(R, phi), R*cos(theta))
+
+end 
+
 
 #===========================================================================#
 #
