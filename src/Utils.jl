@@ -1282,15 +1282,32 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Rescale(A::AbstractArray{<:Number,N}, mM0, mM1=A)::AbstractArray{<:Number,N} where N 
+
+function Rescale!(A::AbstractArray{<:Number,N} where N, 
+									mM0, mM1=extrema(A))::Nothing 
 
   m0,M0 = extrema(mM0)
 
-#	length(A)==1 && return fill(m0, size(A))
-
 	m,M = extrema(mM1)
+
+	A .-= m 
+
+	A .*= (M0-m0)/(M-m) 
 	
-	return (A .- m)*(M0-m0)/(M-m) .+ m0
+	A .+= m0
+
+	return 
+
+end 
+
+function Rescale(A::AbstractArray{<:Number,N}, args...
+								)::AbstractArray{<:Number,N} where N 
+
+	B = copy(A)  
+
+	Rescale!(B, args...)
+
+	return B 
 
 end
 
@@ -1300,6 +1317,7 @@ function Rescale(a::Real, mM0, mM1)::Float64
 	Rescale([a], mM0, mM1)[1]
 
 end 
+
 
 
 
