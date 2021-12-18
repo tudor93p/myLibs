@@ -1300,15 +1300,15 @@ function Rescale!(A::AbstractArray{<:Number,N} where N,
 
 end 
 
-function Rescale(A::AbstractArray{<:Number,N}, args...
+function Rescale(A::AbstractArray{<:Number,N}, 
+								 mM0, mM1=extrema(A)
 								)::AbstractArray{<:Number,N} where N 
 
-	B = copy(A)  
+  m0,M0 = extrema(mM0)
 
-	Rescale!(B, args...)
+	m,M = extrema(mM1)
 
-	return B 
-
+	return (A .- m)*(M0-m0)/(M-m) .+ m0
 end
 
 
