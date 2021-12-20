@@ -1669,7 +1669,7 @@ function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
 end 
 
 function Atoms_ManyUCs(atoms::AbstractMatrix{<:Real},
-											 ns::AbstractMatrix{<:Real},
+											 ns::AbstractVecOrMat{<:Real},
 											 latt::Lattice, args...;
 											 kwargs...)::Matrix{Float64}
 
