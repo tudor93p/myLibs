@@ -107,7 +107,7 @@ function CompTask(C::Parameters.Calculation;
 
 		println()
 
-		@info string(text, " ", Parameters.tostr(C))
+		@info string(text,": ", Parameters.tostr(C))
 		
 		println()
 		

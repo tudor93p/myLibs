@@ -2327,13 +2327,26 @@ end
 #  
 #end 
 
+function check_nr_atoms(atoms::AbstractMatrix{<:Real})::Nothing 
+
+	if gethostname()=="tudor-HP" 
+	
+		@assert NrVecs(atoms)<5000 "Too many atoms"
+
+	end  
+
+	return 
+
+end 
+
+
 function get_Bonds(latt::Lattice; 
 									 nr_uc::Int=1, 
 									 neighbor_index::Int=1, kwargs...)::Vector{Tuple{Int,Int}}
 
 	AtomsUC = PosAtoms(latt; kwargs...)
 
-	NrVecs(AtomsUC) > 5000 && error("Not enough memory")
+	check_nr_atoms(AtomsUC)
 
 	UCs = UnitCells(latt, nr_uc)
 
@@ -2466,7 +2479,8 @@ end
 
 function NrBonds(atoms::AbstractMatrix{<:Real}, len_or_f...)::Vector{Int} 
 
-	@assert NrVecs(atoms)<5000 "Too many atoms" 
+	check_nr_atoms(atoms) 
+
 
 	out = zeros(Int, NrVecs(atoms))
 	
