@@ -22,12 +22,6 @@ Cat = [vcat,hcat][VECTOR_STORE_DIM]
 eachvec = [eachrow,eachcol][VECTOR_STORE_DIM]
 eachcomp = Utils.add_args_kwargs(eachslice; dims=VECTOR_AXIS)
 
-function VecsOnDim(vecs::AbstractMatrix; dim::Int)::AbstractMatrix
-
-	dim==VECTOR_STORE_DIM ? vecs : transpose(vecs)
-
-end 
-
 
 (RotVecs, 
  VecsToMat, 
@@ -152,6 +146,22 @@ end
 function Vecs(A::AbstractMatrix{T}, d::Int)::Matrix{T} where T<:Number 
 
 	Vecs(A, [d])
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function VecsOnDim(args...; dim::Int)::AbstractMatrix
+
+	vecs = Vecs(args...)::AbstractMatrix
+
+	return dim==VECTOR_STORE_DIM ? vecs : transpose(vecs)
 
 end 
 
