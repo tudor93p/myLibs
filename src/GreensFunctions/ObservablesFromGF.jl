@@ -252,9 +252,21 @@ function test_CaroliConductance(gSS::AbstractMatrix,
 
 end 
 
+
 function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 										GaGr_check::AbstractString="warn",
 									 kwargs...)::Nothing
+
+	function fmt(x::Float64)::Float64 
+	
+		@assert x<1 
+
+		return trunc(x,digits=Int(ceil(-log10(x)))+1)
+	
+	#	y = round(x,digits=Int(ceil(-log10(x)))+1)
+
+	end 
+
 
 	GaGr_check in ["warn","error"] || return 
 
@@ -264,25 +276,29 @@ function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 
 		dg = g1-g2 
 
-		N = LA.norm(dg)
+		N = LA.norm(dg) |> fmt  
+
+		n = LA.norm(dg)/length(dg)  |> fmt 
+		
+		M = maximum(abs, dg) |>fmt 
+
+
+
+		if n>1e-8 && M>1e-7
+
+			msg = "Ga!=Gr': Norm=$N ($n per elem.), Max=$M" 
+		
+			if GaGr_check=="warn"
+		
+				@warn msg 
+		
+			elseif GaGr_check=="error"
+		
+				error(msg)
+		
+			end 
 	
-		M = maximum(abs, dg)
-	
-		n = N/length(dg)
-	
-		msg = "Ga!=Gr': Norm: $N ($n per elem.), Max: $M" 
-
-		if GaGr_check=="warn"
-
-			@warn msg 
-
-		elseif GaGr_check=="error"
-
-			error(msg)
-
 		end 
-
-		@show msg 
 
 	end 
 
@@ -396,7 +412,7 @@ function CaroliConductance(Gr::Function, Ga::Function,
 	SigmaS = get_SE(source, uc)
 
 
-	test_Ga_Gr(gDS_adv,gSD_ret; kwargs...)
+	test_Ga_Gr(gDS_adv, gSD_ret; kwargs...)
 
 	test_CaroliConductance(Gr(source, uc, source, uc), SigmaS; kwargs...)
 
