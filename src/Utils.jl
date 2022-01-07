@@ -451,7 +451,7 @@ function Unique(V::AbstractArray{T};
 
 	dim = min(dim, ndims(V))
 
-	@assert is_exact(T)==is_exact2(T)
+#	@assert is_exact(T)==is_exact2(T)
 
 
 	if !check_type || is_exact2(T) || all(is_exact2 ∘ typeof, V)

@@ -255,20 +255,16 @@ end
 
 function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 										GaGr_check::AbstractString="warn",
-									 kwargs...)::Nothing
+									 kwargs...)::Bool
 
-	function fmt(x::Float64)::Float64 
+	function fmt(x::Float64)::Float64
+		
+		trunc(x,digits=Int(ceil(-log10(x)))+1) 
 	
-		@assert x<1 
-
-		return trunc(x,digits=Int(ceil(-log10(x)))+1)
-	
-	#	y = round(x,digits=Int(ceil(-log10(x)))+1)
-
 	end 
 
 
-	GaGr_check in ["warn","error"] || return 
+	GaGr_check in ["warn","error"] || return true 
 
 	g2 = g2_' 
 
@@ -281,8 +277,6 @@ function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 		n = LA.norm(dg)/length(dg)  |> fmt 
 		
 		M = maximum(abs, dg) |>fmt 
-
-
 
 		if n>1e-8 && M>1e-7
 
@@ -298,11 +292,13 @@ function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 		
 			end 
 	
+			return false 
+
 		end 
 
 	end 
 
-	return  
+	return true 
 
 end 
 
