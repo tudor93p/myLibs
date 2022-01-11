@@ -631,7 +631,7 @@ end
 #
 
 function fillvals(dims::AbstractVector{<:AbstractVector{Int}},
-									args...)::Vector{Any} 
+									args...)::Vector
 		
 	@assert length(args)==length(dims) 
 
@@ -702,7 +702,11 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 								A::Union{Number, AbstractArray{<:Number}}
 								)::Vector{Union{Int,AbstractVector{Int}}}
 
-			fillvals(dims, i, axes(A))
+			@show dims i A axes(A) 
+
+			@show fillvals(dims, i, axes(A))
+			
+			return fillvals(dims, i, axes(A))
 
 		end 
 	
@@ -790,10 +794,14 @@ function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
 													inds::AbstractVector{<:Tuple{Vararg{Int}}}, 
 													data::AbstractVector
 													)::Array
+@show dims 
 
 	geti = getf_setval(dims)[1]
 
+	@show geti 
 	dim = sum(length, dims)
+@show dim 
+@show size(data) length.(data)
 
 	function update_max!(S::AbstractVector{Int}, 
 											 vals::Union{AbstractVector{Int}, Tuple{Vararg{Int}}})
@@ -813,13 +821,17 @@ function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
 	if dim<=2 
 
 		shape = zeros(Int, dim) 
-	
+
+		@show shape 
+
 		for iA in zip(inds, data)
 
 			update_max!(shape, maximum.(geti(iA...)))
 
 		end 
-	
+
+		@show shape 
+
 		return zeros(shape...)
 
 	end 
@@ -1440,7 +1452,7 @@ function init_multitask_(C::Parameters.Calculation,
 
 	function construct_Z_(startdict::AbstractDict, args...)::Dict{String,Any}
 
-		merge!(construct_Z(args...), startdict)
+		merge!(construct_Z(args...), startdict) ######### 
 
 	end 
 
@@ -1450,7 +1462,7 @@ function init_multitask_(C::Parameters.Calculation,
 
 		Data, startdict = data_and_startdict(P; kwargs...)
 
-		return construct_Z_(startdict, Data, label...) 
+		return construct_Z_(startdict, Data, label...) #########
 
 	end 
 
