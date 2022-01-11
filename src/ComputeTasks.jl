@@ -825,14 +825,10 @@ function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
 													inds::AbstractVector{<:Tuple{Vararg{Int}}}, 
 													data::AbstractVector
 													)::Array
-@show dims 
 
 	geti = getf_setval(dims)[1]
 
-	@show geti 
 	dim = sum(length, dims)
-@show dim 
-@show size(data) length.(data)
 
 	function update_max!(S::AbstractVector{Int}, 
 											 vals::Union{AbstractVector{Int}, Tuple{Vararg{Int}}})
@@ -854,12 +850,10 @@ function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
 		shape = zeros(Int, dim) 
 
 
-		@show shape 
 		for iA in zip(inds, data)
 
 			update_max!(shape, maximum.(geti(iA...)))
 
-			@show shape 
 		end 
 
 
