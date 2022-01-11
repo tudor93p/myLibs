@@ -729,12 +729,24 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 									)::Nothing 
 
 			I = gi1(i, A) 
-			@show size(Z) i A I 
-			@show size(Z[I...]) size(A) 
 
-			@assert length(Z[I...])==length(A) (size(Z[I...]), size(A))
+			sZ = size(view(Z, I...))
 
-			Z[I...] .= A 
+			sA = size(A) 
+
+			if sZ==sA 
+
+				Z[I...] = A 
+
+			elseif prod(sZ)==prod(sA)
+
+				Z[I...] .= A 
+
+			else 
+
+				error("Size mismatch: $sZ != $sA")
+
+			end 
 
 			return 
 
