@@ -704,7 +704,13 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 
 			out = fillvals(dims, i, axes(A)) 
 
-			@assert isa(out,Int) || isa(out,AbstractVector{Int})
+			for out_i in out 
+
+				@assert isa(out_i,Int) || isa(out,AbstractVector{Int})
+
+			end 
+
+			return out
 			#{<:Union{Int,AbstractVector{Int}}}
 
 		end 

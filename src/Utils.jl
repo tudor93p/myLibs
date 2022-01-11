@@ -28,6 +28,19 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 #
 #---------------------------------------------------------------------------#
 
+function closeness_nearest_integer(n::Real)::Float64 #1: close, 0:far
+	
+	muladd(-2.0,abs(n-round(n)),1.0)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 function add_args_kwargs(f::Function, args...; kwargs...)::Function
 
