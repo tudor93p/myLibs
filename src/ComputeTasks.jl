@@ -700,15 +700,18 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 		
 		function gi1(i::NTuple{N, Int} where N,
 								A::AbstractArray{<:Number}
-								)::Vector{<:Union{Int,AbstractVector{Int}}}
+								)::Vector#{<:Union{Int,AbstractVector{Int}}}
 
-			fillvals(dims, i, axes(A))
+			out = fillvals(dims, i, axes(A)) 
+
+			@assert isa(out,Int) || isa(out,AbstractVector{Int})
+			#{<:Union{Int,AbstractVector{Int}}}
 
 		end 
 	
 		function gi1(i::NTuple{N, Int} where N,
 								A::Number, 
-								)::Vector{<:Union{Int,AbstractVector{Int}}}
+								)::Vector
 
 			gi1(i, [A])
 
