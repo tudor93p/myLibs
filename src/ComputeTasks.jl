@@ -728,7 +728,13 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 								A::Union{Number, AbstractArray{<:Number}}
 									)::Nothing 
 
-			Z[gi1(i, A)...] = A 
+			I = gi1(i, A) 
+			@show size(Z) i A I 
+			@show size(Z[I...]) size(A) 
+
+			@assert length(Z[I...])==length(A) (size(Z[I...]), size(A))
+
+			Z[I...] .= A 
 
 			return 
 
