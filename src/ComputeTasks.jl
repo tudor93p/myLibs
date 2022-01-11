@@ -699,17 +699,21 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 	if dim<=2 
 		
 		function gi1(i::NTuple{N, Int} where N,
-								A::Union{Number, AbstractArray{<:Number}}
-								)::Vector{Union{Int,AbstractVector{Int}}}
+								A::AbstractArray{<:Number}
+								)::Vector{<:Union{Int,AbstractVector{Int}}}
 
-			@show dims i A axes(A) 
-
-			@show fillvals(dims, i, axes(A))
-			
-			return fillvals(dims, i, axes(A))
+			fillvals(dims, i, axes(A))
 
 		end 
 	
+		function gi1(i::NTuple{N, Int} where N,
+								A::Number, 
+								)::Vector{<:Union{Int,AbstractVector{Int}}}
+
+			gi1(i, [A])
+
+		end 
+
 
 		function sv1!(Z::AbstractArray, i::Tuple{Vararg{Int}}, 
 								A::Union{Number, AbstractArray{<:Number}}
@@ -822,15 +826,15 @@ function initialize_dataZ(dims::AbstractVector{<:AbstractVector{Int}},
 
 		shape = zeros(Int, dim) 
 
-		@show shape 
 
+		@show shape 
 		for iA in zip(inds, data)
 
 			update_max!(shape, maximum.(geti(iA...)))
 
+			@show shape 
 		end 
 
-		@show shape 
 
 		return zeros(shape...)
 
