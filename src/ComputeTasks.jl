@@ -706,7 +706,7 @@ function getf_setval(dims::AbstractVector{<:AbstractVector{Int}}
 
 			for out_i in out 
 
-				@assert isa(out_i,Int) || isa(out,AbstractVector{Int})
+				@assert isa(out_i,Int) || isa(out_i,AbstractVector{Int})
 
 			end 
 
