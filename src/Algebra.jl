@@ -251,19 +251,22 @@ end
 
 
 function Interp1D_knon0(x::AbstractVector{<:Real}, 
-												y::AbstractVector{<:Real}, k::Int)::Dierckx.Spline1D 
+												y::AbstractVector{<:Real}, k::Int;
+												s=0.0,
+												)::Dierckx.Spline1D 
 
-	Dierckx.Spline1D(x, y; k=k)
+	Dierckx.Spline1D(x, y; k=k, s=s)
 
 end 
 
 
 function Interp1D_knon0(x::AbstractVector{<:Real}, 
-												y::AbstractVector{<:ComplexF64}, k::Int
+												y::AbstractVector{<:ComplexF64}, k::Int;
+												s=0.0,
 												)::Function 
 
-	f_re = Dierckx.Spline1D(x, real(y); k=k)
-	f_im = Dierckx.Spline1D(x, imag(y); k=k)
+	f_re = Dierckx.Spline1D(x, real(y); k=k, s=s)
+	f_im = Dierckx.Spline1D(x, imag(y); k=k, s=s)
 
 	f(X::AbstractVector{<:Real})::Vector{ComplexF64} = f_re(X) + 1im*f_im(X)
 
@@ -273,25 +276,26 @@ function Interp1D_knon0(x::AbstractVector{<:Real},
 
 end 
 
-function Interp1D_knon0(x, y, k::Int)::Union{Function,Dierckx.Spline1D}
+function Interp1D_knon0(x, y, k::Int;
+											 kwargs...)::Union{Function,Dierckx.Spline1D}
 
-	Interp1D_knon0(vcat(x...), vcat(y...), k)
-
-end 
-
-function Interp1D(x, y, k)
-
-	k==0 ? Interp1D_k0(x, y) : Interp1D_knon0(x, y, k)
+	Interp1D_knon0(vcat(x...), vcat(y...), k; kwargs...)
 
 end 
 
+function Interp1D(x, y, k::Int; kwargs...)
+
+	k==0 ? Interp1D_k0(x, y) : Interp1D_knon0(x, y, k; kwargs...)
+
+end 
 
 
 
 
-function Interp1D(x, y, k::Int, X)
 
-	Interp1D(x,y,k)(X)
+function Interp1D(x, y, k::Int, X; kwargs...)
+
+	Interp1D(x,y,k; kwargs...)(X)
 
 end
 
