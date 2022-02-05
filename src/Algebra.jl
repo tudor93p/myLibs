@@ -7,8 +7,7 @@ import ..LA
 
 import ..Utils, ..ArrayOps
 
-import Dierckx,FFTW
-
+import Dierckx,FFTW#,QuadGK 
 
 
 const EPSILON = 1e-20
@@ -1185,6 +1184,87 @@ Gaussian = myDistrib("exp(-x^2/w^2)/(w*sqrt(pi))")
 Heaviside = myDistrib("Float64(x>=w)")
 
 Rectangle = myDistrib("Float64(-w/2<=x<=w/2)")
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+#function get_width_provided_height(F::Symbol,h::Real)::NTuple{2,Float64}
+#
+#	F==:Lorentzian && return (1,1/(pi*h))
+#
+#	F==:Gaussian && return (1,1/(sqrt(pi)*h))
+#
+#	F==:Rectangle && return (1,1/h)
+#
+#	F==:Heaviside && return (h,0)
+#
+#end  
+#
+#
+#function get_bare_height_provided_width(F::Symbol, w::Real)::Float64
+#
+#	F == :Lorentzian && return 1/(w*pi)
+#
+#	F == :Gaussian && return 1/(w*sqrt(pi))
+#
+#	return 1 
+#
+#end 
+#
+#
+#function area_under_distrib(F::Symbol, w::Real)::Float64 
+#
+#	F==:Rectangle ? w : 1 
+#	
+#end 
+#
+
+function getNDistrib_prefactor(F::Symbol, w::Real,
+															h::Nothing=nothing)::Float64 
+
+	1/(F==:Rectangle ? w : 1)
+
+end 
+
+	
+function getNDistrib_prefactor_and_arg(F::Symbol, h::Real
+																	)::NTuple{2,Float64}
+
+	pf, w = if F==:Lorentzian
+																(1,1/(pi*h))
+					elseif F==:Gaussian
+																(1,1/(sqrt(pi)*h))
+					elseif F==:Rectangle
+																(1,1/h)
+					elseif F==:Heaviside
+																(h,0)
+					end 
+
+	return pf*getNDistrib_prefactor(F, w), w
+	
+end 
+
+
+function getNDistrib_prefactor(F::Symbol, w::Real, h::Real)::Float64
+
+	h0 = 	if 			F==:Lorentzian	
+																1/(w*pi)
+				elseif 	F==:Gaussian 		
+																1/(w*sqrt(pi))
+				else										
+																1
+				end 
+
+	return h/h0
+	
+end 
+
 
 
 #w=rand()+0.1;x=rand(100,100);

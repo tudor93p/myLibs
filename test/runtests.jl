@@ -6,7 +6,8 @@ using Test
 
 for f in (
 
-#"algebra" |> pr_in
+"mydistrib",
+#"algebra" 
 
 #"lattices_vecs" |> pr_in
 
@@ -44,7 +45,7 @@ for f in (
 #"transm_ZHXS_Fig3", 
 #"transm_ZHXS_Fig5", 
 #"transm_ZHXS_Fig7", 
-"transm_ZHXS_local", 
+#"transm_ZHXS_local", 
 
 
 

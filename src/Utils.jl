@@ -34,6 +34,12 @@ function closeness_nearest_integer(n::Real)::Float64 #1: close, 0:far
 
 end 
 
+#m=round(n) 
+#closeness>0.5 means:
+#m<n<m+0.25 
+#m-0.25 < n < m
+#m>n> m-0.25
+
 
 #===========================================================================#
 #
@@ -1084,7 +1090,8 @@ end
 
 function Distribute_Work(allparamcombs::AbstractVector,
 												 do_work::Function; 
-												 vararg::Bool=false, arg_pos::Int=1, kwargs0...)
+												 vararg::Bool=false, arg_pos::Int=1, kwargs0...
+												 )::Nothing
 
   nr_scripts = min(length(allparamcombs), get_arg(1, arg_pos, Int64))
 
@@ -1106,14 +1113,29 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 	which_ = EqualDistributeBallsToBoxes_cumulRanges(njobs, nr_scripts, start, stop)
 
-	doparams = allparamcombs[which_] 
-	
+
+	if step(which_)==1 
+
+		which_ = UnitRange(extrema(which_)...)
+
+	end 
 
   
   println("\nI am $idproc and I am doing jobs $which_ out of $njobs.\n")
 
+	doparams = allparamcombs[which_] 
 
-  function print_progress(ip,t1)
+
+
+
+  for (ip,p) in enumerate(doparams)
+  
+    t1 = Dates.now()
+ 
+		local x = vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...) 
+
+		#    print_progress(ip,time1)
+#  function print_progress(ip,t1)
 
 		println(string("\nI am $idproc and I completed $ip/",length(which_)," jobs (last one: ",which_[ip],"/$which_ in ", Int(round(Dates.value(Dates.now()-t1)/1000)),"s)."))
 
@@ -1125,19 +1147,9 @@ function Distribute_Work(allparamcombs::AbstractVector,
 #
 #    end
 
-    return Dates.now()
+#    return Dates.now()
 
-  end
-
-
-
-  for (ip,p) in enumerate(doparams)
-  
-    time1 = Dates.now()
- 
-		vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...)
-
-    print_progress(ip,time1)
+#  end
   
   end
 
@@ -1475,7 +1487,7 @@ uniqlinsp = uniqsp(linspace)
 #
 #---------------------------------------------------------------------------#
 
-function get_arg(default,i,typ=String)
+function get_arg(default,i::Int=1,typ=String)
 
   if length(ARGS) >= i 
 
