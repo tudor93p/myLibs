@@ -1179,11 +1179,13 @@ end
 
 Lorentzian = myDistrib("w / (x^2 + w^2) / pi")
 
-Gaussian = myDistrib("exp(-x^2/w^2)/(w*sqrt(pi))")
+#Gaussian = myDistrib("exp(-x^2/w^2)/(w*sqrt(pi))")
+Gaussian = myDistrib("exp(-0.5*x^2/w^2)/(w*sqrt(2*pi))")
 
 Heaviside = myDistrib("Float64(x>=w)")
 
-Rectangle = myDistrib("Float64(-w/2<=x<=w/2)")
+#Rectangle = myDistrib("Float64(-w/2<=x<=w/2)")
+Rectangle = myDistrib("Float64(-w<=x<=w)")
 
 
 
@@ -1228,7 +1230,7 @@ Rectangle = myDistrib("Float64(-w/2<=x<=w/2)")
 function getNDistrib_prefactor(F::Symbol, w::Real,
 															h::Nothing=nothing)::Float64 
 
-	1/(F==:Rectangle ? w : 1)
+	1/(F==:Rectangle ? 2w : 1)
 
 end 
 
@@ -1239,9 +1241,9 @@ function getNDistrib_prefactor_and_arg(F::Symbol, h::Real
 	pf, w = if F==:Lorentzian
 																(1,1/(pi*h))
 					elseif F==:Gaussian
-																(1,1/(sqrt(pi)*h))
+																(1,1/(sqrt(2pi)*h))
 					elseif F==:Rectangle
-																(1,1/h)
+																(1,1/(2h))
 					elseif F==:Heaviside
 																(h,0)
 					end 
@@ -1256,7 +1258,7 @@ function getNDistrib_prefactor(F::Symbol, w::Real, h::Real)::Float64
 	h0 = 	if 			F==:Lorentzian	
 																1/(w*pi)
 				elseif 	F==:Gaussian 		
-																1/(w*sqrt(pi))
+																1/(w*sqrt(2pi))
 				else										
 																1
 				end 

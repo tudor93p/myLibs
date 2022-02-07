@@ -1,6 +1,6 @@
 import myLibs: Algebra 
 
-import QuadGK,Random
+import QuadGK,Random,PyPlot 
 
 
 distr_names = [:Lorentzian,
@@ -17,12 +17,20 @@ area_under(f,w)::Float64 = round(QuadGK.quadgk(f, -50w,50w ,rtol=1e-14)[1],digit
 #@show w h 
 
 
-verbose = false
-N=100 
+verbose = true
+N=1
+
+PyPlot.close()  
+
+w0 = 1+rand()  
+h0 = 1+rand() 
+
+x0 = LinRange(-10,10,300)
+
+N==1 && PyPlot.plot(extrema(x0),fill(h0/2,2))
 
 
 for F in distr_names
-	
 	
 	verbose && println() 
 
@@ -37,12 +45,11 @@ for F in distr_names
 	
 		verbose && println("\n ---------------------------------------------- ")
 
-
 	
 	
 		verbose && println("\n ****** Only w is given")
 	
-		verbose && @show Algebra.get_bare_height_provided_width(F, w) Algebra.area_under_distrib(F, w)
+#		verbose && @show Algebra.get_bare_height_provided_width(F, w) Algebra.area_under_distrib(F, w)
 	
 	#	n1 = area_under(f1) 
 
@@ -76,6 +83,16 @@ for F in distr_names
 	
 		f_wh(x) = pf_wh * Algebra.getDistrib(F, x, w) 
 	
+		if N==1 && F!=:Heaviside
+
+			y0 = Algebra.getNDistrib_prefactor(F,w0,h0)*Algebra.getDistrib(F,x0,w0)
+
+
+			PyPlot.plot(x0,y0,label=string(F)) 
+
+		end
+
+
 		verbose && (F==:Heaviside || @show area_under(f_wh,w))
 	
 		H_wh = f_wh(F==:Heaviside ? w+1 : 0)
@@ -128,3 +145,10 @@ for F in distr_names
 end 
 
 
+
+
+
+
+PyPlot.gca().set_xlim(extrema(x0))
+
+PyPlot.legend()

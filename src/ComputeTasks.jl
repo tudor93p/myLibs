@@ -313,14 +313,15 @@ function missing_data(task; show_missing::Bool=false, kwargs...)
 
 	println(string("\nTask: ",get_taskname(task),
 								 "\nTotal number of jobs left to do: ",
-									length(notdonecombs),"/",length(allcombs),"\n"))
+									length(notdonecombs),"/",length(allcombs),
+									"=", round(100*length(notdonecombs)/length(allcombs)),
+									"%\n"))
 
   !show_missing && return length(notdonecombs)
 
 	for c in notdonecombs
 
-		println(c)
-		println()
+		println(c,"\n")
 
 	end
 	
@@ -338,14 +339,15 @@ function existing_data(task; show_existing::Bool=false, kwargs...)
 
 	println(string("\nTask: ",get_taskname(task),
 								 "\nTotal number of jobs done: ",
-									length(donecombs),"/",length(allcombs),"\n"))
+									length(donecombs),"/",length(allcombs),
+									"=", round(100*length(donecombs)/length(allcombs)),
+									"%\n"))
 
   !show_existing && return length(donecombs)
 
 	for c in donecombs
 
-		println(c)
-		println()
+		println(c,"\n")
 
 	end
 	
