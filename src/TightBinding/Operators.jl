@@ -6,7 +6,7 @@ module Operators
 
 import ..LA, ..SpA 
 
-import ..Utils, ..TBmodel, ..Algebra
+import ..Utils, ..TBmodel, ..Algebra, ..Lattices 
 
 
 
@@ -66,11 +66,40 @@ struct Operator
 
 #	iter_Op::Any
 
-
-
+	isHermitian::Bool
 
 
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+isHermitian(Op::Function)::Bool = false 
+
+isHermitian(Op::Number)::Bool = isreal(Op)
+
+isHermitian(Op::AbstractVector{<:Number})::Bool = isreal(Op)
+
+isHermitian(Op::AbstractMatrix{<:Number})::Bool = LA.ishermitian(Op) 
+
+isHermitian(Op::AbstractVector{<:AbstractVecOrMat})::Bool = all(isHermitian, Op)
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 
 function Operator_(data_::Union{Number, AbstractVecOrMat{<:Number}},
@@ -79,6 +108,7 @@ function Operator_(data_::Union{Number, AbstractVecOrMat{<:Number}},
 									ws::NTuple{2,Bool},
 									args...;
 									kwargs...)::Operator
+
 
 	diag = prep_diag(data_, numbers, args...)
 
@@ -92,7 +122,8 @@ function Operator_(data_::Union{Number, AbstractVecOrMat{<:Number}},
 
 	iter_Op = get_iter_Op(data, Val.(ws), inds, Val(diag))
 
-	return Operator(iter_Op, diag, dim..., ws, inds)
+
+	return Operator(iter_Op, diag, dim..., ws, inds, isHermitian(iter_Op))
 
 end  
 
@@ -115,9 +146,18 @@ function Operator_(data::Function,
 	iter_Op = get_iter_Op_(data, Val.(ws), inds, Val(diag)) 
 	#size not checked ! 
 
-	return Operator(iter_Op, diag, dim..., ws, inds)
+	return Operator(iter_Op, diag, dim..., ws, inds, isHermitian(iter_Op))
 
 end  
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -137,8 +177,9 @@ end
 function Operator(A::Union{Number, AbstractVecOrMat{<:Number}, Function}, 
 									args...; kwargs...)::Operator
 
-	
+
 	numbers,enough_data = get_nratorbH(; kwargs...)
+
 
 	@assert enough_data "Provide more size-related kwargs"
 
@@ -206,6 +247,8 @@ function prep_diag(A::Union{Number,<:AbstractVecOrMat{<:Number}},
 									 numbers::NTuple{3,Int}, diag::Symbol)::Symbol
 
 	possib_diag = which_diag(A, numbers) 
+
+
 
 	for (weak,strong) in [([diag],[diag]),
 												([:none],[:all,:orbitals,:atoms]),
@@ -462,7 +505,6 @@ function check_size(A::AbstractVecOrMat{<:Number},
 										)
 
 #	println("\n***\n")
-#	@show size(A) L1 L2 diag 
 
 	@assert only(unique(size(A)))==L2
 
@@ -484,7 +526,6 @@ function check_size(A::AbstractMatrix{<:Number},
 										numbers::NTuple{3,Int},
 										diag::Val{:atoms}
 										)
-	@show size(A) sums diag 
 
 	error("Op::Matrix => only '(false,true)+atoms' and '(true,false)+orbitals are allowed.")
 
@@ -869,7 +910,20 @@ end
 function (H::Operator)(P::AbstractMatrix{<:Number}; kwargs...
 											)::Matrix{<:Number}
 
-	ExpectVal(P, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag); kwargs...)
+	out = ExpectVal(P, H.data, Val.(H.sums), H.csdim, H.inds, Val(H.diag); kwargs...)
+
+	if H.isHermitian 
+
+		S = sum(abs2, imag(out))
+
+		@assert S<1e-12 && S/length(out)<1e-20
+
+		return real(out)
+
+	end 
+
+	return out 
+
 
 end 
 
@@ -972,6 +1026,7 @@ function repeatOperator_manyAtoms(Op::AbstractVector{T},
 
 	@assert length(Op)==nr_orb 
 
+
 	FullOp = similar(Op, size_H)
 
 	for a in 1:nr_at 
@@ -1049,7 +1104,8 @@ function repeatOperator_manyOrbitals(Op::AbstractMatrix{T},
 																	)::Matrix{T} where T<:Number
 
 	@assert all(isequal(nr_at), size(Op))
-	
+
+
 	FullOp = zeros(T, size_H, size_H)
 
 	for orb in 1:nr_orb
@@ -1179,6 +1235,24 @@ function Position(ax::Int, Rs::AbstractMatrix{<:Real};
 	return Operator(Op, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
 
 end 
+
+
+	# ----- mirror expectation values  ----- # 
+
+
+function Mirror(ax::Int, Rs::AbstractMatrix{<:Real}, 
+								pos::Vararg{Float64}; 
+									dim::Int, nr_at::Int=size(Rs,dim),
+									kwargs...)::Operator
+
+	M = Lattices.MirrorReflectionMatrix(Lattices.VecsOnDim(Rs; dim=dim),
+																			ax, pos...)
+
+	return Operator(M, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
+
+end 
+
+
 
 
 

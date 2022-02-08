@@ -122,29 +122,28 @@ end
 
 
 function Vecs(A::AbstractMatrix{T}, ::Union{Nothing,Colon}=nothing
-						 )::Matrix{T} where T<:Number 
+						 )::AbstractMatrix{T} where T<:Number 
 	
 	A
 
 end 
 
 function Vecs(A::AbstractMatrix{T}, 
-							d::AbstractVector{Bool})::Matrix{T} where T<:Number 
+							d::AbstractVector{Bool})::AbstractMatrix{T} where T<:Number 
 
 	selectdim(A, VECTOR_STORE_DIM, IndsVecs(A, d))
 
 end 
 
 function Vecs(A::AbstractMatrix{T}, d::AbstractArray{Int, N}
-								 )::Array{T, N+1} where T<:Number where N
+								 )::AbstractArray{T, N+1} where T<:Number where N
 
 	selectdim(A, VECTOR_STORE_DIM, IndsVecs(A, d))
 
 end 
 
 
-function Vecs(A::AbstractMatrix{T}, d::Int)::Matrix{T} where T<:Number 
-
+function Vecs(A::AbstractMatrix{T}, d::Int)::AbstractMatrix{T} where T<:Number 
 	Vecs(A, [d])
 
 end 

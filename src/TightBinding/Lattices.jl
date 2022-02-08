@@ -1231,6 +1231,7 @@ end
 
 OuterDiff = OuterOp(:OuterDiff)
 OuterDist = OuterOp(:OuterDist)
+#OuterDist2 = OuterOp(:OuterDist2)
 FlatOuterDist = OuterOp(:FlatOuterDist)
 FlatOuterDiff = OuterOp(:FlatOuterDiff)
 FlatOuterSum = OuterOp(:FlatOuterSum)
@@ -2765,6 +2766,54 @@ function NearbyUCs(latt::Lattice, nr_uc::Int=1; #sublatt_coord=Dict(),
 	return (ms1, CombsOfVecs(latt, ms1), PosAtoms(latt; kwargs...))
 
 end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function MirrorReflectionMatrix(Atoms::AbstractMatrix{<:Real}, 
+																Mirror_plane::Int;
+																kwargs...
+																)::Matrix#{Float64}
+
+	CoM = Algebra.Mean(selectdim(Atoms, VECTOR_AXIS, Mirror_plane))
+
+	return MirrorReflectionMatrix(Atoms, Mirror_plane, CoM; kwargs...)
+
+end 
+
+function MirrorReflectionMatrix(Atoms::AbstractMatrix{<:Real}, 
+																Mirror_plane::Int, 
+																Mirror_position::Real;
+																tol::Float64=TOLERANCE
+																)::Matrix#{Float64}
+	tol2 = tol^1.7 
+	
+	q = selectdim(Atoms, VECTOR_AXIS, Mirror_plane) 
+
+	out = Algebra.OuterDist2(q, 2Mirror_position .- q) .< tol2 
+
+
+	d = setdiff(VecAx(Atoms),[Mirror_plane]) 
+
+	if !isempty(d) 
+
+		out .&= Algebra.OuterDist2(selectdim(Atoms, VECTOR_AXIS, d);
+															 dim=VECTOR_STORE_DIM) .< tol2 
+		
+	end 
+
+	for i=1:2 
+		@assert all(==(1),count(out;dims=i))
+	end 
+
+	return out 
+
+end  
 
 
 

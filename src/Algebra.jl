@@ -1621,14 +1621,22 @@ OuterSum(args...; kwargs...) = OuterBinary(args..., +; kwargs...)
 
 OuterDiff(args...; kwargs...) = OuterBinary(args..., -; kwargs...)
 
-function OuterDist(args...; kwargs...) 
+function OuterDist2(args...; kwargs...) 
 	
 	D = get(kwargs, :dim, 1)==1 ? 3 : 1
 
 	return selectdim(sum(abs2, OuterDiff(args...; kwargs...), dims=D),
-									 D, 1) .|> sqrt  
+									 D, 1) 
 									
+end  
+
+
+function OuterDist(args...; kwargs...) 
+
+	sqrt.(OuterDist2(args...; kwargs...))
+
 end 
+
 
 #===========================================================================#
 # 
