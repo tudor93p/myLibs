@@ -297,15 +297,21 @@ end
 #		println()
 
 
+#@show kwargs 
 		for i = 0:3 
 			
-			@show i 
+#			@show i 
 
-			@show size(get_info(;Nambu=i))
+			PH = get_info(;Nambu=i)
 
-			Op637= Operators.Operator(get_info(;Nambu=i); kwargs...)
+#			@show size(PH )
 
-			@show Op637.diag size(Op637.data) Op637.sums Op637.inds Op637.isHermitian maximum(abs, Op637.data)
+			Op637 = Operators.Operator(PH, :atoms; kwargs...)
+
+			@show Op637 == Operators.Operator(PH; kwargs...)
+
+#			@show Op637.diag size(Op637.data) Op637.sums Op637.inds Op637.isHermitian maximum(abs, Op637.data) 
+			
 		end 
 
 

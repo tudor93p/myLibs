@@ -80,6 +80,115 @@ end
 #---------------------------------------------------------------------------#
 
 
+import Base: ==#<, ==, zeros
+
+function ==(A::Operator, B::Operator)::Bool 
+
+	for k in (:vsdim, :csdim, :sums)
+
+		getproperty(A,k)!=getproperty(B,k) && return false 
+
+	end 
+
+	A.data isa Function && return false 
+	B.data isa Function && return false 
+
+	i_A, i_B = [findfirst([isa(Op.data,t) for t in (
+										Number, 
+										AbstractVecOrMat{<:Number},
+										AbstractVector{<:AbstractVecOrMat{<:Number}}
+										)]) for Op in (A,B)]
+
+	@assert i_A isa Int 
+	@assert i_B isa Int 
+
+	i_A>i_B && return B==A 
+
+#	@assert i_A<=i_B 
+
+
+	a = reduce_data(A.data) 
+
+	b = reduce_data(B.data) 
+
+
+	if i_A==1 
+
+
+		if i_B==1 
+			
+			a≈b || return false 
+
+		elseif i_B==2 
+
+			length(b)==1 || return false 
+
+			a≈only(b) || return false 
+
+		elseif i_B==3 
+		
+			for b_ in b 
+
+				length(b_)==1 || return false 
+
+				a≈only(b_) || return false 
+
+			end 
+
+		end 
+
+	elseif i_A==2 
+
+		if i_B==2 
+
+			size(a)==size(b) || return false 
+
+			a≈b || return false 
+
+		elseif i_B==3 
+
+			shape = [0,0]
+			shape[A.vsdim]=10 
+
+			shape[A.csdim]=size(A.data,1)
+
+			p = rand(ComplexF64,shape...)
+
+			return A(p)≈B(p)
+
+
+		end 
+
+	elseif i_A==i_B==3 
+
+		length(a)==length(b) || return false 
+
+		for (a_,b_) in zip(a,b)
+			
+			size(a_)==size(b_) || return false 
+
+			a_≈b_ || return false 
+
+		end 
+
+	end 
+
+
+	return true 
+
+
+
+
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 isHermitian(Op::Function)::Bool = false 
 
 isHermitian(Op::Number)::Bool = isreal(Op)
@@ -112,9 +221,7 @@ function Operator_(data_::Union{Number, AbstractVecOrMat{<:Number}},
 
 	diag = prep_diag(data_, numbers, args...)
 
-
 	ao = get_acts_on(diag, numbers...; kwargs...)
-
 
 	data = extend_data(data_, Val(diag), get_nratorbH(length.(ao)...)[1], Val.(ws))
 
@@ -122,10 +229,10 @@ function Operator_(data_::Union{Number, AbstractVecOrMat{<:Number}},
 
 	iter_Op = get_iter_Op(data, Val.(ws), inds, Val(diag))
 
-
 	return Operator(iter_Op, diag, dim..., ws, inds, isHermitian(iter_Op))
 
 end  
+
 
 function Operator_(data::Function,
 									 numbers::NTuple{3,Int},
@@ -226,16 +333,31 @@ function reduce_data(A::T)::T where T<:Union{Number,Function}
 
 end
 
+function reduce_data(A::AbstractVector{<:AbstractVecOrMat{<:Number}})
+
+	reduce_data.(A)
+
+end 
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 function prep_diag(A::Union{Number,<:AbstractVecOrMat{<:Number}},
-									 numbers::NTuple{3,Int})::Symbol
+									 numbers::NTuple{3,Int})::Symbol 
+
 
 	possib_diag = which_diag(A, numbers)
 
 	if :atoms in possib_diag && :orbitals in possib_diag 
 
 		@assert numbers[1]==numbers[2]==1 "Confusing sizes. Provide 'diag' arg."
-
 	end  
 
 	return first(possib_diag)
@@ -552,7 +674,7 @@ function check_size(A::AbstractVecOrMat{<:Number},
 
 end 
 
-function check_size(A::Number, ::NTuple{2,Val}, arg, ::Val{:all})
+function check_size(A::Number, ::NTuple{2,Val}, arg, ::Val)#{:all})
 
 end
 
@@ -581,7 +703,6 @@ end
 #										) 
 #	println("\n***\n")
 #
-#	@show size(A) sums L1 L2 L12  diag 
 #
 #	@assert only(unique(size(A)))==L12 
 
@@ -595,7 +716,11 @@ end
 #---------------------------------------------------------------------------#
 
 function get_iter_Op(args...)
-	
+
+#	println("\nPrinting args:")
+#	println.(args)
+#	println()
+
 	check_size(args...)
 
 	return get_iter_Op_(args...)
