@@ -18,7 +18,9 @@ nr_orb = rand([rand(1:10),nr_at + 1])
 
 nr_orb = 2
 
-@show nr_orb <= nr_at 
+@show nr_at nr_orb 
+
+#@show nr_orb <= nr_at 
 
 mirror_plane = rand(1:2) 
 
@@ -71,13 +73,15 @@ M = Lattices.MirrorReflectionMatrix(atoms, mirror_plane, mirror_position)
 kwargs = (dim=dim,nr_at=nr_at,nr_orb=nr_orb,size_H=size_H)
 
 
-@testset "Combine operators" begin
+false && @testset "Combine operators" begin
 
 	for i=0:3 
-		
-		Op = Operators.SpecialMirror(i, mirror_plane, atoms; kwargs...)
+	
+#		@show i mirror_plane atoms kwargs Algebra.PauliMatrix(i) 
 
-		@test Op.data ≈ kron(M,Algebra.PauliMatrix(i))
+		Op0987 = Operators.SpecialMirror(i, mirror_plane, atoms; kwargs...)
+
+		@test Op0987.data ≈ kron(M,Algebra.PauliMatrix(i))
 
 	end 
 
@@ -144,7 +148,7 @@ kwargs = (dim=dim,nr_at=nr_at,nr_orb=nr_orb,size_H=size_H)
 #		@show orb_op isa SparseArrays.AbstractSparseMatrix 
 #		@show b isa SparseArrays.AbstractSparseMatrix 
 
-		println() 
+#		println() 
 
 	end 
 
@@ -167,7 +171,7 @@ for i in 1:nr_wf
 end 
 
 
-@testset "WF" begin 
+false && @testset "WF" begin 
 
 	for psi in eachvec(P)
 
@@ -180,7 +184,7 @@ end
 println() 
 
 
-@testset "op" begin 
+false && @testset "op" begin 
 
 
 	Op = Operators.Operator(M; kwargs...)
@@ -203,7 +207,11 @@ println()
 
 	for i=0:3 
 
-		@test isreal(Operators.SpecialMirror(i, mirror_plane, atoms;  kwargs...)(P))
+		Op3 = Operators.SpecialMirror(i, mirror_plane, atoms;  kwargs...)
+
+		@show i unique(LA.eigvals(Op3.data))
+
+		@test isreal(Op3(P))
 
 	end 
 
@@ -228,7 +236,14 @@ end
 		println("\n ====== spin: $use_spin  ======= Nambu: $use_Nambu ===== \n")
 
 
+
+
+
 		hb = HoppingTerms.HamiltBasis(use_spin,use_Nambu)
+
+
+		kwargs = (dim=dim,nr_at=nr_at,nr_orb = hb.matrix_dim,
+							size_H = nr_at*hb.matrix_dim)
 
 		@show hb.spin hb.charge  
 
@@ -254,7 +269,48 @@ end
 
 		end 
 
+		println()
 
+		get_info = HoppingTerms.basis_info(hb)
+#
+#		@show HoppingTerms.representation(hb)
+#		@show get_info()
+#
+#		println()
+#
+#		@show HoppingTerms.representation(hb; spin=rand(2))
+#		@show HoppingTerms.representation(hb; spin=rand(2,2))
+#		@show get_info(;spin=2)
+#
+#		println() 
+#		
+#		@show HoppingTerms.representation(hb; Nambu=rand(2))
+#		@show HoppingTerms.representation(hb; Nambu=rand(2,2))
+#		@show get_info(; Nambu=1)
+#
+#		println()
+#
+#		@show HoppingTerms.representation(hb; spin=rand(2,2), Nambu=rand(2)) 
+#		@show HoppingTerms.representation(hb; spin=rand(2,2), Nambu=rand(2,2)) 
+#		@show get_info(; Nambu=1, spin=2)  
+#
+#		println()
+
+
+		for i = 0:3 
+			
+			@show i 
+
+			@show size(get_info(;Nambu=i))
+
+			Op637= Operators.Operator(get_info(;Nambu=i); kwargs...)
+
+			@show Op637.diag size(Op637.data) Op637.sums Op637.inds Op637.isHermitian maximum(abs, Op637.data)
+		end 
+
+
+
+		println()
 	end 
 
 

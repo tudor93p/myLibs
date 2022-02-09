@@ -2,7 +2,7 @@ module HoppingTerms
 #############################################################################
 
 import Base: <, ==, zero
-import ..LA, ..TBmodel, ..Utils
+import ..LA, ..TBmodel, ..Utils, ..Algebra
 
 export HamiltBasis, HoppingTerm
 
@@ -11,6 +11,164 @@ export HamiltBasis, HoppingTerm
 #
 #
 #---------------------------------------------------------------------------#
+
+const ORBITALS = [:spin, :Nambu]
+
+const NR_ORBITALS = 2 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function orbital_matrix(spin::AbstractMatrix{<:Number},
+												Nambu::AbstractMatrix{<:Number},
+#												other_orbitals
+												)::AbstractMatrix
+
+	kron(Nambu, spin)
+
+end 
+
+function orbital_matrix(spin::AbstractVector{<:Number},
+												Nambu::AbstractMatrix{<:Number}
+												)::AbstractMatrix
+
+	orbital_matrix(LA.Diagonal(spin), Nambu)
+
+end 
+
+
+function orbital_matrix(spin::AbstractMatrix{<:Number},
+												Nambu::AbstractVector{<:Number}
+												)::AbstractMatrix
+
+	orbital_matrix(spin, LA.Diagonal(Nambu))
+	
+end  
+
+function orbital_matrix(spin::AbstractVector{<:Number},
+												Nambu::AbstractVector{<:Number}
+												)::AbstractVector 
+
+	LA.diag(orbital_matrix(LA.Diagonal(spin), LA.Diagonal(Nambu)))
+	
+end  
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function order_orbitals(;kwargs...)::Tuple
+
+	Tuple(kwargs[orb] for orb in ORBITALS)
+
+end 
+
+function order_orbitals(default_val; kwargs...)::Tuple
+
+	Tuple(get(kwargs, orb, default_val) for orb in ORBITALS)
+
+end 
+
+#function order_orbitals(f::Function; kwargs...)
+#
+#	f((kwargs[orb] for orb in [:spin, :Nambu])...)
+#
+#end 
+#
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+function orbital_signature(orbital::Symbol, used::Bool, active::Bool=true)::Vector
+
+	used || return [1] 
+
+	orbital==:spin && return active ? [1,-1] : [1,1]
+
+	orbital==:Nambu && return active ? [1,-1] : [1,1]
+
+	error("Orbital '$orbital' not implemented")
+
+end  
+
+function basis_size(orbital::Symbol, args...)::Int 
+
+	length(orbital_signature(orbital, args...))
+
+end 
+
+function basis_size(status::Vararg{Bool,NR_ORBITALS})::Int
+	
+	prod(basis_size(ou...) for ou in zip(ORBITALS,status))
+
+end   
+
+
+function basis_size(;kwargs...)::Int 
+	
+	basis_size(order_orbitals(false; kwargs...)...)
+
+end 
+
+
+
+function orbital_signature(orbital::Symbol, used::Bool, active_orb::Symbol
+													)::Vector
+
+	orbital_signature(orbital, used, orbital==active_orb) 
+
+end 
+
+
+
+function orbital_signature_many(active_orb::Symbol,
+																status::Vararg{Bool,NR_ORBITALS}
+																)
+
+	orbital_matrix((orbital_signature(ou..., active_orb) for ou in zip(ORBITALS,status))...)
+
+end 
+
+function orbital_signature_many(active_orbital::Symbol; orbitals...)
+
+	orbital_signature_many(active_orbital,
+												 order_orbitals(false; orbitals...)...)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 struct HamiltBasis 
@@ -26,48 +184,104 @@ struct HamiltBasis
 	matrix_dim::Int
 
 
-	function HamiltBasis(spin::Bool, Nambu::Bool, args...)::HamiltBasis
-	
-		HamiltBasis(Val(spin), Val(Nambu), args...)
-	
-	end 
-	
-	
-	function HamiltBasis(spin::Val{false}, Nambu::Val{false}, args...
-											)::HamiltBasis
-	
-		new(false, false, [1], [1], 1)
-	
-	end 
-	
-	
-	function HamiltBasis(spin::Val{false}, Nambu::Val{true}, 
-											 spins::AbstractVector{Int}=[1,-1],
-											 args...
-											)::HamiltBasis
-	
-#		@assert length(spins)==2
-	
-		new(false, true, spins, [1,-1], 2)
-	
-	end 
-	
-	
-	function HamiltBasis(spin::Val{true}, Nambu::Val{false}, 
-											 args...)::HamiltBasis
-	
-		new(true, false, [1,-1], [1,1], 2)
-	
-	end 
-	
-	
-	function HamiltBasis(spin::Val{true}, Nambu::Val{true}, 
-											 args...)::HamiltBasis
-	
-		new(true, true, repeat([1,-1], outer=2), repeat([1,-1],inner=2), 4)
+	function HamiltBasis(status::Vararg{Bool,NR_ORBITALS})::HamiltBasis
 
-# equivalent to kron(Nambu, spin)
+		new(status...,
+				(orbital_signature_many(orb, status...) for orb in ORBITALS)...,
+				basis_size(status...)
+				)
 	end 
+
+	function HamiltBasis(;kwargs...)::HamiltBasis
+
+		HamiltBasis(order_orbitals(false; kwargs...)...)
+
+	end 
+
+
+#	function HamiltBasis(spin::Bool, Nambu::Bool, args...)::HamiltBasis
+#	
+#		HamiltBasis(Val(spin), Val(Nambu), args...)
+#	
+#	end 
+#	
+#	
+#	function HamiltBasis(spin::Val{false}, Nambu::Val{false}, args...
+#											)::HamiltBasis
+#
+#
+#		D = basis_size(;spin=false, Nambu=false)
+#
+#		s, n = [orbital_signature_many(orb; spin=false, Nambu=false) for orb in ORBITALS]
+#			
+#		@assert D==1 && s≈[1] && n≈[1] 
+#
+#		println("assert")
+#
+#		return new(false, false, [1], [1], 1)
+#	
+#	end 
+#	
+#	
+#	function HamiltBasis(spin::Val{false}, Nambu::Val{true}, 
+##											 spins::AbstractVector{Int}=[1,-1],
+#											 args...
+#											)::HamiltBasis
+#	
+##		@assert length(spins)==2
+#
+#		D = basis_size(;spin=false, Nambu=true)
+#
+#		spins, n = [orbital_signature_many(orb; spin=false, Nambu=true) for orb in ORBITALS]
+#	
+#		charges = [1,-1] # of the basis orbitals 
+#
+#		@assert D==2 && charges≈n
+#
+#
+#		new(false, true, spins, charges , 2)
+#	
+#	end 
+#	
+#	
+#	function HamiltBasis(spin::Val{true}, Nambu::Val{false}, 
+#											 args...)::HamiltBasis
+#	
+#
+#	spins = [1,-1]
+#	charges = [1,1] 
+#
+#	D = basis_size(;spin=true)
+#s, n = [orbital_signature_many(orb; spin=true) for orb in ORBITALS]
+#	
+#
+#		@assert D==2 && charges≈n && spins≈s 
+#
+#		new(true, false, spins, charges, 2)
+#	
+#	end 
+#	
+#	
+#	function HamiltBasis(spin::Val{true}, Nambu::Val{true}, 
+#											 args...)::HamiltBasis
+#
+#		old_spin = repeat([1,-1], outer=2)
+#		old_Nambu = repeat([1,-1],inner=2) 
+#
+#		spin_signature = orbital_matrix([1,-1], [1,1])
+#		charge_signature = orbital_matrix([1,1],[1,-1])
+#
+#		D = basis_size(;spin=true,Nambu=true)
+#
+#s, n = [orbital_signature_many(orb; spin=true,Nambu=true) for orb in ORBITALS] 
+#		@assert old_spin≈spin_signature≈s
+#		@assert old_Nambu≈charge_signature ≈n
+#		@assert length(spin_signature)==length(charge_signature)==4==D
+#
+#
+#		new(true, true, spin_signature, charge_signature, 4)
+#
+#	end 
 
 end 
 
@@ -80,6 +294,18 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function uses_orbital(basis::HamiltBasis, orbital::Symbol)::Bool 
+
+	getproperty(basis, Symbol("use_$orbital"))
+
+end 
+
+function orbital_signature(orbital::Symbol, basis::HamiltBasis, args...
+													 )::Vector 
+
+	orbital_signature(orbital, uses_orbital(basis, orbital), args...) 
+
+end 
 
 
 
@@ -315,8 +541,47 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
+
+function representation(basis::HamiltBasis, args::Vararg{Any,NR_ORBITALS}
+												)::AbstractVecOrMat
+
+	matrices = map(zip(args, ORBITALS)) do (a,orb) 
+		
+		n = basis_size(orb, basis)
+		
+		a isa Number && return fill(a, n) 
+
+		if a isa AbstractVecOrMat{<:Number}
+
+			N = isa(a, AbstractVector) ? length(a) : LA.checksquare(a)
+
+			N==1 && return fill(a[1], n)
+
+			N==n && return a 
+
+		end 
+
+		return zeros(n)
+
+	end 
+
+
+	return orbital_matrix(matrices...)
+
+end 
+
+function representation(basis::HamiltBasis; kwargs...)::AbstractVecOrMat
+
+	representation(basis, order_orbitals(hcat(1); kwargs...)...)
+
+end 
 
 #===========================================================================#
 #
@@ -374,14 +639,14 @@ function basis_info(basis::HamiltBasis)::Function
 
 						)
 
-	function get_vector(label::Union{AbstractChar,Symbol};
+	function get_info(label::Union{AbstractChar,Symbol};
 											kwargs...)::Vector{Int}
 
-		get_vector(string(label); kwargs...)
+		get_info(string(label); kwargs...)
 
 	end 
 
-	function get_vector(label::AbstractString; kwargs...)::Vector{Int}
+	function get_info(label::AbstractString; kwargs...)::Vector{Int}
 
 		@assert haskey(kw0,label) "Label '$label' not understood" 
 
@@ -395,7 +660,25 @@ function basis_info(basis::HamiltBasis)::Function
 
 	end 
 
-	return get_vector 
+	function get_info(inds::Vararg{Any,NR_ORBITALS})::AbstractVecOrMat
+
+		representation(basis, 
+									 ((isa(i,Int) && 1<=i<=3) ? Algebra.PauliMatrix(i) : 1 for i in inds)...)
+
+	end  
+
+
+
+#
+		
+	function get_info(;kwargs...)::AbstractVecOrMat 
+	
+		get_info(order_orbitals(nothing; kwargs...)...)
+
+	end 
+
+
+	return get_info 
 
 end 
 
