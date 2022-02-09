@@ -2789,10 +2789,11 @@ end
 function MirrorReflectionMatrix(Atoms::AbstractMatrix{<:Real}, 
 																Mirror_plane::Int, 
 																Mirror_position::Real;
-																tol::Float64=TOLERANCE
+																tol::Float64=TOLERANCE,
+																kwargs...
 																)::Matrix#{Float64}
 	tol2 = tol^1.7 
-	
+
 	q = selectdim(Atoms, VECTOR_AXIS, Mirror_plane) 
 
 	out = Algebra.OuterDist2(q, 2Mirror_position .- q) .< tol2 

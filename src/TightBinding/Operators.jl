@@ -1103,8 +1103,9 @@ function repeatOperator_manyOrbitals(Op::AbstractMatrix{T},
 																	nr_at::Int, nr_orb::Int, size_H::Int
 																	)::Matrix{T} where T<:Number
 
-	@assert all(isequal(nr_at), size(Op))
+#	@assert all(isequal(nr_at), size(Op))
 
+	@assert LA.checksquare(Op)==nr_at
 
 	FullOp = zeros(T, size_H, size_H)
 
@@ -1119,6 +1120,125 @@ function repeatOperator_manyOrbitals(Op::AbstractMatrix{T},
 	return FullOp
 
 end
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function combineOperators_AtOrb(
+																op_at::AbstractVector{<:Number},
+																op_orb::AbstractMatrix{<:Number},
+																args...
+																)::AbstractMatrix
+
+	combineOperators_AtOrb(LA.Diagonal(op_at), op_orb, args...)
+
+end  
+
+
+function combineOperators_AtOrb(
+																op_at::AbstractMatrix{<:Number},
+																op_orb::AbstractVector{<:Number},
+																args...
+																)::AbstractMatrix
+
+	combineOperators_AtOrb(op_at, LA.Diagonal(op_orb), args...)
+
+end 
+
+function combineOperators_AtOrb(
+																op_at::AbstractVector{<:Number},
+																op_orb::AbstractVector{<:Number},
+																args...
+																)::AbstractVector
+
+	LA.diag(combineOperators_AtOrb(LA.Diagonal(op_at), 
+																				 LA.Diagonal(op_orb),
+																				 args...))
+
+end 
+
+function combineOperators_AtOrb(
+																op_at::AbstractMatrix{<:Number},
+																op_orb::AbstractMatrix{<:Number},
+																nr_at::Int=LA.checksquare(op_at),
+																nr_orb::Int=LA.checksquare(op_orb),
+																size_H::Int=nr_at*nr_orb
+																)::AbstractMatrix
+
+	@assert nr_at==LA.checksquare(op_at) 
+	@assert nr_orb==LA.checksquare(op_orb)
+	@assert size_H==nr_at*nr_orb 
+
+	return TBmodel.combineOperators_AtOrb(op_at, op_orb)
+
+end 
+
+#	@assert LA.checksquare(op_at)==nr_at
+#	@assert LA.checksquare(op_orb)==nr_orb 
+#
+#	
+#	FullOp = zeros(promote_type(Ta,To), size_H, size_H)
+#
+#	
+#
+#	if nr_orb <= nr_at 
+#
+#		inds = TBmodel.Hamilt_indices_all(1:nr_orb, 1:nr_at; iter="orbitals")
+#
+#		for orb1 in 1:nr_orb 
+#			
+#			i = inds[orb1] 
+#
+#			FullOp[i,i] .= op_at * op_orb[orb1,orb1]
+#
+#			for orb2 in orb1+1:nr_orb 
+#
+#				j = inds[orb2]
+#
+#				FullOp[i,j] .= op_at * op_orb[orb1,orb2]
+#				FullOp[j,i] .= op_at * op_orb[orb2,orb1]
+#
+#			end 
+#
+#		end 
+#
+#	else 
+#
+#		inds = TBmodel.Hamilt_indices_all(1:nr_orb, 1:nr_at; iter="atoms")
+#
+#		for atom1 in 1:nr_at 
+#		
+#			i = inds[atom1]
+#
+#			FullOp[i,i] .= op_orb * op_at[atom1,atom1]
+#
+#			for atom2 in atom1+1:nr_at 
+#			
+#				j = inds[atom2]
+#
+#				FullOp[i,j] .= op_orb * op_at[atom1,atom2]
+#				FullOp[j,i] .= op_orb * op_at[atom2,atom1]
+#
+#			end 
+#
+#		end 
+#
+#	end 
+#
+#
+#	return FullOp
+#
+#
+#
+#
+#end 
+																
 
 
 
@@ -1246,13 +1366,54 @@ function Mirror(ax::Int, Rs::AbstractMatrix{<:Real},
 									kwargs...)::Operator
 
 	M = Lattices.MirrorReflectionMatrix(Lattices.VecsOnDim(Rs; dim=dim),
-																			ax, pos...) 
+																			ax, pos...; kwargs...)
 
 	return Operator(M, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
 
 end 
 
 
+
+
+
+function SpecialMirror(orbital_operator::AbstractVecOrMat{<:Number},
+											 ax::Int, Rs::AbstractMatrix{<:Real}, 
+								pos::Vararg{Float64}; 
+									dim::Int, nr_at::Int=size(Rs,dim),
+									nr_orb=size(orbital_operator,1),
+									kwargs...)::Operator
+
+
+	#red_orb_op = reduce_data(orbital_operator) 
+
+	#length(red_orb_op)==1 && only(red_orb_op)≈1 
+
+	atom_op = Lattices.MirrorReflectionMatrix(Lattices.VecsOnDim(Rs; dim=dim),
+																						ax, pos...; kwargs...)
+
+	return Operator(combineOperators_AtOrb(atom_op, orbital_operator,
+																				 nr_at, nr_orb), :none; 
+									dim=dim, nr_at=nr_at, nr_orb=nr_orb, kwargs...)
+
+end 
+
+function SpecialMirror(orbital_Pauli::Int, args...; kwargs...)::Operator
+
+	orbital_Pauli==0 && return Mirror(args...; kwargs...)
+
+
+	orbM = Algebra.PauliMatrix(orbital_Pauli)
+
+	(nr_at,nr_orb,size_H),enough_data = get_nratorbH(; kwargs...)
+
+	!enough_data && return SpecialMirror(orbM, args...; kwargs...)
+		
+	@assert LA.checksquare(orbM)==nr_orb 
+
+	return SpecialMirror(orbM, args...; kwargs...,
+											 nr_at=nr_at, nr_orb=nr_orb, size_H=size_H)
+
+end 
 
 
 

@@ -198,11 +198,29 @@ end
 #				
 #---------------------------------------------------------------------------#
 
-function Hamilt_indices(orbital, atom, nr_orbitals::Int)
+function Hamilt_indices(orbital::Int, atom::Int, nr_orbitals::Int)::Int
 
-	orbital .+ (atom .- 1) * nr_orbitals
+	orbital + (atom - 1) * nr_orbitals
 
 end
+
+function Hamilt_indices(orbitals::AbstractVector{<:Int}, 
+												atom::Int, nr_orbitals::Int)::Vector{Int}
+
+	Hamilt_indices.(orbitals, atom, nr_orbitals)
+
+end
+
+
+
+function Hamilt_indices(orbital::Int,
+												atoms::AbstractVector{<:Int}, 
+												nr_orbitals::Int)::Vector{Int}
+
+	Hamilt_indices.(orbital, atoms, nr_orbitals)
+
+end
+
 
 
 function Hamilt_indices_all(orbs::Utils.List, atoms::Utils.List,
@@ -210,18 +228,113 @@ function Hamilt_indices_all(orbs::Utils.List, atoms::Utils.List,
 														iter::AbstractString="atoms",flat::Bool=false
 														)::Vector
 
-  iter=="orbitals" && flat==true && println("\nWarning! The function returns flat  Hamiltonian indices by iterating over orbitals. In multi-orbital system, the order will *not* be consistent with the way the Hamiltonian is built and unexpected results will occur.\n")
+	iter=="orbitals" && flat==true && @warn "The function returns flat  Hamiltonian indices by iterating over orbitals. In multi-orbital system, the order will *not* be consistent with the way the Hamiltonian is built and unexpected results will occur.\n"
 
-  f(x) = flat ? vcat(x...) : x
+#  f(x) = flat ? vcat(x...) : x
 
-  iter == "orbitals"  && return f(map(i->Hamilt_indices(i,atoms,d0),orbs))
+#  iter == "orbitals"  && return f(map(i->Hamilt_indices(i,atoms,d0),orbs))
   
-  iter == "atoms" && return f(map(i->Hamilt_indices(orbs,i,d0),atoms))
+	inds_generator = if iter=="orbitals"  
+		
+		(Hamilt_indices(i,atoms,d0) for i in orbs)
+
+										elseif iter=="atoms"
+
+		(Hamilt_indices(orbs,i,d0) for i in atoms) 
+
+										end 
+
+
+	return flat ? vcat(inds_generator...) : collect(inds_generator)
+
+
+  
+#  iter == "atoms" && return f(map(i->Hamilt_indices(orbs,i,d0),atoms))
 
   error("'iter' should be either 'orbitals' or 'atoms'")
 
 end
 
+
+#function combineOperators_AtOrb(op_at::SpA.AbstractSparseMatrix{Ta},
+#																op_orb::AbstractMatrix{To},
+##											 )#::SpA.SparseMatrixCSC{promote_type(Ta,To)
+#												#									} 
+#												) where {Ta<:Number, To<:Number}
+#	println("sparse at")
+#
+#	nr_at = LA.checksquare(op_at)
+#	
+#	nr_orb = LA.checksquare(op_orb)
+#
+#	size_H = nr_at*nr_orb
+#
+#	FullOp = SpA.spzeros(promote_type(Ta,To), size_H, size_H)
+#
+#
+#	inds = Hamilt_indices_all(1:nr_orb, 1:nr_at; iter="atoms")
+#
+#
+#	for (i, j, v_ij) in zip(SpA.findnz(op_at)...)
+#
+#		FullOp[inds[i], inds[j]] .= op_orb * v_ij 
+#
+#	end 
+#
+#	return FullOp
+#
+#end   
+#
+#
+#
+#function combineOperators_AtOrb(op_at::AbstractMatrix{Ta},
+#																op_orb::SpA.AbstractSparseMatrix{To},
+##											 )
+#	#::SpA.SparseMatrixCSC{promote_type(Ta,To)
+#												#									} 
+#												) where {Ta<:Number, To<:Number}
+#
+#
+#	println("sparse orb")
+#
+#	nr_at = LA.checksquare(op_at)
+#	
+#	nr_orb = LA.checksquare(op_orb)
+#
+#	size_H = nr_at*nr_orb
+#
+#	FullOp = SpA.spzeros(promote_type(Ta,To), size_H, size_H)
+#
+#
+#	inds = Hamilt_indices_all(1:nr_orb, 1:nr_at; iter="orbitals")
+#
+##	I,J,V = SpA.findnz(op_orb)
+#
+#	for (i, j, v_ij) in zip(SpA.findnz(op_orb)...)
+#
+#		FullOp[inds[i], inds[j]] .= op_at * v_ij 
+#
+#	end 
+#
+#	return FullOp
+#
+##	return kron!(FullOp, op_at, op_orb)
+#
+#end   
+
+function combineOperators_AtOrb(op_at::AbstractMatrix{<:Number},
+																op_orb::AbstractMatrix{<:Number},
+																)::AbstractMatrix{<:Number} #%where {Ta<:Number, To<:Number}
+
+	kron(op_at, op_orb)
+
+#	size_H = LA.checksquare(op_at)*LA.checksquare(op_orb)
+#
+#	FullOp = zeros(promote_type(Ta,To), size_H, size_H)
+#
+#	return kron!(FullOp, op_at, op_orb)
+
+end  
 
 
 

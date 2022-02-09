@@ -65,7 +65,8 @@ struct HamiltBasis
 											 args...)::HamiltBasis
 	
 		new(true, true, repeat([1,-1], outer=2), repeat([1,-1],inner=2), 4)
-	
+
+# equivalent to kron(Nambu, spin)
 	end 
 
 end 
