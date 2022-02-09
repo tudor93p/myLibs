@@ -1246,7 +1246,7 @@ function Mirror(ax::Int, Rs::AbstractMatrix{<:Real},
 									kwargs...)::Operator
 
 	M = Lattices.MirrorReflectionMatrix(Lattices.VecsOnDim(Rs; dim=dim),
-																			ax, pos...)
+																			ax, pos...) 
 
 	return Operator(M, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
 

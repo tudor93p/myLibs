@@ -2808,7 +2808,15 @@ function MirrorReflectionMatrix(Atoms::AbstractMatrix{<:Real},
 	end 
 
 	for i=1:2 
-		@assert all(==(1),count(out;dims=i))
+
+		if any(!=(1),count(out;dims=i)) 
+
+			out .= false 
+
+			return out  
+
+		end 
+
 	end 
 
 	return out 
