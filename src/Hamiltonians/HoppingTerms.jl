@@ -12,6 +12,7 @@ export HamiltBasis, HoppingTerm
 #
 #---------------------------------------------------------------------------#
 
+
 const ORBITALS = [:spin, :Nambu]
 
 const NR_ORBITALS = 2 

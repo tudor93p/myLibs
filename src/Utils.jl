@@ -6,7 +6,7 @@ module Utils
 import ..LA 
 
 
-import Dates, Combinatorics
+import Dates, Combinatorics,Optim, Random 
 
 
 using Distributed 
@@ -14,11 +14,159 @@ using Distributed
 #using BenchmarkTools
 
 using OrderedCollections:OrderedDict
-import Random
 
 
 const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator, 
 									 Base.Iterators.Zip}
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function nr_combinations(n::Int, k::Int)::Int 
+
+	m,M = extrema((k,n-k))
+	
+	return div(prod(M+1:n), prod(1:m))
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function combine_param(free_indices::AbstractVector{<:Int}, 
+											 fixed_indices::AbstractVector{<:Int}, 
+											 fixed_param::AbstractVector{<:Real}
+											 )::Function 
+
+	n = length(free_indices)+length(fixed_indices)
+	
+
+	function combine_param_(free_param::AbstractVector{<:Real}
+													)::Vector{Float64}
+
+		param = zeros(n)  
+
+		setindex!(param, fixed_param, fixed_indices) 
+
+		setindex!(param, free_param, free_indices) 
+
+		return param  
+
+	end 
+
+end   
+
+
+
+function box_minimize_by_arg_subsets(F::Function, 
+							lower_bound::AbstractVector{<:Number},
+							upper_bound::AbstractVector{<:Number},
+							min_free::Int=1,
+							max_free::Int=length(lower_bound);
+							keep_best::Int=10,
+							nr_samples::Int=5,
+							expected_minimum::Real=0,
+							)::Matrix{Float64}
+
+	n = length(lower_bound)
+
+	@assert length(upper_bound)==n 
+
+
+
+	function record_result!(results::AbstractMatrix,
+													res0::Real,
+													param0::AbstractVector
+													)::Bool 
+
+		
+
+		for cond in (<(expected_minimum-1), >(res0))
+
+			i = findfirst(cond, results[end,:])
+
+			if i isa Int 
+			
+				@assert res0 >= expected_minimum 
+
+				results[end,i] = res0 
+	
+				results[1:n,i] = param0  
+
+				return true 
+
+			end 
+
+		end  
+
+		return false 
+
+	end 
+
+
+
+
+
+	Results = fill(expected_minimum-2.0, (n+1, keep_best))
+
+
+	for nr_free in max(1,min_free):min(n,max_free)
+
+		for free_p in reverse(collect(Combinatorics.combinations(1:n, nr_free)))
+
+			fixed_p = setdiff(1:n, free_p) 
+	
+
+			for j=1:nr_samples 
+			
+				Random.seed!(Int(round(1000time())))   
+
+				params = [Rescale(p, (lb+1e-8,ub-1e-8), (0,1)) for (p, lb, ub) in zip(rand(n),lower_bound,upper_bound)]
+
+				get_full_param = combine_param(free_p, fixed_p, params[fixed_p])
+			
+				sol = Optim.optimize(F∘get_full_param,
+																 lower_bound[free_p], 
+																 upper_bound[free_p],
+														 params[free_p])
+
+				record_result!(Results, Optim.minimum(sol), 
+											 get_full_param(Optim.minimizer(sol))) 
+
+
+			end 
+
+
+		end 
+
+	end  
+
+
+	return Results[:, intersect(sortperm(Results[end,:]),
+															findall(Results[end,:].>=expected_minimum))] 
+
+
+end 
+
+
+
+
+
+
+
 
 
 
