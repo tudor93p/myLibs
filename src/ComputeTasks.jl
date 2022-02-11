@@ -537,10 +537,24 @@ function choose_obs_i(data::AbstractDict{Tk,Tv},
 	#	!isnothing(i) && in(i,axes(K,1)) && return choose_obs_i(data, K[i])
 
 	isnothing(i) || return choose_obs_i(data, K[i])
-	
-	isa(f,AbstractString) && f=="sum" && return sum(values(data)), join(K,"+")
+
+	if isa(f,AbstractString) 
 		
-	error("Provide a valid 'k' or 'f'. 'f' must be 'last' or 'sum' or 'first'")
+		f=="sum" && return sum(values(data)), join(K,"+")
+
+		if f=="diff"
+
+			@assert length(K)==2 
+
+			k1,k2 = K 
+
+			return data[k1]-data[k2], "$k1-$k2"
+
+		end 
+
+	end 
+		
+	error("Provide a valid 'k' or 'f'. 'f' must be 'last' or 'sum' or 'diff' or 'first'")
 
 end
 
@@ -1449,7 +1463,6 @@ function init_multitask_(C::Parameters.Calculation,
 	end  
 
 
-
 	function extract_obs(d, obs::AbstractString; kwargs...)::Tuple{Function,String}
 
 		extract_obs_(getval1(obs)(getval2(d)), obs; kwargs...)
@@ -1504,6 +1517,7 @@ function init_multitask_(C::Parameters.Calculation,
 		return construct_Z_(startdict, get_obs, Data, label...)
 
 	end 
+
 
 
 
