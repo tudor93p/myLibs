@@ -51,6 +51,9 @@ function combine_param(free_indices::AbstractVector{<:Int},
 											 fixed_param::AbstractVector{<:Real}
 											 )::Function 
 
+	isempty(fixed_indices) && return identity 
+
+
 	n = length(free_indices)+length(fixed_indices)
 	
 
@@ -70,8 +73,91 @@ function combine_param(free_indices::AbstractVector{<:Int},
 end   
 
 
+function fgh_optimize(free_indices::AbstractVector{<:Int},
+											get_full_param::Function,
+											F::Function)::Tuple{Function}
+
+	(F∘get_full_param,)
+
+end 
+
+
+
+function fgh_optimize(free_indices::AbstractVector{<:Int},
+											get_full_param::Function,
+											F::Function,
+											G!::Function)::Tuple{Function,Function}
+
+	(
+	 fgh_optimize(free_indices, get_full_param, F)...,
+
+	 function g!(storage::AbstractVector{<:Real},
+							 incomplete_param::AbstractVector{<:Real}
+							 )::Nothing 
+		 
+		 G!(storage, get_full_param(incomplete_param), free_indices)
+
+		 return 
+
+	end 
+	)
+
+
+end 
+
+
+function fgh_optimize(free_indices::AbstractVector{<:Int},
+											get_full_param::Function,
+											F::Function,
+											G!::Function,
+											H!::Function)::Tuple{Function,Function,Function}
+
+	(
+	 fgh_optimize(free_indices, get_full_param, F, G!)...,
+
+	 function h!(storage::AbstractMatrix{<:Real},
+							 incomplete_param::AbstractVector{<:Real}
+							 )::Nothing 
+		 
+		 H!(storage, get_full_param(incomplete_param), free_indices)
+
+	 	return 
+
+	end 
+	)
+
+
+end 
+
 
 function box_minimize_by_arg_subsets(F::Function, 
+							lower_bound::AbstractVector{<:Number},
+																		 args...; kwargs...)
+	
+	box_minimize_by_arg_subsets([F], lower_bound, args...; kwargs...)
+
+end  
+
+function box_minimize_by_arg_subsets(F::Function, G!::Function,
+							lower_bound::AbstractVector{<:Number},
+																		 args...; kwargs...)
+	
+	box_minimize_by_arg_subsets([F,G!], lower_bound, args...; kwargs...)
+
+end  
+
+function box_minimize_by_arg_subsets(F::Function, G!::Function,
+																		 H!::Function,
+							lower_bound::AbstractVector{<:Number},
+																		 args...; kwargs...)
+	
+	box_minimize_by_arg_subsets([F,G!,H!], lower_bound, args...; kwargs...)
+
+end  
+
+
+function box_minimize_by_arg_subsets(
+							Fs::AbstractVector{<:Function}, 
 							lower_bound::AbstractVector{<:Number},
 							upper_bound::AbstractVector{<:Number},
 							min_free::Int=1,
@@ -80,6 +166,7 @@ function box_minimize_by_arg_subsets(F::Function,
 							nr_samples::Int=5,
 							expected_minimum::Real=0,
 							verbose::Bool=false,
+							kwargs...
 							)::Matrix{Float64}
 
 	n = length(lower_bound)
@@ -129,6 +216,8 @@ function box_minimize_by_arg_subsets(F::Function,
 
 
 	Results = fill(expected_minimum-2.0, (n+1, keep_best))
+	
+	verbose && println("\nInitialized results. Optimization started")
 
 
 	for nr_free in max(1,min_free):min(n,max_free)
@@ -140,7 +229,7 @@ function box_minimize_by_arg_subsets(F::Function,
 
 			for j=1:nr_samples 
 		
-				verbose && println(repeat("#",77))
+				verbose && println(repeat("#",75))
 				verbose && println("Minimizing $free_p/$n, sample $j/$nr_samples")
 
 
@@ -149,19 +238,18 @@ function box_minimize_by_arg_subsets(F::Function,
 				params = [Rescale(p, (lb+1e-8,ub-1e-8), (0,1)) for (p, lb, ub) in zip(rand(n),lower_bound,upper_bound)]
 
 				get_full_param = combine_param(free_p, fixed_p, params[fixed_p])
-			
-				sol = Optim.optimize(F∘get_full_param,
-#														 F∘get_full_param,
+		
+
+				sol = Optim.optimize(fgh_optimize(free_p, get_full_param, Fs...)...,
 																 lower_bound[free_p], 
 																 upper_bound[free_p],
-														 params[free_p])
+														 params[free_p];
+														 kwargs...)
 
 				verbose && println(sol)
 
 				success = record_result!(Results, Optim.minimum(sol), 
 											 get_full_param(Optim.minimizer(sol))) 
-
-#				verbose && println("Solution ",success ? "accepted" : "rejected")
 
 				verbose && println()
 
@@ -172,7 +260,7 @@ function box_minimize_by_arg_subsets(F::Function,
 
 	end  
 
-	verbose && println(repeat("#",77)) 
+	verbose && println(repeat("#",75),"\n") 
 
 
 	return Results[:, intersect(sortperm(Results[end,:]),
