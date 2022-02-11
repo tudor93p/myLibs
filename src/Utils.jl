@@ -79,6 +79,7 @@ function box_minimize_by_arg_subsets(F::Function,
 							keep_best::Int=10,
 							nr_samples::Int=5,
 							expected_minimum::Real=0,
+							verbose::Bool=false,
 							)::Matrix{Float64}
 
 	n = length(lower_bound)
@@ -93,8 +94,10 @@ function box_minimize_by_arg_subsets(F::Function,
 													)::Bool 
 
 		
+		for (cond,text) in zip((<(expected_minimum-1), >(res0)),
+													 ("New solution recorded",
+														"Less optimal solution replaced"))
 
-		for cond in (<(expected_minimum-1), >(res0))
 
 			i = findfirst(cond, results[end,:])
 
@@ -105,12 +108,17 @@ function box_minimize_by_arg_subsets(F::Function,
 				results[end,i] = res0 
 	
 				results[1:n,i] = param0  
+				
+				verbose && println("$text at position $i")
 
 				return true 
 
 			end 
 
 		end  
+
+
+		verbose && println("Solution rejected")
 
 		return false 
 
@@ -131,7 +139,11 @@ function box_minimize_by_arg_subsets(F::Function,
 	
 
 			for j=1:nr_samples 
-			
+		
+				verbose && println(repeat("#",77))
+				verbose && println("Minimizing $free_p/$n, sample $j/$nr_samples")
+
+
 				Random.seed!(Int(round(1000time())))   
 
 				params = [Rescale(p, (lb+1e-8,ub-1e-8), (0,1)) for (p, lb, ub) in zip(rand(n),lower_bound,upper_bound)]
@@ -139,13 +151,19 @@ function box_minimize_by_arg_subsets(F::Function,
 				get_full_param = combine_param(free_p, fixed_p, params[fixed_p])
 			
 				sol = Optim.optimize(F∘get_full_param,
+#														 F∘get_full_param,
 																 lower_bound[free_p], 
 																 upper_bound[free_p],
 														 params[free_p])
 
-				record_result!(Results, Optim.minimum(sol), 
+				verbose && println(sol)
+
+				success = record_result!(Results, Optim.minimum(sol), 
 											 get_full_param(Optim.minimizer(sol))) 
 
+#				verbose && println("Solution ",success ? "accepted" : "rejected")
+
+				verbose && println()
 
 			end 
 
@@ -153,6 +171,8 @@ function box_minimize_by_arg_subsets(F::Function,
 		end 
 
 	end  
+
+	verbose && println(repeat("#",77)) 
 
 
 	return Results[:, intersect(sortperm(Results[end,:]),
