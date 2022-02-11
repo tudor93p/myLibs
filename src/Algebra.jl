@@ -13,11 +13,6 @@ import Dierckx,FFTW#,QuadGK
 const EPSILON = 1e-20
 
 #julia> chi_improper(l,a) = (-1)^l * sin((l+1/2)a))/sin(a/2)
-#ERROR: syntax: extra token ")" after end of expression
-#Stacktrace:
-# [1] top-level scope
-#   @ none:1
-#
 #julia> chi_improper(l,a) = (-1)^l * sin((l+1/2)a)/sin(a/2)
 
 

@@ -217,7 +217,9 @@ function box_minimize_by_arg_subsets(
 
 	Results = fill(expected_minimum-2.0, (n+1, keep_best))
 	
-	verbose && println("\nInitialized results. Optimization started")
+	verbose && println("\n", join(["Function","gradient","hessian"][1:length(Fs)]," & ")," provided.\nInitialized output solution matrix. Optimization started")
+
+
 
 
 	for nr_free in max(1,min_free):min(n,max_free)
