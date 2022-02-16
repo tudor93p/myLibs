@@ -1247,8 +1247,49 @@ function init_multitask(C::Parameters.Calculation,
 end 
 
 
-	
+function add_line!(data::AbstractDict,
+									 P::UODict,
+									 k::Symbol,
+									 n::AbstractString
+									 )::Nothing 
 
+	in(n,["x","y"]) || return 
+	
+	for q in (k,string(k))
+
+		q in keys(P) || continue 
+		
+		setindex!(data, P[q], n*"line")
+
+		return 
+
+	end 
+
+	return 
+
+end 
+	
+function add_line!(data::AbstractDict,
+									 P::UODict,
+									 k::AbstractString,
+									 n::AbstractString
+									 )::Nothing
+
+	in(n,["x","y"]) || return 
+	
+	for q in (k,Symbol(k))
+
+		q in keys(P) || continue 
+		
+		setindex!(data, P[q], n*"line")
+
+		return 
+
+	end 
+
+	return 
+
+end 
 
 function init_multitask_(C::Parameters.Calculation, 
 												 internal_keys::OrderedDict,#{Symbol,Int},
@@ -1427,8 +1468,10 @@ function init_multitask_(C::Parameters.Calculation,
 		sd = Dict{String,Any}()
 		
 		for (n,k) in zip(internal_names, string.(keys(internal_keys)))
-	
-				in(n,["x","y"]) && haskey(P, k) && setindex!(sd, P[k], n*"line")
+
+			add_line!(sd, P, k, n)
+
+			#	in(n,["x","y"]) && haskey(P, k) && setindex!(sd, P[k], n*"line")
 	
 		end 
 
