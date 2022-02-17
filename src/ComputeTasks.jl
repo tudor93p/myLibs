@@ -1246,6 +1246,24 @@ function init_multitask(C::Parameters.Calculation,
 
 end 
 
+function add_line!(data::AbstractDict,
+									 P::UODict,
+									 k::Union{Symbol,AbstractString},
+									 n::Char
+									 )::Nothing 
+
+	add_line!(data, P, k, string(n))
+
+end 
+function add_line!(data::AbstractDict,
+									 P::UODict,
+									 k::Union{Symbol,AbstractString},
+									 n::Int
+									 )::Nothing 
+
+	add_line!(data, P, k, 'x'+n-1)
+
+end 
 
 function add_line!(data::AbstractDict,
 									 P::UODict,
