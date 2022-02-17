@@ -29,6 +29,71 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 #---------------------------------------------------------------------------#
 
 
+
+function mgrid_from_1D(
+											 x::AbstractVector{<:Number}, 
+											 y::AbstractVector{<:Number},
+											 extend::Bool
+											 )::NTuple{2,Matrix}
+
+	mgrid_from_1D(x,y,Val(extend))
+
+end 
+
+
+
+function mgrid_from_1D(
+											 x::AbstractVector{<:Number}, 
+											 y::AbstractVector{<:Number},
+											 ::Val{false}
+											 )::NTuple{2,Matrix}
+
+	repeat(reshape(x,:,1),1,length(y)), repeat(reshape(y,1,:),length(x),1)
+
+end 
+
+
+
+
+function mgrid_from_1D(
+											 x::AbstractVector{<:Number}, 
+											 y::AbstractVector{<:Number},
+											 ::Val{true}=Val(true)
+											 )::NTuple{2,Matrix}
+
+	mgrid_from_1D((vcat(a, a[end] + sum(diff(a))/(length(a)-1)
+											) for a in (x,y))...,
+								Val(false)) 
+
+end 
+
+function mgrid_from_1D(
+											 x::AbstractVector{<:Number}, 
+											 ::Nothing=nothing, 
+											 )::NTuple{2,Matrix}
+
+	mgrid_from_1D(x,x)
+
+end 
+
+function mgrid_from_1D(
+											 x::AbstractVector{<:Number}, 
+											 extend::Union{Bool,Val}
+											 )::NTuple{2,Matrix}
+
+	mgrid_from_1D(x,x,extend)
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 function nr_combinations(n::Int, k::Int)::Int 
 
 	m,M = extrema((k,n-k))
