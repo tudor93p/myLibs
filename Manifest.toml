@@ -840,6 +840,11 @@ git-tree-sha1 = "e0b240c9e454ad65bfa3f565acf3889826981daa"
 uuid = "67491407-f73d-577b-9b50-8179a7c68029"
 version = "0.6.18"
 
+[[PolynomialRoots]]
+git-tree-sha1 = "5f807b5345093487f733e520a1b7395ee9324825"
+uuid = "3a141323-8675-5d76-9d11-e1df1406c778"
+version = "1.0.0"
+
 [[Poppler_jll]]
 deps = ["Artifacts", "Cairo_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "JpegTurbo_jll", "Libdl", "Libtiff_jll", "OpenJpeg_jll", "Pkg", "libpng_jll"]
 git-tree-sha1 = "e11443687ac151ac6ef6699eb75f964bed8e1faa"

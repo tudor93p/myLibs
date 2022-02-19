@@ -7,7 +7,9 @@ using Test
 for f in (
 
 #"mydistrib",
-#"algebra" 
+#"algebra" ,
+ 
+"signal",
 
 #"lattices_vecs" |> pr_in
 
@@ -56,7 +58,7 @@ for f in (
 #"utils_splitws",
 #"oper" ,
 
-"mirror_oper",
+#"mirror_oper",
 
 #"bandstr" |> pr_in
 

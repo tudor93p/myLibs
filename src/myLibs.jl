@@ -20,6 +20,7 @@ include("Utils.jl")
 include("ArrayOps.jl") 
 
 include("Algebra.jl")
+include("SignalProcessing.jl")
 include("Groups.jl")
 
 
