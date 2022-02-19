@@ -109,7 +109,7 @@ end
 
 function Interp1D_knon0(x::AbstractVector{<:Real}, 
 												y::AbstractVector{<:Real}, k::Int;
-												s=0.0,
+												s::Real=0.0,
 												)::Dierckx.Spline1D 
 
 	Dierckx.Spline1D(x, y; k=k, s=s)
@@ -119,7 +119,7 @@ end
 
 function Interp1D_knon0(x::AbstractVector{<:Real}, 
 												y::AbstractVector{<:ComplexF64}, k::Int;
-												s=0.0,
+												s::Real=0.0,
 												)::Function 
 
 	f_re = Dierckx.Spline1D(x, real(y); k=k, s=s)
@@ -266,21 +266,24 @@ function identifyPeaksDips_cubicSpline(spline::Dierckx.Spline1D
 	crit_pts = criticalPoints_cubicSpline(spline, knots)   # already sorted 
 
 
-	D2neg = findall(<(0), Dierckx.derivative(spline, crit_pts, 2))
+	D2neg = if isempty(crit_pts) Int[] else 
+						
+							findall(<(0), Dierckx.derivative(spline, crit_pts, 2))
 
+					end 
 
 	peaks = Matrix{Float64}(undef, 2, length(D2neg))
 	dips = Matrix{Float64}(undef, 2, length(crit_pts)-length(D2neg)+2)
 
+  dips[1,1] = knots[1]
+  dips[1,2:end-1] = view(crit_pts, setdiff(axes(crit_pts,1), D2neg))
+  dips[1,end] = knots[end] 
+	dips[2,:] = spline(selectdim(dips,1,1)) 
 
+	
 	peaks[1,:] = view(crit_pts, D2neg) 
 
-	dips[1,1] = knots[1] 
-	dips[1,2:end-1] = view(crit_pts, setdiff(axes(crit_pts,1), D2neg))
-	dips[1,end] = knots[end]
-
-	peaks[2,:] = spline(selectdim(peaks,1,1))
-	dips[2,:] = spline(selectdim(dips,1,1))
+	isempty(peaks) || setindex!(peaks, spline(selectdim(peaks,1,1)), 2, :)
 
 	return peaks, dips 
 
@@ -298,6 +301,15 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+function peakProminences((peaks,dips)::Tuple{AbstractMatrix{<:Real},
+																						 AbstractMatrix{<:Real}}
+												 )::NTuple{3,Matrix{Float64}} 
+
+	peakProminences(peaks, dips)
+
+end 
+
+
 function peakProminences(peaks::AbstractMatrix{<:Real},
 												 dips::AbstractMatrix{<:Real}
 												 )::NTuple{3,Matrix{Float64}}
@@ -342,6 +354,35 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+#peakProminences_cubicSpline = peakProminences∘identifyPeaksDips_cubicSpline
+
+
+function peakProminences_cubicSpline(x::AbstractVector{<:Real},
+																		 y::AbstractVector{<:Real};
+																		 kwargs...)::NTuple{3,Matrix{Float64}} 
+
+	peakProminences_cubicSpline(Interp1D(x, y, 3; kwargs...))
+
+end 
+
+
+
+function peakProminences_cubicSpline(spl3::Dierckx.Spline1D
+																		 )::NTuple{3,Matrix{Float64}} 
+
+	@assert spl3.k==3 
+
+
+	peakProminences(identifyPeaksDips_cubicSpline(spl3))
+
+end 
 
 
 
