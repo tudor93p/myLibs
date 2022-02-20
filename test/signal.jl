@@ -86,6 +86,18 @@ for (s,(A1,Y1)) in enumerate(zip(eachcol(A),eachcol(Y)))
 
 	peaks, left_bases, right_bases = SignalProcessing.peakProminences(all_peaks, all_dips)
 
+	for (p,lb,rb) in [SignalProcessing.peakProminences_cubicSpline(K, A1; s=smooth),
+										SignalProcessing.peakProminences_cubicSpline(spline)
+										]
+
+		@assert p≈ peaks 
+		@assert lb ≈ left_bases
+		@assert rb ≈ right_bases
+
+
+	end 
+
+
 
 
 	for B in [left_bases,right_bases],(k,v) in eachcol(B)

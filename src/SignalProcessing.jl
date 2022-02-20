@@ -254,9 +254,17 @@ end
 #---------------------------------------------------------------------------#
 
 
+function identifyPeaksDips_cubicSpline(x::AbstractVector{<:Real},
+																		 y::AbstractVector{<:Real};
+																		 kwargs...
+																	 )::NTuple{2,Matrix{Float64}}
+
+	identifyPeaksDips_cubicSpline(Interp1D(x, y, 3; kwargs...))
+
+end  
 
 
-function identifyPeaksDips_cubicSpline(spline::Dierckx.Spline1D
+function identifyPeaksDips_cubicSpline(spline::Dierckx.Spline1D 
 																	 )::NTuple{2,Matrix{Float64}}
 
 	@assert spline.k == 3
@@ -368,7 +376,7 @@ function peakProminences_cubicSpline(x::AbstractVector{<:Real},
 																		 y::AbstractVector{<:Real};
 																		 kwargs...)::NTuple{3,Matrix{Float64}} 
 
-	peakProminences_cubicSpline(Interp1D(x, y, 3; kwargs...))
+	peakProminences(identifyPeaksDips_cubicSpline(x,y;kwargs...))
 
 end 
 
@@ -378,7 +386,6 @@ function peakProminences_cubicSpline(spl3::Dierckx.Spline1D
 																		 )::NTuple{3,Matrix{Float64}} 
 
 	@assert spl3.k==3 
-
 
 	peakProminences(identifyPeaksDips_cubicSpline(spl3))
 
