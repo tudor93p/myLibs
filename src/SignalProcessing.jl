@@ -106,15 +106,48 @@ function Interp1D_k0(x, y)::Function
 
 end 
 
+function knownerr1(E)::Bool
+
+	isa(E,ErrorException) && E.msg=="The maximal number of iterations maxit (set to 20 by the program)\nallowed for finding a smoothing spline with fp=s has been reached: s\ntoo small. There is an approximation returned but the corresponding\nweighted sum of squared residuals does not satisfy the condition\nabs(fp-s)/s < tol."
+
+end 
 
 function Interp1D_knon0(x::AbstractVector{<:Real}, 
 												y::AbstractVector{<:Real}, k::Int;
 												s::Real=0.0,
 												)::Dierckx.Spline1D 
 
-	Dierckx.Spline1D(x, y; k=k, s=s)
+	try 
+
+		return Dierckx.Spline1D(x, y; k=k, s=s) 
+
+	catch E 
+
+		knownerr1(E) || throw(E) 
+
+		for d in 0.01:0.01:1,	s_ in (s+d,s-d)
+
+			0<= s_ <=1 || continue 
+
+			try 
+			
+				@show s_ 
+
+				return Dierckx.Spline1D(x, y; k=k, s=s_) 
+
+			catch E1 
+
+				knownerr1(E1) || throw(E1) 
+
+			end 
+		
+		end 
+
+	end 
 
 end 
+
+
 
 
 function Interp1D_knon0(x::AbstractVector{<:Real}, 
