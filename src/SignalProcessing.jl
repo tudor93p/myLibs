@@ -116,36 +116,43 @@ function Interp1D_knon0(x::AbstractVector{<:Real},
 												y::AbstractVector{<:Real}, k::Int;
 												s::Real=0.0,
 												)::Dierckx.Spline1D 
-
 	try 
 
-		return Dierckx.Spline1D(x, y; k=k, s=s) 
+		return Dierckx.Spline1D(x, y; k=k, s=s)
 
 	catch E 
 
 		knownerr1(E) || throw(E) 
 
-		for d in 0.01:0.01:1,	s_ in (s+d,s-d)
-
-			0<= s_ <=1 || continue 
-
-			try 
+		for d in 0.01:0.01:1 
 			
-				@show s_ 
+			for s_ in round.(s .+ [1,-1].*(d .- rand(2)*0.01),digits=4)
 
-				return Dierckx.Spline1D(x, y; k=k, s=s_) 
+				0<= s_ <=1 || continue 
+	
+				try 
+				
+					spl = Dierckx.Spline1D(x, y; k=k, s=s_)  
+	
+					@warn "Interpolation with smoothness $s failed. Used $s_ instead"
+	
+					return spl 
+	
+				catch E1 
+	
+					knownerr1(E1) || throw(E1) 
+	
+				end 
 
-			catch E1 
-
-				knownerr1(E1) || throw(E1) 
-
-			end 
-		
+			end 		
+			
 		end 
 
 	end 
 
 end 
+
+
 
 
 
