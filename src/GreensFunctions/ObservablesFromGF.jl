@@ -530,6 +530,21 @@ function CaroliConductance(G::Function,
 end 
 
 
+function CaroliConductance(G::Function, 
+													 source::AbstractString, drain::AbstractString, 
+#													 get_SigmaS::Function, get_SigmaD::Function,
+													 VirtLeads::AbstractDict, LeadLayerSlicer::Function,
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	CaroliConductance(G, source, drain, 
+										(GreensFunctions.SelfEn_fromGDecim(VirtLeads, LeadLayerSlicer, lead, uc) for lead in (source, drain))...,
+										uc, projectors...; kwargs...)
+
+end 
+
 
 #===========================================================================#
 #
@@ -627,8 +642,20 @@ end
 
 
 
+function CaroliConductance(Gr::Function, Ga::Function,
+													 source::AbstractString, drain::AbstractString, 
+#													 get_SigmaS::Function, get_SigmaD::Function,
+													 VirtLeads::AbstractDict, LeadLayerSlicer::Function,
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::ComplexF64
 
+	CaroliConductance(Gr, Ga, source, drain,
+										(GreensFunctions.SelfEn_fromGDecim(VirtLeads, LeadLayerSlicer, lead, uc) for lead in (source, drain))...,
+										uc, projectors...; kwargs...)
 
+end 
 
 
 #===========================================================================#
@@ -641,16 +668,28 @@ function CaroliCurrent(G::Function, delta::Float64,
 											 occupation::Function, Emin::Real, Emax::Real,
 											 args...;
 											 maxevals::Int=500, 
-											 tol::Float64=1e-10, 
+											 tol::Float64=1e-8, 
 											 kwargs...)::Float64 
 
-	@assert delta>1e-10 
+	@assert delta>tol
 
 	QuadGK.quadgk(Emin, Emax; rtol=5e-5, maxevals=maxevals) do E::Real
 
 		T = CaroliConductance(G(E + im*delta), args...; kwargs...)
-
-		@assert abs(imag(T))<tol 
+#
+#		if abs(imag(T))>tol 
+#
+#			if abs(real(T))>tol 
+#
+#				@assert abs(real(T)/imag(T))<tol  
+#
+#			else 
+#
+#				error() 
+#
+#			end 
+#
+#		end 
 
 		return real(T)*occupation(E)
 
@@ -672,16 +711,16 @@ function CaroliCurrent(G::Function, delta_r::Float64, delta_a::Float64,
 											 source::AbstractString, drain::AbstractString,
 											 args...;
 											 maxevals::Int=500, 
-											 tol::Float64=1e-10, 
+											 tol::Float64=1e-8, 
 											 kwargs...)::Float64 
 
 	source==drain && return CaroliCurrent(G, delta_r, occupation, Emin, Emax,
 																				source, drain, args...; 
 																				maxevals=maxevals, tol=tol, kwargs...)
 
-	@assert delta_r>1e-10 
+	@assert delta_r>tol
 
-	@assert abs(delta_a)>1e-10 
+	@assert abs(delta_a)>tol
 
 	dr = im*delta_r
 	
@@ -694,7 +733,7 @@ function CaroliCurrent(G::Function, delta_r::Float64, delta_a::Float64,
 													source, drain, 
 													args...; kwargs...)
 
-		@assert abs(imag(T))<tol 
+#		@assert abs(imag(T))<tol  (E,imag(T))
 
 		return real(T)*occupation(E)
 
@@ -715,7 +754,7 @@ function CaroliCurrent(G::Function, delta_r::Float64, delta_a::Float64,
 											 occupation::Function,
 											 source::AbstractString, args...;
 											 Emin::Real=-10, Emax::Real=10,
-											 tol::Float64=1e-10, kwargs...)::Float64 
+											 tol::Float64=1e-8, kwargs...)::Float64 
 
 	Elim = Utils.relevant_subinterval(occupation, Emin, Emax; tol=tol)
 	
@@ -732,7 +771,7 @@ function CaroliCurrent(G::Function, delta_r::Float64,
 											 occupation::Function,
 											 source::AbstractString, args...;
 											 Emin::Real=-10, Emax::Real=10,
-											 tol::Float64=1e-10, kwargs...)::Float64 
+											 tol::Float64=1e-8, kwargs...)::Float64 
 
 	Elim = Utils.relevant_subinterval(occupation, Emin, Emax; tol=tol)
 	

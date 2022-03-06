@@ -2,9 +2,23 @@ import myLibs:ObservablesFromGF ,Algebra, GreensFunctions, QuantumMechanics
 
 leads = ["A", "B"]
 
+function LeadLayerSlicer(L::AbstractString, uc...)
+
+	(L=="A" ? "LeftLead" : "RightLead",1), (Colon(),)
+
+end  
+
+
 widths = Dict(L=>rand(10:20) for L in leads)
 
-SE = Dict(L=>rand(ComplexF64,widths[L],widths[L]) for L in leads)
+VirtLeads = Dict( Symbol(LeadLayerSlicer(L)[1][1])=>Dict(:intercell=>[rand(ComplexF64,w,w)]) for (L,w) in widths)
+
+
+
+#SE = Dict(L=>rand(ComplexF64,widths[L],widths[L]) for L in leads)
+
+
+
 
 GF = Dict((L1,L2) => rand(ComplexF64,widths[L1],widths[L2]) for L1 in leads for L2 in leads)
 
@@ -35,6 +49,8 @@ function GA(args...; kwargs...)::Matrix
 	error() 
 
 end 
+
+SE = Dict(L=>GreensFunctions.SelfEn_fromGDecim(VirtLeads, LeadLayerSlicer, L, 1)(G) for L in leads)
 
 function get_SE(L::AbstractString, args...)::Matrix
 
@@ -100,7 +116,9 @@ for L1 in leads
 		@test ccL2≈CC(G, get_SE, L1, L2)
 
 		@test ccL2≈CC(G, L1, L2, get_SEsd(L1), get_SEsd(L2), 1)
-
+		
+		@test ccL2≈CC(G, L1, L2, VirtLeads, LeadLayerSlicer, 1)
+		
 		L2==L1 && @test ccL1 ≈ ccL2 
 
 	end 
@@ -108,7 +126,6 @@ for L1 in leads
 end 
 
 end  
-
 
 
 
@@ -131,6 +148,8 @@ for L1 in leads
 		@test ccGG≈CC(G,GA, SE[L1], SE[L2], L1, L2, 1) 
 
 		@test ccGG≈CC(G, GA, L1, L2, get_SEsd(L1), get_SEsd(L2), 1)
+		
+		@test ccGG≈CC(G, GA, L1, L2, VirtLeads, LeadLayerSlicer, 1)
 
 		L2==L1 && @test ccL1 ≈ ccGG
 
@@ -186,6 +205,8 @@ for L1 in leads, L2 in leads
 	
 		@test i≈CCi(fG, deltas..., FD(0.1), FDH(0.3)∘-, L1, L2, get_SEsd(L1), get_SEsd(L2), 1)
 		
+		@test i≈CCi(fG, deltas..., FD(0.1), FDH(0.3)∘-, L1, L2, VirtLeads, LeadLayerSlicer, 1)
+		
 	end  
 
 end 
@@ -199,19 +220,6 @@ end
 
 println() 
 
-VirtLeads = Dict(
-								 :RightLead=>Dict(:intercell=>[
-											rand(ComplexF64,widths["B"],widths["B"])]),
-								 :LeftLead=>Dict(:intercell=>[
-											rand(ComplexF64,widths["A"],widths["A"])])
-								 )
-
-
-function LeadLayerSlicer(L::AbstractString, uc...)
-
-	(L=="A" ? "LeftLead" : "RightLead",1), (Colon(),)
-
-end 
 
 
 for L in leads

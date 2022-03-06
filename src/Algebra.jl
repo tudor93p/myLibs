@@ -665,7 +665,7 @@ end
 
 function Cofactor(A::AbstractMatrix{T},row::Int,col::Int)::T where T
 
-  (-1)^(col + row) * LA.det(A[axes(A,1).!=row,axes(A,2).!=col])
+	(-1)^(col + row) * LA.det(view(A, axes(A,1).!=row, axes(A,2).!=col))
 
 end
 
