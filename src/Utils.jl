@@ -21,6 +21,97 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function extend_limits((m,M)::Tuple{Real,Real}, args...)::Vector{Float64}
+
+	extend_limits(m, M, args...)
+
+end 
+
+
+function extend_limits(m::Real,M::Real,amount::Real=0.04
+											)::Vector{Float64} 
+
+	@assert amount>=0 
+
+	pad = (M-m)*amount/2
+
+	return [m-pad, M+pad]
+
+end 
+
+function extend_limits(A::AbstractArray, args...)::Vector{Float64}
+
+	@assert !isempty(A) 
+
+	length(A)==1 && return [A[1],A[1]]
+
+	length(A)==2 && return extend_limits(A..., args...)
+
+	return extend_limits(extrema(A), args...)
+
+end 
+
+function relevant_subinterval(f::Function,
+															X::AbstractVector{<:Real};
+															tol::Float64=1e-10,
+															kwargs...
+															)::Union{Nothing,Vector{Int}}
+
+	vals = [abs(f(x)) for x in X]
+
+	vmax = maximum(abs, vals) 
+
+	vmax<tol && return nothing 
+
+
+	start = findfirst(>(tol*vmax), vals)
+
+	isnothing(start) && return nothing 
+
+	return [max(1,start-1), min(length(X), findlast(>(tol*vmax), vals)+1)]
+
+end 
+
+
+function relevant_subinterval(f::Function, a::Real, b::Real, N::Int=500;
+															kwargs...
+					)::Union{Nothing,Vector{Float64}}
+
+	X = LinRange(a, b, N)
+
+	iab = relevant_subinterval(f, X; kwargs...)
+
+	isnothing(iab) && return nothing 
+
+	start,stop = iab 
+
+	a1,a2 = X[start:start+1]
+
+	b1,b2 = X[stop-1:stop]
+
+	n = max(50, Int(round(N*(b2-a1)/(b-a)))) 
+
+	X = vcat(LinRange(a1,a2,n), LinRange(b1,b2,n))
+
+	return X[relevant_subinterval(f, X; kwargs...)]
+
+
+end  
+
+
+
+
+
+
+
+
 
 #===========================================================================#
 #

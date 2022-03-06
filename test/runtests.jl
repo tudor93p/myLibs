@@ -4,12 +4,18 @@ using Revise
 using Test  
 
 
-for f in (
+for f in [
 
 #"mydistrib",
 #"algebra" ,
  
-"signal",
+#"signal",
+#
+#
+#"identify_sectors", 
+#
+#
+"caroli_cond_methods"
 
 #"lattices_vecs" |> pr_in
 
@@ -69,7 +75,7 @@ for f in (
 
 #"param2",
 
-)
+]
 
 	println("\n********* $f ********* \n")
 

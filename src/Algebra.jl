@@ -1065,6 +1065,7 @@ Heaviside = myDistrib("Float64(x>=w)")
 #Rectangle = myDistrib("Float64(-w/2<=x<=w/2)")
 Rectangle = myDistrib("Float64(-w<=x<=w)")
 
+FermiDirac = myDistrib("1/(exp(x/w)+1)")
 
 
 #===========================================================================#

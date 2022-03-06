@@ -77,36 +77,74 @@ SelfEn(args...)::Matrix = sum(SelfEn.(args))
 			#	if more than one tuple is give
 
 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+lead_dir(::Val{:LeftLead})::String = "left"
+lead_dir(::Val{:RightLead})::String = "right"
+lead_dir(L::AbstractString)::String = lead_dir(Val(Symbol(L)))
+
+
+function inter_i_dir(VirtLeads::AbstractDict,
+										 LeadLayerSlicer::Function,
+										 k::AbstractString,
+										 uc::Int=1
+										 )::Tuple{Matrix, Int, String}
+
+	(K,i),slice = LeadLayerSlicer(k,uc)
+		
+	inter = VirtLeads[Symbol(K)][:intercell][min(i,end)]
+
+	return (Matrix(view(inter, slice..., slice...)'), i+1, lead_dir(K)) 
+
+end 
+
+
+
 function SelfEn_fromGDecim(G::Function, 
 													 VirtLeads::AbstractDict, 
 													 LeadLayerSlicer::Function
 													 )::Function
 
-	function self_en(k,i::Int=1)::Matrix
+	function self_en(k::AbstractString, uc::Vararg{Int})::Matrix
 
-		(K,i),slice = LeadLayerSlicer(k,i)
+		U,i,dir =  inter_i_dir(VirtLeads, LeadLayerSlicer, k, uc...)
 
-		inter = VirtLeads[typeof(first(keys(VirtLeads)))(K)][:intercell]
+		return SelfEn(U, G(k, i; dir=dir))
 
-		dir = if K=="LeftLead" 
-			
-			"left"
-			
-					elseif K=="RightLead"
-						
-			"right"
-
-					end 
-
-
-		return SelfEn(inter[min(i,end)]'[slice...,slice...],
-																	G(string(k),i+1,dir=dir)
-																		)
 	end
-
 
 end 
 
+
+function SelfEn_fromGDecim(VirtLeads::AbstractDict,
+													 LeadLayerSlicer::Function,
+													 k::AbstractString,
+													 uc::Vararg{Int},
+													 )::Function 
+
+	U,i,dir = inter_i_dir(VirtLeads, LeadLayerSlicer, k, uc...)
+
+	return function self_en(G::Function)::Matrix{ComplexF64}
+		
+		GreensFunctions.SelfEn(U, G(k, i; dir=dir))
+
+	end 
+
+end 
+
+
+
+function DecayWidth_fromGDecim1(args...)::Function 
+
+	GreensFunctions.DecayWidth∘SelfEn_fromGDecim(args...)
+
+end 
 
 #===========================================================================#
 #

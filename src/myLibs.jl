@@ -24,6 +24,8 @@ include("SignalProcessing.jl")
 include("Groups.jl")
 
 
+include("QuantumMechanics.jl")
+
 include("Parameters.jl")
 include("ComputeTasks.jl")
 

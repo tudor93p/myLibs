@@ -1,10 +1,12 @@
 module ObservablesFromGF
+#############################################################################
 
-
+import QuadGK
 
 import ..LA
 
-import ..GreensFunctions, ..Utils, ..Algebra, ..Operators, ..LayeredSystem, ..ArrayOps
+import ..Utils, ..Algebra, ..ArrayOps
+import ..Operators, ..GreensFunctions, ..LayeredSystem
 
 
 #===========================================================================#
@@ -303,134 +305,17 @@ function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 end 
 
 
-function CaroliConductance(G::Function, get_SE::Function,
-													 source::AbstractString, drain::AbstractString, 
-													 projectors::Vararg{Function};
-													 kwargs...
-													 )::Float64 
 
-	CaroliConductance(G, get_SE, source, drain, 1, projectors...; kwargs...)
-
-end 
-
-
-function CaroliConductance(G::Function, get_SE::Function,
-													 source::AbstractString, drain::AbstractString, 
-													 uc::Int,
-													 projectors::Vararg{Function};
-													 kwargs...
-													 )::Float64
-	
-	source==drain && return CaroliConductance(G, get_SE, source, uc, 
-																						projectors...; kwargs...)
-
-	
-	SigmaS = get_SE(source, uc)
-
-	test_CaroliConductance(G(source, uc, source, uc), SigmaS; kwargs...)
-
-
-	return CaroliConductance(G(source, uc, drain, uc),
-													 GreensFunctions.DecayWidth(SigmaS),
-													 GreensFunctions.DecayWidth(get_SE(drain, uc)),
-													 projectors...;
-													 kwargs...)
-end 
-
-
-
-function CaroliConductance(G::Function, get_SE::Function,
-													 lead::AbstractString, 
-													 projectors::Vararg{Function};
-													 kwargs...
-													 )::Float64
-
-	CaroliConductance(G, get_SE, lead, 1, projectors...; kwargs...)
-
-end 
-
-
-function CaroliConductance(G::Function, get_SE::Function,
-													 lead::AbstractString, uc::Int,
-													 projectors::Vararg{Function};
-													 kwargs...
-													 )::Float64
-
-	g = G(lead, uc) 
-	
-	Sigma = get_SE(lead, uc)
-
-	test_CaroliConductance(g, Sigma; kwargs...) 
-
-	return CaroliConductance(g, 
-													 GreensFunctions.DecayWidth(Sigma),
-													 projectors...; kwargs...) 
-
-end  
-
-function CaroliConductance(G::AbstractMatrix, 
-													 gamma::AbstractMatrix, 
-													 projectors::Vararg{Function};
-													 kwargs...)::Float64 
-
-	CaroliConductance(G, gamma, gamma, projectors...; kwargs...)
-
-end 
-
-
-function CaroliConductance(Gr::Function, Ga::Function,
-														get_SE::Function,
-														source::AbstractString, drain::AbstractString, 
-													 projectors::Vararg{Function};
-														kwargs...
-														)::ComplexF64
-
-	CaroliConductance(Gr, Ga, get_SE, source, drain, 1,
-										projectors...; kwargs...)
-end 
-
-function CaroliConductance(Gr::Function, Ga::Function,
-														get_SE::Function,
-														source::AbstractString, drain::AbstractString, 
-														uc::Int,
-													 projectors::Vararg{Function};
-														kwargs...
-														)::ComplexF64
-
-	source==drain && return CaroliConductance(Gr, get_SE,
-																						source, uc, projectors...;
-																						kwargs...)
-
-	gSD_ret = Gr(source, uc, drain, uc) 
-
-	gDS_adv = Ga(drain, uc, source, uc) 
-
-	SigmaS = get_SE(source, uc)
-
-
-	test_Ga_Gr(gDS_adv, gSD_ret; kwargs...)
-
-	test_CaroliConductance(Gr(source, uc, source, uc), SigmaS; kwargs...)
-
-
-
-	return CaroliConductance(gSD_ret,
-													 GreensFunctions.DecayWidth(SigmaS),
-													 GreensFunctions.DecayWidth(get_SE(drain, uc)),
-													 gDS_adv,
-													 projectors...; kwargs...)
-
-end  
-
-
-
-
+#===========================================================================#
+#
+# concrete trace formula for the conductance, using the projectors, if any
+#
+#---------------------------------------------------------------------------#
 
 function CaroliConductance(gR_SD::AbstractMatrix, 
 													 gamma_source::AbstractMatrix, 
 													 gamma_drain::AbstractMatrix, 
 													 gA_DS::AbstractMatrix; 
-#													 f::Function=LA.tr
 													 )::ComplexF64
 
 	@assert LA.ishermitian(gamma_source) && LA.ishermitian(gamma_drain)
@@ -442,8 +327,9 @@ function CaroliConductance(gR_SD::AbstractMatrix,
 
 	LA.tr(gamma_source * gR_SD * gamma_drain * gA_DS) 
 
+end 
 
-end
+
 
 function CaroliConductance(G1::AbstractMatrix, 
 													 gamma_source::AbstractMatrix, 
@@ -485,6 +371,431 @@ function CaroliConductance(G::AbstractMatrix,
 end 
 
 
+function CaroliConductance(G::AbstractMatrix, 
+													 gamma::AbstractMatrix, 
+													 projectors::Vararg{Function};
+													 kwargs...)::Float64 
+
+	CaroliConductance(G, gamma, gamma, projectors...; kwargs...)
+
+end 
+
+
+#===========================================================================#
+#
+# Only retarded GF provided, only one lead 
+#
+#---------------------------------------------------------------------------#
+
+
+function CaroliConductance(G::Function, get_SE::Function,
+													 lead::AbstractString, 
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	CaroliConductance(G, get_SE(lead, 1), lead, 1, projectors...; kwargs...)
+
+end 
+
+function CaroliConductance(G::Function, get_SE::Function,
+													 lead::AbstractString, uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	CaroliConductance(G, get_SE(lead, uc), lead, uc, projectors...;
+										kwargs...)
+
+end   
+
+
+function CaroliConductance(G::Function, 
+													 lead::AbstractString, 
+													 get_Sigma::Function,
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64 
+
+	CaroliConductance(G, get_Sigma(G), lead, uc, projectors...; kwargs...)
+
+end 
+
+
+function CaroliConductance(G::Function, Sigma::AbstractMatrix{<:Number},
+													 lead::AbstractString, uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	g = G(lead, uc) 
+	
+	test_CaroliConductance(g, Sigma; kwargs...) 
+
+	return CaroliConductance(g, 
+													 GreensFunctions.DecayWidth(Sigma),
+													 projectors...; kwargs...) 
+
+end  
+
+
+
+#===========================================================================#
+#
+# Only retarded GF provided, two leads
+#
+#---------------------------------------------------------------------------#
+
+
+function CaroliConductance(G::Function, 
+													 SigmaS::AbstractMatrix, SigmaD::AbstractMatrix,
+													 source::AbstractString, drain::AbstractString, 
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+	
+	source==drain && return CaroliConductance(G, SigmaS, source, uc, 
+																						projectors...; kwargs...)
+
+	
+	test_CaroliConductance(G(source, uc, source, uc), SigmaS; kwargs...)
+
+
+	return CaroliConductance(G(source, uc, drain, uc),
+													 GreensFunctions.DecayWidth(SigmaS),
+													 GreensFunctions.DecayWidth(SigmaD),
+													 projectors...;
+													 kwargs...)
+end 
+
+
+
+function CaroliConductance(G::Function, get_SE::Function,
+													 source::AbstractString, drain::AbstractString, 
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64 
+
+	CaroliConductance(G, get_SE, source, drain, 1, projectors...; kwargs...)
+
+end  
+
+
+
+
+function CaroliConductance(G::Function, get_SE::Function,
+													 source::AbstractString, drain::AbstractString, 
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+	
+	SigmaS = get_SE(source, uc) 
+
+	source==drain && return CaroliConductance(G, SigmaS, source, uc, 
+																						projectors...; kwargs...)
+
+	test_CaroliConductance(G(source, uc, source, uc), SigmaS; kwargs...)
+
+	return CaroliConductance(G, SigmaS, get_SE(drain, uc),
+													 source, drain, uc, projectors...; kwargs...)
+
+end 
+
+
+
+
+function CaroliConductance(G::Function, 
+													 source::AbstractString, drain::AbstractString, 
+													 get_SigmaS::Function, get_SigmaD::Function,
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::Float64
+
+	if source==drain 
+
+		CaroliConductance(G, get_SigmaS(G), source, uc, projectors...; kwargs...)
+
+	else 
+
+
+		CaroliConductance(G, get_SigmaS(G), get_SigmaD(G),
+											source, drain, uc, projectors...; kwargs...)
+
+	end 
+
+end 
+
+
+
+#===========================================================================#
+#
+# Both retarded and advanced GF 
+#
+#---------------------------------------------------------------------------#
+
+
+function CaroliConductance(Gr::Function, Ga::Function,
+													 get_SE::Function,
+													 source::AbstractString, drain::AbstractString, 
+													 proj::Vararg{Function}; kwargs...
+													 )::ComplexF64
+
+	CaroliConductance(Gr, Ga, get_SE, source, drain, 1, proj...; kwargs...) 
+
+end 
+
+
+
+
+function CaroliConductance(Gr::Function, Ga::Function,
+														get_SE::Function,
+														source::AbstractString, drain::AbstractString, 
+														uc::Int,
+													 projectors::Vararg{Function};
+														kwargs...
+														)::ComplexF64
+
+	source==drain && return CaroliConductance(Gr, get_SE, source, uc, 
+																						projectors...; kwargs...)
+
+	return CaroliConductance(Gr, Ga, get_SE(source,uc), get_SE(drain,uc),
+													 source, drain, uc, projectors...; kwargs...)
+
+end  
+
+
+
+function CaroliConductance(Gr::Function, Ga::Function,
+													 SigmaS::AbstractMatrix, SigmaD::AbstractMatrix,
+													 source::AbstractString, drain::AbstractString, 
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+														)::ComplexF64
+
+	source==drain && return CaroliConductance(Gr, SigmaS, source, uc, 
+																						projectors...; kwargs...)
+
+	gSD_ret = Gr(source, uc, drain, uc) 
+	
+	gDS_adv = Ga(drain, uc, source, uc) 
+
+	test_Ga_Gr(gDS_adv, gSD_ret; kwargs...) 
+
+	test_CaroliConductance(Gr(source, uc, source, uc), SigmaS; kwargs...)
+
+	return CaroliConductance(
+												gSD_ret,
+												GreensFunctions.DecayWidth(SigmaS),
+												GreensFunctions.DecayWidth(SigmaD),
+												gDS_adv,
+												projectors...;
+												kwargs...)
+
+end 
+
+
+
+
+function CaroliConductance(Gr::Function, Ga::Function,
+													 source::AbstractString, drain::AbstractString, 
+													 get_SigmaS::Function, get_SigmaD::Function,
+													 uc::Int,
+													 projectors::Vararg{Function};
+													 kwargs...
+													 )::ComplexF64
+
+	if source==drain 
+		
+		CaroliConductance(Gr, get_SigmaS(Gr), 
+											source, uc, 
+											projectors...; kwargs...)
+
+	else 
+
+		CaroliConductance(Gr, Ga, get_SigmaS(Gr), get_SigmaD(Gr),
+											source, drain, uc, 
+											projectors...; kwargs...)
+
+	end 
+
+end 
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#	integrated current, use only retarded GF 
+#
+#---------------------------------------------------------------------------#
+
+function CaroliCurrent(G::Function, delta::Float64,  
+											 occupation::Function, Emin::Real, Emax::Real,
+											 args...;
+											 maxevals::Int=500, 
+											 tol::Float64=1e-10, 
+											 kwargs...)::Float64 
+
+	@assert delta>1e-10 
+
+	QuadGK.quadgk(Emin, Emax; rtol=5e-5, maxevals=maxevals) do E::Real
+
+		T = CaroliConductance(G(E + im*delta), args...; kwargs...)
+
+		@assert abs(imag(T))<tol 
+
+		return real(T)*occupation(E)
+
+	end[1]
+
+end 
+
+
+
+#===========================================================================#
+#
+# integrated current, use both retarded and advanced GF
+#
+#---------------------------------------------------------------------------#
+
+
+function CaroliCurrent(G::Function, delta_r::Float64, delta_a::Float64,
+											 occupation::Function, Emin::Real, Emax::Real,
+											 source::AbstractString, drain::AbstractString,
+											 args...;
+											 maxevals::Int=500, 
+											 tol::Float64=1e-10, 
+											 kwargs...)::Float64 
+
+	source==drain && return CaroliCurrent(G, delta_r, occupation, Emin, Emax,
+																				source, drain, args...; 
+																				maxevals=maxevals, tol=tol, kwargs...)
+
+	@assert delta_r>1e-10 
+
+	@assert abs(delta_a)>1e-10 
+
+	dr = im*delta_r
+	
+	da = -im*abs(delta_a)
+
+
+	return QuadGK.quadgk(Emin, Emax; rtol=5e-5, maxevals=maxevals) do E 
+
+		T = CaroliConductance(G(E + dr), G(E + da),
+													source, drain, 
+													args...; kwargs...)
+
+		@assert abs(imag(T))<tol 
+
+		return real(T)*occupation(E)
+
+	end[1]
+
+end 
+
+
+
+#===========================================================================#
+#
+# integrated current, figure out limits first
+#
+#---------------------------------------------------------------------------#
+
+
+function CaroliCurrent(G::Function, delta_r::Float64, delta_a::Float64,
+											 occupation::Function,
+											 source::AbstractString, args...;
+											 Emin::Real=-10, Emax::Real=10,
+											 tol::Float64=1e-10, kwargs...)::Float64 
+
+	Elim = Utils.relevant_subinterval(occupation, Emin, Emax; tol=tol)
+	
+	isnothing(Elim) && return 0 
+
+	return CaroliCurrent(G, delta_r, delta_a, 
+											 occupation, Utils.extend_limits(Elim, 0.1)...,
+											 source, args...; 
+											 tol=tol, kwargs...)
+end 
+
+
+function CaroliCurrent(G::Function, delta_r::Float64, 
+											 occupation::Function,
+											 source::AbstractString, args...;
+											 Emin::Real=-10, Emax::Real=10,
+											 tol::Float64=1e-10, kwargs...)::Float64 
+
+	Elim = Utils.relevant_subinterval(occupation, Emin, Emax; tol=tol)
+	
+	isnothing(Elim) && return 0 
+
+	return CaroliCurrent(G, delta_r, 
+											 occupation, Utils.extend_limits(Elim, 0.1)...,
+											 source, args...; 
+											 tol=tol, kwargs...)
+
+end 
+
+
+
+#===========================================================================#
+#
+# difference of Fermi-Dirac distributions 
+#
+#---------------------------------------------------------------------------#
+
+
+function FDdiff(FD_source::Function, FD_drain::Function)::Function
+
+	occup(E::Real)::Float64 = FD_source(E)-FD_drain(E)
+		
+	function occup(E::AbstractVector{<:Real})::Vector{Float64} 
+		
+		out = FD_source(E) 
+
+		out -= FD_drain(E) 
+
+		return out 
+
+	end 
+
+	return occup
+
+end 
+
+
+
+function CaroliCurrent(G::Function, delta_r::Float64, delta_a::Float64, 
+											 occup_source::Function, occup_drain::Function,
+											 arg1::Union{AbstractString,Real},
+											 args...; kwargs...) 
+
+	CaroliCurrent(G, delta_r, delta_a, 
+								FDdiff(occup_source, occup_drain),
+								arg1, args...; kwargs...)
+end 
+
+
+function CaroliCurrent(G::Function, delta::Float64, 
+											 occup_source::Function, occup_drain::Function,
+											 arg1::Union{AbstractString,Real},
+											 args...; kwargs...)
+
+	CaroliCurrent(G, delta,
+								FDdiff(occup_source, occup_drain),
+								arg1, args...; kwargs...)
+
+end 
+
 
 
 #===========================================================================#
@@ -501,6 +812,16 @@ end
 
 
 
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 function FanoFactor2(G::Function, get_SE::Function,
 														source, drain, uc::Int;
