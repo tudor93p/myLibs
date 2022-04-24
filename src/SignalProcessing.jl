@@ -197,10 +197,10 @@ function Interp1D(x, y, k::Int, X; kwargs...)
 end
 
 
-function LinearInterp1D(y1::AbstractArray{T1,N}, 
-												y2::AbstractArray{T2,N},
+function LinearInterp1D(y1::AbstractArray{T1,N} where T1<:Number, 
+												y2::AbstractArray{T2,N} where T2<:Number,
 												x1::Real=0, x2::Real=1
-												)::Function where {T1<:Number,T2<:Number,N} 
+												)::Function where N
 
 	x1>x2 && return LinearInterp1D(y2, y1, x2, x1)
 
@@ -208,7 +208,7 @@ function LinearInterp1D(y1::AbstractArray{T1,N},
 
 	slope = y2 - y1 
 
-	T = typeof(0.1*slope[1])
+	T = typeof(0.1*sum(slope))
 
 	return function lin_interp_1D(x::Real)::Array{T,N} 
 
@@ -217,9 +217,6 @@ function LinearInterp1D(y1::AbstractArray{T1,N},
 	end 
 
 end 
-
-
-
 
 
 #===========================================================================#

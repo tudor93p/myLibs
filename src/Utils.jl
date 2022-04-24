@@ -28,6 +28,157 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 #---------------------------------------------------------------------------#
 
 
+@inline tuplejoin(x::Tuple)::Tuple = x
+@inline tuplejoin(x::Tuple, y::Tuple)::Tuple = (x..., y...)
+@inline tuplejoin(x::Tuple, y::Tuple, z...)::Tuple = tuplejoin(tuplejoin(x, y), z...)
+
+
+
+
+
+function has_disjoint_pairs(f::Function, 
+														iter1::List,#AbstractVector,
+														iter2::List,#AbstractVector,
+														data...
+														)::Bool
+
+	length(iter1)==length(iter2) || return false 
+
+
+	recognized = falses(length(iter2)+1) 
+
+
+
+
+	for (i,t1) in enumerate(iter1)
+
+		recognized[end] = false 
+
+		for (j,t2) in enumerate(iter2)
+
+			if !recognized[j] && f(t1, t2, data...)
+
+				recognized[j] = true  
+
+				recognized[end] = true
+
+				break  
+
+			end 
+
+		end 
+
+		recognized[end] || return false 
+
+	end 
+
+	return true 
+
+end 
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+	
+
+
+function find_degen(same_item::Function,
+										get_item::Function,
+										n::Int,
+										data...
+										)::Tuple{Vector{Int}, Vector{Vector{Int}}}
+
+	checked = falses(n) 
+
+	degen = zeros(Int, n) 
+
+
+
+	for i in 1:n 
+
+		checked[i] && continue 
+
+		checked[i] = true 
+
+		degen[i] = i
+
+		for j in i+1:n 
+
+			same_item(get_item(data...,i), get_item(data...,j)) || continue 
+
+			@assert !checked[j]  
+
+			checked[j] = true  
+
+			degen[j] = i 
+
+		end 
+
+	end 
+
+	return Unique(degen; sorted=true, inds=:all)
+
+
+
+end  
+
+function find_degen(#same_item::Function,
+										get_item::Function,
+										n::Int,
+										data...
+										)::Tuple{Vector{Int}, Vector{Vector{Int}}}
+
+	find_degen(==, get_item, n, data...)
+
+end 
+
+function find_degen(
+										get_item::Function,
+										data::Union{Tuple,AbstractVector}
+										)::Tuple{Vector{Int}, Vector{Vector{Int}}}
+
+	find_degen(get_item, length(data), data)
+
+end 
+
+function find_degen(data::Union{Tuple,AbstractVector}
+										)::Tuple{Vector{Int}, Vector{Vector{Int}}}
+
+	find_degen(getindex, data)
+
+end 
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 function extend_limits((m,M)::Tuple{Real,Real}, args...)::Vector{Float64}
 
 	extend_limits(m, M, args...)

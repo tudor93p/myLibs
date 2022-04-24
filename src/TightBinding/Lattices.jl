@@ -370,20 +370,18 @@ end
 Base.getindex(latt::Lattice, kind::Symbol) = getproperty(latt, kind)
 Base.getindex(latt::Lattice, i::Int) = latt[[:Atoms,:Vacancies][i]]
 
-Base.firstindex(latt::Lattice) = :Atoms
-Base.lastindex(latt::Lattice) = :Vacancies
+Base.firstindex(latt::Lattice)::Symbol = :Atoms
+Base.lastindex(latt::Lattice)::Symbol = :Vacancies
 
-Base.length(latt::Lattice) = 2
+Base.length(latt::Lattice)::Int = 2
 
-function Base.iterate(latt::Lattice, state=(1,0))
+function Base.iterate(latt::Lattice, element::Int=1)
 
-	SV = [:Atoms, :Vacancies] 
+#	SV = [:Atoms, :Vacancies] 
 
-	element, count = state 
+	element > length(latt) && return nothing
 
-	count >= length(SV) && return nothing
-
-	return ((SV[element], latt[element]), (element + 1, count + 1))
+	return ((element==1 ? :Atoms : :Vacancies, latt[element]), element + 1)
 
 end 
 
@@ -1524,7 +1522,7 @@ end
 function parse_input_RsNs( latt::Union{Nothing,Lattice}=nothing, args...;
 													 Rs=nothing, Ns=nothing, A=nothing, 
 													 StopStart=nothing, kwargs...
-													)
+													 )::Matrix{Float64}
 
 	haskey(kwargs, :dim) && @warn "Obsolete kwarg dim"
 

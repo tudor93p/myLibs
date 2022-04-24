@@ -18,6 +18,123 @@ const EPSILON = 1e-20
 
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function linearSystem_iter!(x::AbstractVector,
+														M::AbstractMatrix,
+														N::AbstractMatrix,
+														b::AbstractVector,
+														m::Int=1
+														)::Nothing
+
+	m==0 && return
+
+	x .+= M\(N*x + b) 
+
+	return linearSystem_iter!(x,M,N,b,m-1)
+
+end 
+
+														
+function linearSystem_GaussSeidel!!(x::AbstractVector,
+																 A::AbstractMatrix,
+																 args...
+																)::Nothing #AbstractVector
+
+	x .= 0 
+
+	N = -LA.triu(A,1)
+
+	LA.tril!(A)
+
+	linearSystem_iter!(x, A, N, args...)
+
+end  
+ 
+
+function linearSystem_GaussSeidel!(x::AbstractVector,
+																 A::AbstractMatrix,
+																 args...
+																)::Nothing #AbstractVector
+
+	x .= 0
+
+	linearSystem_iter!(x, LA.LowerTriangular(A), -LA.triu(A,1), args...) 
+
+end  
+
+function linearSystem_GaussSeidel(A::AbstractMatrix{T1},
+																	b::AbstractVector{T2},
+																 args...
+															 )::Vector{promote_type(T1,T2,Float64)
+																				 } where {T1<:Number,T2<:Number}
+
+	x = Vector{promote_type(T1,T2,Float64)}(undef, length(b))
+
+	linearSystem_GaussSeidel!(x, A, b, args...)
+
+	return x
+
+end  
+
+function linearSystem_Jacobi(A::AbstractMatrix{T1},
+														 b::AbstractVector{T2},
+															 args...
+															 )::Vector{promote_type(T1,T2,Float64)
+																				 } where {T1<:Number,T2<:Number}
+
+	x = Vector{promote_type(T1,T2,Float64)}(undef, length(b))
+
+	linearSystem_Jacobi!(x, A, b, args...)
+
+	return x 
+	
+end  
+
+
+function linearSystem_Jacobi!(x::AbstractVector,
+															 A::AbstractMatrix,
+															 args...
+																)::Nothing #AbstractVector
+
+	x .= 0
+
+	M = LA.Diagonal(A)
+
+	linearSystem_iter!(x, M, M-A, args...)
+
+end  
+
+
+function linearSystem_Jacobi!!(x::AbstractVector,
+															 A::AbstractMatrix,
+															 args...,
+																)::Nothing #AbstractVector
+
+	x .= 0
+
+
+	M = copy(LA.Diagonal(A))
+
+	A .= M-A 
+
+	linearSystem_iter!(x, M, A, args...)
+
+end  
+
+
+
+
+
+
+
 #===========================================================================#
 #
 #

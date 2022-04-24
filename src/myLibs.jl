@@ -16,6 +16,9 @@ import DelimitedFiles; const DlmF = DelimitedFiles
 
 
 include("Utils.jl")
+include("CentralDiff.jl")
+include("Taylor.jl")
+
 
 include("ArrayOps.jl") 
 
