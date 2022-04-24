@@ -330,14 +330,14 @@ function eval_fct_on_mvd(data,
 												F::Function,
 												A::Union{AbstractArray{T,N1},
 																		NTuple{N1,AbstractArray{T,N}}},
-												args...
+												output_size::Union{Int, Tuple{Vararg{Int}}}, 
+												steps::Vararg{Real,N}
 												)::Array where {T<:Number,N,N1}
 
-	@assert N+1==N1 
 	@assert N in 1:2 
+	@assert N+1==N1 
 	
-	
-	out = init_array_fct_on_mvd(mvd, output_size, args...)
+	out = init_array_fct_on_mvd(output_size, A, steps...)
 
 	s = size(first(mvd_container(A)))
 
