@@ -1330,7 +1330,7 @@ function Scalar(w::Number,
 
 	@assert !isempty(terms) #&& return zero(terms)
 
-	return Scalar(w, unique(Utils.tuplejoin(fieldargs, terms)), terms)
+	return Scalar(w, unique(mapreduce(fieldargs, Utils.tuplejoin, terms)), terms)
 
 end 
 

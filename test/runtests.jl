@@ -15,7 +15,10 @@ for f in [
 #"identify_sectors", 
 #
 #
-"caroli_cond_methods"
+#"caroli_cond_methods"
+
+
+"taylor",
 
 #"lattices_vecs" |> pr_in
 

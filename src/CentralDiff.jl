@@ -16,23 +16,6 @@ const CD_P = (CartesianIndices((0:1,)), CartesianIndices((0:1,0:1)))
 const CD_S = (hcat([1,1], [-1,1]),
 							hcat([1,1,1,1], [-1,1,-1,1,], [-1,-1,1,1,]))
 
-function central_diff_PS(h::Real,s::Real
-											)::Tuple{Matrix{Int},Matrix{Int}}
-
-	(
-	hcat([0,0],	 [1,0], [0,1], [1,1]), 
-	 hcat([1,1,1,1], [-1,1,-1,1,], [-1,-1,1,1,])
-	 )
-
-end  
-
-function central_diff_PS(h::Real
-											)::Tuple{Matrix{Int},Matrix{Int}}
-
-	(hcat([0], [1]), hcat([1,1], [-1,1]))
-
-end  
-
 function central_diff_w(args::Vararg{Real,N})::Matrix{Float64} where N
 
 	#	[0.25,0.5/h,0.5/s] 
@@ -41,60 +24,12 @@ function central_diff_w(args::Vararg{Real,N})::Matrix{Float64} where N
 
 end 
 
-function central_diff_PW1(args...
-												 )::Tuple{Matrix{Int},Matrix{Float64}} 
-	
-	P,S = central_diff_PS(args...)
-
-	return P, central_diff_w(args...).*S 
-
-end 
-
-function central_diff_PW2(args...)::Tuple{Matrix{Int},Matrix{Float64}}
-	
-	P,S = central_diff_PS(args...)
-
-	return P, volume_element(args...)*S 
-
-end 
 
 function volume_element(steps::Vararg{Real})::Float64 
 
 	prod(steps; init=1.0)
 
 end 
-
-
-#===========================================================================#
-#
-# instructions to use P 
-#
-#---------------------------------------------------------------------------#
-
-function xyz_neighb( I::CartesianIndex,
-											 P::AbstractMatrix{Int},
-											 k::Int)#::Tuple{Vararg{Int}}
-			
-	CartesianIndex(Tuple(i+P[n,k] for (n,i) in enumerate(Tuple(I))))
-				
-end 
-
-
-function xyz_neighb( I::NTuple{N,Int},
-											 P::AbstractMatrix{Int},
-											 k::Int)::NTuple{N,Int} where N#{T<:Number,N}
-										
-	Tuple(I[n]+P[n,k] for n=1:N) 
-
-end 
-
-
-
-#===========================================================================#
-#
-# iter utils 
-#
-#---------------------------------------------------------------------------#
 
 
 

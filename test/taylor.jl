@@ -1,10 +1,5 @@
-import myLibs: Utils 
-#import Device: GL 
-import PyPlot,LinearAlgebra
-using Constants: VECTOR_STORE_DIM 
-import QuadGK ,Random,Combinatorics
-
-import Device: utils, Taylor 
+import myLibs: Utils,Taylor,CentralDiff
+import Random
 
 
 #===========================================================================#
@@ -38,7 +33,7 @@ function test_derivative(original, deriv, field::AbstractArray, p, k::Int, I::Ta
 
 	expstep(dx) = onehot(p, dx, I)
 
-	return utils.test_derivative(F, D, field, expstep)
+	return CentralDiff.test_derivative(F, D, field, expstep)
 
 end 
 
@@ -163,7 +158,7 @@ println("\n"); #error()
 #		@show length(ps2) 
 #		 Taylor.cumulate(ps1)
 		
-		@test utils.has_disjoint_pairs(==, ps2, ps3)
+		@test Utils.has_disjoint_pairs(==, ps2, ps3)
 
 
 #		@show Taylor.cumulate_categories(ps1)
@@ -205,7 +200,7 @@ println("\n"); #error()
 
 			d = Taylor.derivative(P1, q_)
 	
-			@test utils.test_derivative(P1, d, rand_field(P1), dx -> onehot(P1, dx, q_)) 
+			@test CentralDiff.test_derivative(P1, d, rand_field(P1), dx -> onehot(P1, dx, q_)) 
 
 			if !any(==(q_),M1)
 				
