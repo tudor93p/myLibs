@@ -145,6 +145,8 @@ function (P::MixedProduct{N})(fields::Vararg{<:AbstractArray,N}
 end 
 
 
+
+
 function (S::Scalar{N})(fields::Vararg{<:AbstractArray, N}
 													 )::Union{Float64,ComplexF64} where N 
 
@@ -161,6 +163,14 @@ function (S::Scalar{N})(fields::Vararg{<:AbstractArray, N}
 	return s*S.Weight 
 
 end 
+
+function (PPS::Union{Product,MixedProduct,Scalar})(fields::Tuple{Vararg{<:AbstractArray}})::Number 
+
+	PPS(fields...)
+
+end
+
+
 
 
 #===========================================================================#

@@ -102,6 +102,9 @@ combs(n::Int, m::Int) = rand_items(combs(n), m)
 			P1 = Taylor.Product(rand_weight(),M1)
 			
 			@test zero(P1)(rand_field(P1))≈0
+			
+			@test zero(P1)((rand_field(P1),))≈0
+
 
 
 
@@ -232,6 +235,8 @@ println("\n"); #error()
 					field = rand(ComplexF64, fill(3,Taylor.field_rank(P1))...)
 
 					@test d(field)≈d.Weight 
+					@test d((field,))≈d.Weight 
+ 
 
 				end
 
@@ -279,6 +284,7 @@ println("\n"); #error()
 
 
 			@test zero(P)(rand_field(P1),rand_field(P2))≈0
+			@test zero(P)((rand_field(P1),rand_field(P2)))≈0
 
 
 			#(P1.Weight,inds...),(P2.Weight,indscc...))
@@ -299,8 +305,11 @@ println("\n"); #error()
 			fieldcc = rand(ComplexF64, fill(3,Taylor.field_rank(P2))...)
 
 			@test P(field,fieldcc) isa Number
+			@test P((field,fieldcc)) ≈ P(field,fieldcc)
 
-			P(field,fieldcc) == P.Weight*P1(field)*P2(fieldcc)
+			@test P(field,fieldcc) == P.Weight*P1(field)*P2(fieldcc)
+			
+			@test P((field,fieldcc)) == P.Weight*P1((field,))*P2((fieldcc,))
 
 			for i=1:Taylor.nr_fields(P1)
 
@@ -394,6 +403,8 @@ println("\n"); #error()
 			a1 = prod([p(f) for (p,f) in zip(prods,fields)])
 			
 		 	A2 = P(fields...)
+
+			@test A2 ≈ P(Tuple(fields))
 
 				A1 = w*a1 
 
@@ -597,6 +608,8 @@ end
 			end 
 
 			@test zero(S)([fields[k] for k in Taylor.argnames(S)]...)≈0
+			
+			@test zero(S)(Tuple(fields[k] for k in Taylor.argnames(S)))≈0
 
 
 			z = Taylor.Scalar_(Taylor.fieldargs(S),
@@ -803,6 +816,7 @@ println("\n")
 			fs = [fields[k] for k in Taylor.argnames(S)]
 
 			@test S(fs...)*0 ≈ zero(S)(fs...)
+			@test S(Tuple(fs)) ≈S(fs...)
 
 			for (k,f) in enumerate(Taylor.fieldargs(S))
 
@@ -846,6 +860,7 @@ println("\n")
 				for (i,s) in zip(inds,scalars)
 
 					@test T[i](fs...)≈ s(fs...)
+					@test T[i](Tuple(fs))≈ s(Tuple(fs))
 
 				end 
 
