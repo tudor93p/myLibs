@@ -246,9 +246,16 @@ function RotMat(D::Int, theta::Real, Ax::Int=3; kwargs...)::Matrix{Float64}
 
 	@assert 1<=Ax<=3 "Choose 1==x, 2==y, 3==z" 
 
-	RotMat(Val(D), args...; kwargs...)
+	RotMat(Val(D), theta, Ax; kwargs...)
 
 end 
+
+function RotMat(theta::Real; kwargs...)::Matrix{Float64}
+
+	RotMat(Val(2), theta; kwargs...)
+
+end 
+
 
 
 function RotVecs(vecs::AbstractMatrix{<:Real}, 

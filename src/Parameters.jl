@@ -787,7 +787,11 @@ function typical_params_digits(usedkeys::Union{<:AbstractVector{Symbol},
 																							 <:Function},
 															 digits::ODict)::Function
 
-	(P::UODict) -> params_digits_(P, usedkeys, digits)
+	function aux235789(P::UODict)::Tuple
+		
+		params_digits_(P, usedkeys, digits)
+
+	end
 
 end
 
