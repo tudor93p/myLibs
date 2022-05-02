@@ -699,12 +699,31 @@ end
 
 #get_usedkeys(usedkeys::Nothing, args...)::Nothing = nothing 
 #
-function get_usedkeys(usedkeys::AbstractVector{<:Symbol}, 
+#function get_usedkeys(usedkeys::AbstractVector{<:Symbol}, 
+#											args...)::Vector{Symbol}
+#
+#	usedkeys
+#
+#end 
+
+function get_usedkeys(usedkeys::AbstractVector, 
 											args...)::Vector{Symbol}
 
-	usedkeys
+	out = Vector{Symbol}(undef, length(usedkeys))
+
+	for (i,k) in enumerate(usedkeys)
+
+		@assert k isa Symbol 
+		
+		out[i] = k 
+
+	end 
+
+	return out 
 
 end 
+
+
 
 
 get_usedkeys(usedkeys::Function)::Function = usedkeys
