@@ -18,7 +18,7 @@ for f in [
 #"caroli_cond_methods"
 
 
-"taylor",
+#"taylor",
 
 #"lattices_vecs" |> pr_in
 
@@ -46,6 +46,7 @@ for f in [
 #"rgf_B" |> pr_in 
 
 #"layeredsystem",
+"gf_err",
 #"gf",
 
 

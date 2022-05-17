@@ -1137,8 +1137,6 @@ else
 
 
 
-
-	
 	
 	#gA(i)::AbstractMatrix{ComplexF64} = g_("Atom",i,"A",2)
 	
@@ -1240,20 +1238,17 @@ else
 	
 	@show transpose(jx[LayerAtom[:IndsAtomsOfLayer](layer),:])
 	
-	error() 
-	
 	
 	jx_ = ObservablesFromGF.SiteTransmission(g_, 
 																					 BondHoppings,
 																		inds_DevBonds, Rs_DevBonds,
 																		self_energy_, "A",2;
-#																		f=trace_bond, 
 																		dim=1)
+
 	
+
+	error() 
 	
-	
-	
-	@assert isapprox(jx,jx_)
 	
 	PyPlot.figure(4)
 	

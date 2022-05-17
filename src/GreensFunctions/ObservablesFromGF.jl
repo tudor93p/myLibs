@@ -256,8 +256,8 @@ end
 
 
 function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
-										GaGr_check::AbstractString="warn",
-									 kwargs...)::Bool
+										GaGr_check::AbstractString="return",
+									 kwargs...)::Tuple{Bool,String}
 
 	function fmt(x::Float64)::Float64
 		
@@ -266,7 +266,7 @@ function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 	end 
 
 
-	GaGr_check in ["warn","error"] || return true 
+	@assert GaGr_check in ["warn","error","return"] #|| return true 
 
 	g2 = g2_' 
 
@@ -294,13 +294,13 @@ function test_Ga_Gr(g1::AbstractMatrix, g2_::AbstractMatrix;
 		
 			end 
 	
-			return false 
+			return (false,"Ga!=Gr'. Diff >1e-8 per elem. and >1e-7 max")
 
 		end 
 
 	end 
 
-	return true 
+	return (true,"")
 
 end 
 
@@ -1021,51 +1021,63 @@ function BondTransmission_(
 													 lead_uc::Int,
 													 Gs::Vararg{Function}
 													 ;
-													 kwargs...)::Vector{Float64}
+													 kwargs...)::Tuple{Vector{Float64},Vector{String}}
+
+	sectors = Utils.IdentifySectors(first, Bonds)
 
 	W = GreensFunctions.DecayWidth(SE_lead(lead,lead_uc))
 
 	bondT = zeros(Float64, length(Bonds))
 
-	for sector in Utils.IdentifySectors(first, Bonds)
+	errmsg = Vector{String}(undef, length(sectors))
+
+	for (i_s,sector) in enumerate(sectors)
 							# for each atom, basically, provided Bonds are sorted
 
-		BondTiJ!(sector, bondT, Hoppings, Bonds, Gs..., W, 
-						 lead, lead_uc; kwargs...)
+		errmsg[i_s] = BondTiJ!(sector, bondT, Hoppings, Bonds, Gs..., W, 
+													 lead, lead_uc; kwargs...)
 
 	end 
 
-	return bondT
+	return (bondT,errmsg)
 
 end
+
+
+
+function BondTiJ(sector::AbstractVector{Int},
+									Hoppings::AbstractVector{<:AbstractMatrix},
+									Bonds::AbstractVector{NTuple{2,Int}},
+									args...; kwargs...)::Tuple{Vector{Float64},String}
+
+	bondT = zeros(length(sector))
+
+	out = BondTiJ!(bondT, view(Hoppings, sector), view(Bonds,sector),
+					 Bonds[sector[1]][1], args...; kwargs...)
+
+	return (bondT,out)
+
+end  
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 function BondTiJ!(sector::AbstractVector{Int},
 									bondT::AbstractVector{Float64},
 									Hoppings::AbstractVector{<:AbstractMatrix},
 									Bonds::AbstractVector{NTuple{2,Int}},
-									args...; kwargs...)::Nothing 
+									args...; kwargs...)::String
 
 	BondTiJ!(view(bondT,sector), view(Hoppings, sector), view(Bonds,sector),
 					 Bonds[sector[1]][1], args...; kwargs...)
 
 end  
-
-function BondTiJ(sector::AbstractVector{Int},
-								#	bondT::AbstractVector{Float64},
-									Hoppings::AbstractVector{<:AbstractMatrix},
-									Bonds::AbstractVector{NTuple{2,Int}},
-									args...; kwargs...)::Vector{Float64}
-
-	bondT = zeros(length(sector))
-
-	BondTiJ!(bondT, view(Hoppings, sector), view(Bonds,sector),
-					 Bonds[sector[1]][1], args...; kwargs...)
-
-	return bondT
-
-end  
-
 
 function BondTiJ!(bondT::AbstractVector{Float64},
 									Hoppings::AbstractVector{<:AbstractMatrix},
@@ -1073,7 +1085,7 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 									i::Int,
 									Gr::Function, #Ga::Function,
 									SE_lead::AbstractMatrix,
-									lead...; kwargs...)::Nothing
+									lead...; kwargs...)::String
 	
 	BondTiJ!(bondT, Hoppings, Bonds, Gr("Atom",i,lead...)*SE_lead, 
 					 adjoint∘Gr∘reverse, lead...; kwargs...)
@@ -1088,13 +1100,13 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 									i::Int,
 									Gr::Function, Ga::Function,
 									SE_lead::AbstractMatrix,
-									lead...; kwargs...)::Nothing
+									lead...; kwargs...)::String 
 	
 	gr = Gr("Atom",i,lead...)
-	
-	test_Ga_Gr(gr, Ga(lead..., "Atom", i); kwargs...)
 
-	BondTiJ!(bondT, Hoppings, Bonds, gr*SE_lead, Ga, lead...; kwargs...)
+	BondTiJ!(bondT, Hoppings, Bonds, gr*SE_lead, Ga, lead...; kwargs...) 
+	
+	return test_Ga_Gr(gr, Ga(lead..., "Atom", i); kwargs...)[2]
 
 end 
 
@@ -1105,7 +1117,7 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 									Bonds::AbstractVector{NTuple{2,Int}},
 									GiW::AbstractMatrix{ComplexF64},
 									Ga::Function,
-									lead...; kwargs...)::Nothing
+									lead...; kwargs...)::String 
 
 	for (ibt, (H,(i,j))) in enumerate(zip(Hoppings,Bonds))
 
@@ -1113,26 +1125,48 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 
 	end 
 
-	return 
+	return ""
 
 end  
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 function BondTransmission(Gr::Function, 
 													Hoppings::AbstractVector{<:AbstractMatrix},
-													args...; kwargs...)::Vector{Float64}
+													args...; 
+													GaGr_check::AbstractString="return",
+													kwargs...)::Vector{Float64}
 
-	BondTransmission_(Hoppings, args..., Gr; kwargs...)
+	bondT,errmsg = BondTransmission_(Hoppings, args..., Gr; 
+																	 GaGr_check="return", kwargs...)
+
+	summarize_warn_messages(GaGr_check, errmsg) 
+
+	return bondT 
 
 end
 
 
 
 function BondTransmission(Gr::Function, Ga::Function,
-													args...; kwargs...)::Vector{Float64}
+													args...; 
+													GaGr_check::AbstractString="return",
+													kwargs...)::Vector{Float64}
 
-	BondTransmission_(args..., Gr, Ga; kwargs...)
+	bondT,errmsg = BondTransmission_(args..., Gr, Ga; 
+																	 GaGr_check="return", kwargs...)
+	
+	summarize_warn_messages(GaGr_check, errmsg) 
+
+	return bondT
 
 end
 
@@ -1145,16 +1179,76 @@ end
 #---------------------------------------------------------------------------#
 
 
+function summarize_warn_messages(warn::AbstractString,
+																 M::AbstractVector{<:AbstractString}
+																)::Vector{String}
 
+	for (msg,inds) in Utils.EnumUnique(M)
+		
+		isempty(msg) && continue 
+		
+		n = length(inds)
+		
+		out = n==1 ? msg : "[$n OCCURENCES] $msg" 
+
+		if warn=="warn"
+			
+			@warn out 
+
+		elseif warn=="error"
+
+			error(out)
+
+		end 
+		
+	end   
+
+	return M 
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function SiteTransmission(Gr::Function, Ga::Function,
+													Hoppings::AbstractVector{<:AbstractMatrix},
+													args...; 
+													GaGr_check::AbstractString="return",
+													kwargs...
+													)::Matrix{Float64}
+
+	siteT,errmsg = SiteTransmission_(Hoppings, args..., Gr, Ga; 
+																	 GaGr_check="return", kwargs...)
+
+	summarize_warn_messages(GaGr_check, errmsg)
+
+	return siteT 
+
+end 
 
 function SiteTransmission(G::Function, 
 													Hoppings::AbstractVector{<:AbstractMatrix},
-													args...; kwargs...)::Matrix{Float64}
+													args...; 
+													GaGr_check::AbstractString="return",
+													kwargs...)::Matrix{Float64}
 
-	SiteTransmission_(Hoppings, args..., G; kwargs...)
+	siteT,errmsg = SiteTransmission_(Hoppings, args..., G; 
+																	 GaGr_check="return", kwargs...)
+
+	summarize_warn_messages(GaGr_check, errmsg) 
+
+	return siteT 
 
 end
  
+
+
 
 
 
@@ -1163,23 +1257,21 @@ function addSiteTiTJ!(sector::AbstractVector{Int},
 											Hoppings::AbstractVector{<:AbstractMatrix},
 											Bonds::AbstractVector{NTuple{2,Int}},
 											RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
-											args...; kwargs...)::Nothing
+											args...; kwargs...)::String
+
+	bondT,errmsg = BondTiJ(sector, Hoppings, Bonds, args...; kwargs...)
+
+	errmsg::String 
 
 	SiteTransmission_fromBondT!(siteT,
 															view(Bonds,sector), view(RBonds, sector), 
-															BondTiJ(sector, Hoppings, Bonds, args...; 
-																			kwargs...); kwargs...)
+															bondT; kwargs...)
 
-end 
+	return errmsg
 
-function SiteTransmission(Gr::Function, Ga::Function,
-													Hoppings::AbstractVector{<:AbstractMatrix},
-													args...; kwargs...
-													)::Matrix{Float64}
+end  
 
-	SiteTransmission_(Hoppings, args..., Gr, Ga; kwargs...)
 
-end 
 
 function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 													 Bonds::AbstractVector{NTuple{2,Int}},
@@ -1190,21 +1282,27 @@ function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 													 Gs::Vararg{Function}
 													 ;
 													 dim::Int,
-													 kwargs...)::Matrix{Float64}
+													 kwargs...)::Tuple{Matrix{Float64},Vector{String}}
 
 	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
 															[2,1][dim] => length(RBonds[1][1]))
 
 	W = GreensFunctions.DecayWidth(SE_lead(lead, lead_uc))
 
-	for sector in Utils.IdentifySectors(first, Bonds)
+	sectors = Utils.IdentifySectors(first, Bonds)
 
-		addSiteTiTJ!(sector, siteT, Hoppings, Bonds, RBonds, Gs..., W, 
-								 lead, lead_uc; dim=dim, kwargs...) 
+	errmsg = Vector{String}(undef, length(sectors))
+
+
+	for (i_s, sector) in enumerate(sectors)
+
+		errmsg[i_s] = addSiteTiTJ!(sector, siteT, Hoppings, Bonds, RBonds, Gs..., 
+															 W, lead, lead_uc; dim=dim, kwargs...)
 
 	end 
 
-	return siteT
+
+	return (siteT,errmsg)
 
 end
 
@@ -1286,7 +1384,9 @@ end
 function SiteTransmission_fromBondT(BondT::AbstractVector{<:Real},
 													 Bonds::AbstractVector{NTuple{2,Int}},
 													 RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}};
-													 dim::Int)::Matrix{Float64}
+													 dim::Int,
+													 kwargs...
+													 )::Matrix{Float64}
 
 	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
 															[2,1][dim] => length(RBonds[1][1]))
@@ -1298,7 +1398,7 @@ function SiteTransmission_fromBondT(BondT::AbstractVector{<:Real},
 end
 
 function SiteTransmission_fromBondT!(siteT::AbstractMatrix{Float64},
-																		 args...; dim::Int)::Nothing 
+																		 args...; dim::Int, kwargs...)::Nothing 
 
 	for BRT in zip(args...)
 
