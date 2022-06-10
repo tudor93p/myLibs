@@ -1341,7 +1341,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function getCombinedDistrib(args; normalize=false, kwargs...) 
+function getCombinedDistrib(args; normalize::Bool=false, kwargs...) 
 
 	length(args)==1 && return getDistrib(args[1]...; normalize=normalize)
 
@@ -1374,7 +1374,7 @@ function getCombinedDistrib(args; normalize=false, kwargs...)
 end 
 
 
-function getCombinedDistribAndNorm(args; normalize=false)
+function getCombinedDistribAndNorm(args; normalize::Bool=false)
 
 	normalizedDistribAndNorm(getCombinedDistrib(args, normalize=false), 
 													 normalize)

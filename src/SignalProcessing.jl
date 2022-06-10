@@ -196,23 +196,49 @@ function Interp1D(x, y, k::Int, X; kwargs...)
 
 end
 
+function LinearInterp1D(y1::T1, y2::T2 
+												)::Function where {T1<:Number,T2<:Number}
 
-function LinearInterp1D(y1::AbstractArray{T1,N} where T1<:Number, 
-												y2::AbstractArray{T2,N} where T2<:Number,
-												x1::Real=0, x2::Real=1
-												)::Function where N
+	function lin_interp_1D(x::Real)::promote_type(T1,T2,Float64)
+
+		x<=0 && return y1 
+		x>=1 && return y2 
+
+		return y1 + (y2-y1)*x 
+
+	end 
+
+end 
+
+
+function LinearInterp1D(y1, y2, x1::Real, x2::Real)::Function 
 
 	x1>x2 && return LinearInterp1D(y2, y1, x2, x1)
 
-	x_to_01 = Interp1D([x1,x2],[0,1],1)
+	f = LinearInterp1D(y1, y2) 
+
+	x1==0 && x2==1 && return f
+
+	return f ∘ Interp1D([x1,x2],[0,1],1)
+
+
+end 
+
+
+function LinearInterp1D(y1::AbstractArray{T1,N} where T1<:Number, 
+												y2::AbstractArray{T2,N} where T2<:Number,
+												)::Function where N
 
 	slope = y2 - y1 
 
 	T = typeof(0.1*sum(slope))
 
-	return function lin_interp_1D(x::Real)::Array{T,N} 
+	return function lin_interp_1D(x::Real)::Array{T,N}
 
-		y1 + slope*x_to_01(x)
+		x<=0 && return y1 
+		x>=1 && return y2 
+
+		y1 + slope*x 
 
 	end 
 

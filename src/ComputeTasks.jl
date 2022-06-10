@@ -322,7 +322,8 @@ function missing_data(task; show_missing::Bool=false, kwargs...)
 
 	for c in notdonecombs
 
-		println(c,"\n")
+		println.(c)
+		println()
 
 	end
 	
