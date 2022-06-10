@@ -20,7 +20,7 @@ end
 
 module RR
 
-usedkeys = [:R1, :R2]
+usedkeys = [:R12345, :R2]
 
 function adjust_paramcomb(l, P...)
 
@@ -57,6 +57,9 @@ MDs = map(enumerate([QQ,RR,SS])) do (l,M)
 
 		allparams[k] = 10l .+ sort(Utils.Random_Items(1:10, 0l + rand(2:3)))
 
+		allparams[k] = Utils.flatmap(x->[-x,x,div(x,10),-div(x,10)],allparams[k])|>sort 
+
+
 		digits[k] = (2,0)
 
 	end 
@@ -72,6 +75,8 @@ function Compute(args...; get_fname::Function, kwargs...)
 #	get_fname(args...)() |> println
 
 	A = sum(sum.(values.(args))) .+  rand(2,3)
+
+	sleep(.05)
 
 	return Dict("a"=>A)
 
@@ -89,14 +94,37 @@ C = Parameters.Calculation("test_multitask",
 
 task0 = ComputeTasks.CompTask(C)
 
+
+P53 = ComputeTasks.get_rand_paramcomb(task0) 
+
+println("---")
+println("---")
+
+task0.get_data(P53...; mute=false)
+
+println("---")
+
+task0.get_data(P53...; mute=true)
+
+println("---")
+
+task0.get_data(P53...)
+
+println("---")
+println("---")
+
+
+
+
+
 for (internal, external) in (
 #														([:Q1=>1], Int[]),
-													 ([:Q1=>1], [1,2]),
-													 ([:Q1=>1, :R1=>2], [1,3]),
-#													 ([:Q1=>1, :R1=>2], [2,3]),
-#													 ([:Q1=>1, :R1=>2], [3,4]),
-#													 ([:Q1=>1, :Q2=>1,:R1=>2], [1]),
-#													 ([:Q1=>1, :Q2=>1,:R1=>2], [4]),
+#													 ([:Q1=>1], [1,2]),
+													 ([:Q1=>1, :R12345=>2], [1,3]),
+#													 ([:Q1=>1, :R12345=>2], [2,3]),
+#													 ([:Q1=>1, :R12345=>2], [3,4]),
+#													 ([:Q1=>1, :Q2=>1,:R12345=>2], [1]),
+#													 ([:Q1=>1, :Q2=>1,:R12345=>2], [4]),
 													 )
 
 #for e in [(30:40,), external, ((D::AbstractVector{<:Number})->axes(D,1),)] 
@@ -117,6 +145,8 @@ for e_ in [(rand(11),rand(7),rand(2))]#, (1,2,3), [(D::AbstractArray{<:Number})-
 
 @info string("---- ",internal," ------ ", external, " ------ ",typeof.(e))
 	
+
+
 	local out = ComputeTasks.init_multitask(C, internal,
 																					[k=>v for (k,v) in zip(external,e)],
 																					["Energy", "Atom"]
@@ -138,7 +168,8 @@ for e_ in [(rand(11),rand(7),rand(2))]#, (1,2,3), [(D::AbstractArray{<:Number})-
 #	println() 
 
 
-	P = task0.get_plotparams(rand(task0.get_paramcombs())...)
+	P = task0.get_plotparams(ComputeTasks.get_rand_paramcomb(task0)...)
+
 
 #	@show P; 	println()
 
@@ -202,4 +233,13 @@ t = ComputeTasks.init_multitask(C, [:Q1=>1], [2=>1], ["Energy"])[1]
 
 @show t.get_plotparams() 
 
-#t.get_plotparams(Dict())
+#t.get_plotparams(Dict()) 
+#
+
+t.get_data(Utils.DictFirstVals(t.get_plotparams()),fromPlot=true) 
+#t.get_data(Utils.DictFirstVals(t.get_plotparams()),fromPlot=true,mute=false)
+#t.get_data(Utils.DictFirstVals(t.get_plotparams()),fromPlot=true,mute=true)
+
+
+#@show D 
+

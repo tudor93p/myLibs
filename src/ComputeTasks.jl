@@ -375,10 +375,28 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function get_one_paramcomb(task; pick::Function)
+
+	task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
+
+end 
+
+function get_rand_paramcomb(task)
+
+	get_one_paramcomb(task; pick=Utils.DictRandVals)
+
+end 
+
+function get_first_paramcomb(task)
+
+	get_one_paramcomb(task; pick=Utils.DictFirstVals)
+
+end 
+
 function get_data_one(task, pick::Function=Utils.DictFirstVals; 
 											kwargs...)
 
-	P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
+	P = get_one_paramcomb(task; pick=pick)
 
 	return task.get_data(P...; force_comp=true, mute=true, kwargs...)
 
@@ -388,7 +406,7 @@ end
 
 function get_plot_one(task, pick::Function=Utils.DictFirstVals)
 
-	good_P = task.get_paramcombs(;repl=(l::Int,P...)->pick(P[l]))[1]
+	good_P = get_one_paramcomb(task; pick=pick)
 
 	plot_P = task.get_plotparams(good_P...)
 
@@ -583,38 +601,119 @@ function combine_files_exist(tasks::AbstractVector{CompTask})::Function
 
 end 
 
+function NTs_nice_print(NTs::AbstractVector{<:NamedTuple}
+												)::Tuple{Matrix{String},String}
 
-function combine_get_data(tasks::AbstractVector{Tuple{CompTask,String}},
-#													NTuple{N,CompTask},
-#													print_intpars::NTuple{N, AbstractString},
-#													internal_keys::AbstractVector{Symbol},
-#													internal_params#::OrderedDict=OrderedDict()
-													)::Function #where N
+	ch = [',',' ', ')','(']
 
-	max_len = maximum([length(pr_ip) for (t,pr_ip) in tasks]) 
-#	max_len = maximum(length, print_intpars) 
+	str_intpars::Matrix{String} = mapreduce(hcat, NTs) do pr_ip
 
-	max_len += 5
+		Utils.flatmap(split(strip(string(pr_ip),ch),",")) do S
 
-	function get_data(P...; samplevectors=12345, kwargs...
-										)::Vector
+			[strip(s,ch) for s in split(S, "=")]
 
-		@assert isa(samplevectors,Int)&&samplevectors==12345 "kwarg disabled"
+		end 
 
-		pr = !haskey(kwargs, :mute)  
+	end 
+	
+	max_len = maximum(length, str_intpars; dims=2)[:]
 
-		pr && println()
 
-		out = map(tasks) do (t,s)
+	for (j,S) in enumerate(eachcol(str_intpars))
 
-			pr && print("\r$s",repeat(" ",max_len-length(s))) 
+		for (i,(l,s)) in enumerate(zip(max_len,S))
+	
+			str_intpars[i,j] = repeat(" ",l-length(s))*s
 
-			return t.get_data(P...; kwargs...)
+		end 
+
+	end  
+	
+
+	out = mapreduce(hcat,eachcol(str_intpars)) do S 
+
+		s = join([join(s," = ") for s=Base.Iterators.partition(S,2)],"  |  ")
+
+		return [s,s]
+
+	end 
+
+
+	nr_progress = 78 - length(first(out)) - 5 
+
+
+	if nr_progress > 0
+
+		for (i,S) in enumerate(eachcol(out))
+	
+			ps = [(i+j-2)/size(out,2) for j=1:2]
+
+			ns = [Int(floor(nr_progress*p)) for p in ps]#(f,p) in zip([floor,round],ps)]
+
+			procs = [rstrip(rstrip(string(floor(1000p)/10),'0'),'.') for p in ps]
+
+			procs = [string(" ", 
+											isempty(proc) ? 0 : proc[1:min(5,length(proc))], 
+											"% ") for proc in procs]
+
+			nprocs = length.(procs)
+			
+			Ns = [max(n,nr_progress-n) for n in ns]
+
+			Nps = Ns - nprocs 
+
+
+			for j=1:2 
+
+				out[j,i] *= "   ["*repeat("#",ns[j])*repeat("-",nr_progress-ns[j])
+	
+				if all(Nps .>= 2)
+			
+					L = length(out[j,i]) - nr_progress  + 1 + div(Nps[j],2) + (nr_progress>2ns[j])*(ns[j] + (Nps[j]%2))
+
+					out[j,i] = string(out[j,i][1:L-1],procs[j],out[j,i][L+nprocs[j]:end]) 
+	
+				end 
+	
+				out[j,i] *= "]"
+
+			end 
+	
+		end 
+
+	end 
+
+	return out, repeat(" ",length(first(out)))
+
+end 
+
+
+function combine_get_data(tasks::AbstractVector{CompTask},
+													print_intpars::AbstractVector{<:NamedTuple},
+													)::Function 
+
+	function get_data(P...; kwargs...)::Vector
+
+		haskey(kwargs, :mute) && return [t.get_data(P...; kwargs...) for t=tasks]
+
+		println()
+
+		str_intpars,str_clean = NTs_nice_print(print_intpars)
+
+		out = map(zip(tasks,eachcol(str_intpars))) do (t,(s1,s2))
+
+			print("\r$s1")
+
+			Q = t.get_data(P...; kwargs...)
+			
+			print("\r$s2")
+
+			return Q 
 
 		end  
 
-		pr && println("\r",repeat(" ",max_len))
-		
+		println("\r$str_clean")
+
 		return out 
 
 	end  
@@ -1365,21 +1464,22 @@ function init_multitask_(C::Parameters.Calculation,
 
 	emptyP = [NamedTuple() for i=1:maximum(maximum, values(internal_keys))]
 
+	combs_int_par = combs(internal_allparams)
 
-	tasks = map(combs(internal_allparams)) do intpar  
+	tasks = Vector{CompTask}(undef,length(combs_int_par))
 
-						add_ip = init_add_internal_param(intpar) 
+	print_params = Vector{NamedTuple}(undef,length(combs_int_par))
 
-						return (
+	for (k,intpar) in enumerate(combs_int_par)
 
-						CompTask(C; 
+		add_ip = init_add_internal_param(intpar)
+
+		tasks[k] = CompTask(C; 
 										 rmv_internal_key = rmv_internal_key,
 										 add_internal_param = add_ip,
-														 ),
+														 )
 
-						string(merge((add_ip(i, emptyP...) for i=1:length(emptyP))...)),
-
-						)
+		print_params[k] = merge((add_ip(i, emptyP...) for i=1:length(emptyP))...)
 
 	end	
 					 
@@ -1395,8 +1495,8 @@ function init_multitask_(C::Parameters.Calculation,
 	 
 	multitask = CompTask(C.name, get_plotparams, 
 											 not_possib, 
-											 combine_files_exist(first.(tasks)),
-											 combine_get_data(tasks)
+											 combine_files_exist(tasks),
+											 combine_get_data(tasks,print_params)
 									 )
 
 
