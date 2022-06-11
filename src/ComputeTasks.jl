@@ -650,7 +650,9 @@ function NTs_nice_print(NTs::AbstractVector{<:NamedTuple}
 
 			ns = [Int(floor(nr_progress*p)) for p in ps]#(f,p) in zip([floor,round],ps)]
 
-			procs = [rstrip(rstrip(string(floor(1000p)/10),'0'),'.') for p in ps]
+			procs = [string(floor(1000p)/10) for p in ps]
+			
+#			procs = [rstrip(rstrip(p,'0'),'.') for p in ps]
 
 			procs = [string(" ", 
 											isempty(proc) ? 0 : proc[1:min(5,length(proc))], 
