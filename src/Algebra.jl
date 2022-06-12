@@ -156,7 +156,7 @@ function poly2roots_from3vals!(d::AbstractVector{Float64},
 
 	circshift!(d, x - d, 1)
 	
-	@assert abs(prod(d))>1e-8 
+	@assert abs(prod(d))>1e-12
 
 	d .*= y 
 
