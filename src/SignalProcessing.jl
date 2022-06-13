@@ -327,32 +327,77 @@ function identifyPeaksDips_cubicSpline(x::AbstractVector{<:Real},
 end  
 
 
+
+function findMinMax_criticalPoints(spline::Dierckx.Spline1D,
+																	 crit_pts::AbstractVector{<:Real},
+																	 )::NTuple{2,BitVector}
+
+	isempty(crit_pts) && return (Int[],Int[])
+
+	derivs = Dierckx.derivative(spline, crit_pts, 2)
+
+	i_max = falses(length(crit_pts))
+
+	i_min = falses(length(crit_pts))
+
+	for (i,d) in enumerate(derivs)
+
+		if d>=0
+
+			i_min[i] = true 
+
+		elseif i==1 || !i_max[i-1]
+
+			i_max[i] = true 
+
+		end 
+
+	end 
+
+	return i_min,i_max 
+
+end 
+
+
+function getMinMax_criticalPoints(spline::Dierckx.Spline1D,
+																	knots = Dierckx.get_knots(spline)  
+																	 )::Tuple{<:AbstractVector{<:Real},
+																						<:AbstractVector{<:Real}
+																						}
+
+	crit_pts = criticalPoints_cubicSpline(spline, knots)   # already sorted  
+
+	i_dips, i_peaks = findMinMax_criticalPoints(spline, crit_pts)
+
+	return view(crit_pts, i_dips), view(crit_pts, i_peaks)
+
+end 
+
+
 function identifyPeaksDips_cubicSpline(spline::Dierckx.Spline1D 
 																	 )::NTuple{2,Matrix{Float64}}
 
 	@assert spline.k == 3
 
-	knots = Dierckx.get_knots(spline)  
 	
-	crit_pts = criticalPoints_cubicSpline(spline, knots)   # already sorted 
+	knots = Dierckx.get_knots(spline)  
 
 
-	D2neg = if isempty(crit_pts) Int[] else 
-						
-							findall(<(0), Dierckx.derivative(spline, crit_pts, 2))
+	x_dips, x_peaks = getMinMax_criticalPoints(spline, knots)
 
-					end 
 
-	peaks = Matrix{Float64}(undef, 2, length(D2neg))
-	dips = Matrix{Float64}(undef, 2, length(crit_pts)-length(D2neg)+2)
+	peaks = Matrix{Float64}(undef, 2, length(x_peaks))
+	dips = Matrix{Float64}(undef, 2, length(x_dips)+2)
+
 
   dips[1,1] = knots[1]
-  dips[1,2:end-1] = view(crit_pts, setdiff(axes(crit_pts,1), D2neg))
+	dips[1,2:end-1] = x_dips
   dips[1,end] = knots[end] 
+
 	dips[2,:] = spline(selectdim(dips,1,1)) 
 
-	
-	peaks[1,:] = view(crit_pts, D2neg) 
+
+	peaks[1,:] = x_peaks
 
 	isempty(peaks) || setindex!(peaks, spline(selectdim(peaks,1,1)), 2, :)
 
@@ -381,6 +426,8 @@ function peakProminences((peaks,dips)::Tuple{AbstractMatrix{<:Real},
 end 
 
 
+
+
 function peakProminences(peaks::AbstractMatrix{<:Real},
 												 dips::AbstractMatrix{<:Real}
 												 )::NTuple{3,Matrix{Float64}}
@@ -389,26 +436,26 @@ function peakProminences(peaks::AbstractMatrix{<:Real},
 
 	right_bases_int = zeros(Int, size(peaks,2))
 
-
 	for (i,x) in enumerate(selectdim(peaks,1,1))
 
-		start = 1 + get(right_bases_int, i-1, 0)
+		start = max(1, get(right_bases_int, i-1, 0))
 
 		right_bases_int[i] = findnext(>(x), selectdim(dips,1,1), start)
 
 	end  
 
-
+	
 	for (i,(n,y)) in enumerate(zip(right_bases_int,selectdim(peaks,1,2)))
 
 		L = findlast(>(y), view(peaks, 2, 1:i-1)) # higher peak left  
-		L = (isnothing(L) ? 1 : right_bases_int[L], n-1) 
+		L = (isnothing(L) ? 1 : right_bases_int[L]), n-1
 
 		R = findfirst(>(y), view(peaks, 2, i+1:size(peaks,2))) # higher right
-		R = (n, isnothing(R) ? size(dips,2) : i+right_bases_int[R]-1)
+#		R = n, (isnothing(R) ? size(dips,2) : i+right_bases_int[R]-1)
+		R = n, (isnothing(R) ? size(dips,2) : right_bases_int[R+i-1])
 
 		peaks_proms[3,i] -= maximum(minimum(view(dips,2,a:b)) for (a,b) in (L,R))
-
+		
 	end 
 
 

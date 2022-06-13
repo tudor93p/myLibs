@@ -1245,7 +1245,7 @@ function IdentifySectors(list::AbstractVector{T}; kwargs...
 																							<:AbstractVector{<:Int}, 
 																							<:AbstractVector{<:Bool},
 																	}
-	IdentifySectors_(==, list)
+	IdentifySectors_customF(==, list)
 
 end 
 
@@ -1256,33 +1256,44 @@ function IdentifySectors(list::AbstractVector{T}; tol=1e-8, kwargs...
 														<:AbstractVector{<:Union{<:ComplexF64,<:Float64}},
 																	}
 
-	IdentifySectors_(fSame(tolNF(tol)[2]), list) 
+	IdentifySectors_customF(fSame(tolNF(tol)[2]), list) 
 
 end 
 
 
 
+new_sector(start::Int,j::Int)::Vector{UnitRange{Int}} = [1+start:j+start]
 
 
-function IdentifySectors_(same::Function, list::AbstractVector, 
+
+#		vcat(sectors, UnitRange{Int}[])
+
+
+
+function IdentifySectors_customF(same::Function, list::AbstractVector, 
 												 sectors::Vector{UnitRange{Int}}=UnitRange{Int}[], 
 												 start::Int=0
 												 )::Vector{UnitRange{Int}} 
 
-	update(j) = vcat(sectors, UnitRange{Int}[1+start:j+start])
+	@assert length(sectors)<=start+length(list)  "Ill-defined sectors"
 
 
 	for i in axes(list,1)
 
 		if same(list[i], list[1])		# still within the sector
-		
-			i==length(list) && return update(i) # sector ended abruptly
+	
+			i==length(list) && return vcat(sectors, new_sector(start, i))
+			# sector ended abruptly
+
 
 		else  # sector ended already at i-1
 
-			return IdentifySectors_(same, list[i:end], update(i-1), start+i-1)
+			return IdentifySectors_customF(same, list[i:end],
+																		 vcat(sectors, new_sector(start, i-1)),
+																		 start+i-1)
 
-		end
+		end 
+
 	end
 
 end

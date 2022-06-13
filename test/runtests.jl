@@ -9,7 +9,7 @@ for f in [
 #"mydistrib",
 #"algebra" ,
  
-#"signal",
+"signal",
 #
 #
 #"identify_sectors", 
@@ -74,7 +74,7 @@ for f in [
 
 
 
-"tasks_multi",
+#"tasks_multi",
 
 ##"param" #|> pr_in 
 
