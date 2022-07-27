@@ -35,6 +35,190 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function dist_periodic_!(D::AbstractArray{Float64,N} where N,
+												 i::Int,
+												 a::Real,
+												 b::Real,
+												 T::Real,
+												 nmax::Int=1)::Nothing 
+
+	D[i] = abs(a - b + nmax*T)
+
+	for n in -nmax:nmax-1
+
+	 	D[i] = min(D[i], abs(a - b + n*T))
+
+	end 
+
+	return 
+
+end  
+
+function dist_periodic!(D::AbstractArray{Float64,N},
+												A::AbstractArray{<:Real,N}, 
+												b::Real,
+												args...
+												)::Nothing where N
+
+	@assert size(D)==size(A)
+
+	for (i,a) in enumerate(A)
+
+		dist_periodic_!(D, i, a, b, args...)
+
+	end 
+
+end 
+
+function dist_periodic!(D::AbstractArray{Float64,N},
+												b::Real,
+												A::AbstractArray{<:Real,N}, 
+												args...
+												)::Nothing where N
+
+	dist_periodic(D, A, b, args...)
+
+end 
+
+
+
+
+function dist_periodic!(D::AbstractArray{Float64,N},
+												A::AbstractArray{<:Real,N}, 
+												B::AbstractArray{<:Real,N},
+												args...
+												)::Nothing where N
+
+	@assert size(D)==size(A)==size(B)
+
+	for (i,(a,b)) in enumerate(zip(A,B))
+		
+		dist_periodic_!(D, i, a, b, args...)
+
+	end 
+
+end 
+
+
+function dist_periodic(A::AbstractArray{<:Real,N}, 
+											 args...
+											 )::Array{Float64,N} where N
+
+	D = Array{Float64,N}(undef, size(A)...)
+
+	dist_periodic!(D, A, args...)
+
+	return D
+
+end 
+
+
+
+function dist_periodic(a::Real, b::Real, args...)::Float64
+
+	D = Vector{Float64}(undef, 1)
+
+	dist_periodic_!(D, 1, a, b, args...) 
+
+	return only(D) 
+
+end 
+
+
+function dist_periodic(a::Real, 
+											 B::AbstractArray{<:Real,N},
+											 args...)::Array{Float64,N} where N 
+	
+	dist_periodic(B, a, args...)
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function few_elem_smaller(X::AbstractVector{<:Real}, x0::Real, n::Int
+							 )::Vector{Int}
+
+	I1 = findall(<(x0),X)
+
+	isempty(I1) && return Int[]
+
+	I = filter(in(axes(X,1)), (-n+1:0).+ argmax(view(X,I1)))
+	
+	isempty(I) && return Int[] 
+
+	for i=1:length(I)
+
+		I_ = view(I, i:length(I))
+
+		issorted(view(X,I_)) && return I_ 
+
+	end 
+
+end  
+
+function few_elem_bigger(X::AbstractVector{<:Real}, x0::Real, n::Int,
+								i0::Int 
+							 )::Vector{Int}
+
+	i2 = findnext(>=(x0),X, i0)
+
+	isnothing(i2) && return Int[] 
+
+	I = filter(in(axes(X,1)), i2:i2+n-1)
+
+	for i=reverse(0:length(I))
+
+		I_ = view(I, 1:i)
+		
+		issorted(view(X, I_)) && return I_ 
+
+	end 
+
+
+end 
+
+
+function closest_data_points(X::AbstractVector, x0::Real, n::Int
+														 )::NTuple{2,Vector{Int}}
+
+
+	few_neg = few_elem_smaller(X, x0, n)
+
+	few_pos = few_elem_bigger(X, x0, n, isempty(few_neg) ? 1 : few_neg[end])
+	
+	if length(few_pos)-length(few_neg)>=2 && x0==X[few_pos[1]]
+
+		return vcat(few_neg,few_pos[1]), few_pos[2:end]
+
+	else 
+		
+		return few_neg, few_pos 
+
+	end 
+
+end  
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
 
 function has_disjoint_pairs(f::Function, 
 														iter1::List,#AbstractVector,

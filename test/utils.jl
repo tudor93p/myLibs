@@ -1,7 +1,73 @@
 using myLibs: Utils
-
-
 using BenchmarkTools
+
+
+
+
+
+
+@testset "periodic distance" begin 
+
+	@test Utils.dist_periodic(1,2,1)==0
+	@test Utils.dist_periodic(1,1.1,1)≈0.1
+	@test Utils.dist_periodic(1.1pi,3pi,2pi)≈0.1pi
+
+	A = rand(2,3) .- 0.5 
+	B = rand(2,3) .- 0.5 
+
+	@test Utils.dist_periodic(A,B,0.1,10)≈Utils.dist_periodic(B,A,0.1,10)
+
+	@test Utils.dist_periodic(A[1],B,0.1,10)≈Utils.dist_periodic(B,A[1],0.1,10)
+	@test Utils.dist_periodic(A[1],B,0.1,10)[1]≈Utils.dist_periodic(B,A,0.1,10)[1]
+
+
+end 
+
+
+@testset "closest data points" begin 
+
+	X = sort(rand(100))
+
+	for i in 5:95 
+
+		i1,i2 = Utils.closest_data_points(X, X[i]/2+X[i+1]/2, 3)
+
+		@test i1 == i-2:i
+		@test i2 == i+1:i+3
+
+	end 
+
+end 
+
+
+
+
+
+
+
+
+
+
+
+
+
+error()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 P = rand(10,7) 
 
