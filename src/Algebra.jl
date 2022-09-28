@@ -5,7 +5,7 @@ module Algebra
 
 import ..LA
 
-import ..Utils, ..ArrayOps
+import ..Utils, ..ArrayOps, ..Groups
 
 #import Dierckx,FFTW#,QuadGK 
 
@@ -16,6 +16,14 @@ const EPSILON = 1e-20
 #julia> chi_improper(l,a) = (-1)^l * sin((l+1/2)a))/sin(a/2)
 #julia> chi_improper(l,a) = (-1)^l * sin((l+1/2)a)/sin(a/2)
 
+import ..Groups: PauliMatrix
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -200,22 +208,42 @@ end
 
 
 
+#
+#function RotMat2!(R::AbstractMatrix{Float64}, theta::Real, Ax::Int=3; kwargs...)::Nothing 
+#
+#	@assert LA.checksquare(R)==2 
+#
+#	R[1,1] = cos(theta) 
+#
+#	R[2,2] = R[1,1]
+#
+#	R[1,2] = (-1)^Ax * sin(theta) 
+#	
+#	R[2,1] = -R[1,2]
+#
+#	return 
+#
+#end  
 
-function RotMat2!(R::AbstractMatrix{<:Real}, theta::Real, Ax::Int=3; kwargs...)::Nothing 
+function RotMat2!(R::AbstractMatrix{Float64}, 
+									theta::Real, 
+									Ax::Int=3; 
+								 kwargs...)::Nothing 
 
-	@assert LA.checksquare(R)==2 
+	Groups.O2Repr!(R, theta)
 
-	R[1,1] = cos(theta) 
+	if Ax==2 
 
-	R[2,2] = R[1,1]
+		R[1,2] *= -1
+		R[2,1] *= -1
 
-	R[1,2] = (-1)^Ax * sin(theta) 
-	
-	R[2,1] = -R[1,2]
+	end 
 
 	return 
 
 end 
+
+
 
 function RotMat(::Val{2}, theta::Real, args...; kwargs...)::Matrix{Float64}
 
@@ -242,6 +270,8 @@ function RotMat(::Val{3}, theta::Real, Ax::Int; kwargs...)::Matrix{Float64}
 
 end
 
+
+
 function RotMat(D::Int, theta::Real, Ax::Int=3; kwargs...)::Matrix{Float64}
 
 	@assert 1<=Ax<=3 "Choose 1==x, 2==y, 3==z" 
@@ -249,6 +279,7 @@ function RotMat(D::Int, theta::Real, Ax::Int=3; kwargs...)::Matrix{Float64}
 	RotMat(Val(D), theta, Ax; kwargs...)
 
 end 
+
 
 function RotMat(theta::Real; kwargs...)::Matrix{Float64}
 
@@ -470,6 +501,15 @@ function Commutator(A::AbstractMatrix, B::AbstractMatrix)::Matrix
 	A*B-B*A
 
 end
+
+function AntiCommutator(A::AbstractMatrix, B::AbstractMatrix)::Matrix
+
+	@assert size(A)==size(B) 
+
+	A*B+B*A
+
+end
+
 
 
 function Commutator(A::AbstractMatrix, B::AbstractMatrix,
@@ -1409,68 +1449,6 @@ end
 
 
 
-#===========================================================================#
-#
-# Pauli Matrices
-#
-#---------------------------------------------------------------------------#
-
-
-
-function PauliMatrices()::Dict{Int64,Matrix{ComplexF64}}
-
-	Dict(i=> PauliMatrix(i) for i=0:3)
-
-end
-
-
-PauliMatrix(i::Int)::Matrix{ComplexF64} = PauliMatrix(Val(i))
-
-PauliMatrix(::Val{0})::Matrix{ComplexF64} = [[1 0]; [0 1]]
-PauliMatrix(::Val{1})::Matrix{ComplexF64} = [[0 1]; [1 0]]
-PauliMatrix(::Val{2})::Matrix{ComplexF64} = [[0 -1im]; [1im 0]]
-PauliMatrix(::Val{3})::Matrix{ComplexF64} = [[1 0]; [0 -1]]
-
-
-
-function SpinMatrices(s::Real)::Dict
-	
-    """
-    Construct spin-s matrices for any half-integer spin.
-
-    Parameters
-    ----------
-
-    s : float or int
-        Spin representation to use, must be integer or half-integer.
-    include_0 : bool (default False)
-        If `include_0` is True, S[0] is the identity, indices 1, 2, 3
-        correspond to x, y, z. Otherwise indices 0, 1, 2 are x, y, z.
-
-    Returns
-    -------
-
-    ndarray
-        Sequence of spin-s operators in the standard spin-z basis.
-        Array of shape `(3, 2*s + 1, 2*s + 1)`, or if `include_0` is True
-        `(4, 2*s + 1, 2*s + 1)`.
-    """
-
-	d = Int(2s+1)
-
-	Sz = 1/2 * LA.diagm(0=>d-1:-2:-d)
-												
-  # first diagonal for general s from en.wikipedia.org/wiki/Spin_(physics)
-	
-	diag = [1/2*sqrt(i*(d-i)) for i in 1:d-1]
-
-	Sx = LA.diagm(1=>diag,-1=>diag)
-	
-	Sy = im*LA.diagm(1=>-diag,-1=>diag)
-
-	return Dict(0=>ArrayOps.UnitMatrix(d), 1=>Sx, 2=>Sy, 3=>Sz)
-
-end
 
 
 

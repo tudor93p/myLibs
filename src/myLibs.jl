@@ -1,7 +1,7 @@
 module myLibs
 #############################################################################
 
-export Utils, Algebra, ArrayOps, ComputeTasks, ReadWrite, BandStructure, TBmodel, Operators, ResposeFunctions, LayeredSystem, GreensFunctions, ObservablesFromGF, H_Superconductor, Graph, Parameters, FileNames, Lattices#, Geometry2D,
+export Utils, Algebra, Groups, ArrayOps, ComputeTasks, ReadWrite, BandStructure, TBmodel, Operators, ResposeFunctions, LayeredSystem, GreensFunctions, ObservablesFromGF, H_Superconductor, Graph, Parameters, FileNames, Lattices#, Geometry2D,
 
 
 
@@ -20,11 +20,11 @@ include("CentralDiff.jl")
 include("Taylor.jl")
 
 
-include("ArrayOps.jl") 
+include("Groups.jl") 
 
+include("ArrayOps.jl") 
 include("Algebra.jl")
 include("SignalProcessing.jl")
-include("Groups.jl")
 
 
 include("QuantumMechanics.jl")

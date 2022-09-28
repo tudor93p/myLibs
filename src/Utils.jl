@@ -190,7 +190,8 @@ function few_elem_bigger(X::AbstractVector{<:Real}, x0::Real, n::Int,
 end 
 
 
-function closest_data_points(X::AbstractVector, x0::Real, n::Int
+function closest_data_points(X::AbstractVector, x0::Real, 
+														 n::Int=length(X)
 														 )::NTuple{2,Vector{Int}}
 
 
@@ -216,6 +217,14 @@ end
 #
 #---------------------------------------------------------------------------#
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 

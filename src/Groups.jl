@@ -2,35 +2,97 @@ module Groups
 ############################################################################# 
 
 
-
-import ..Algebra 
-
+import ..LA 
 
 
 
 
 #===========================================================================#
 #
-# 
+# Pauli and general spin Matrices
+#
+#---------------------------------------------------------------------------#
+
+
+
+function PauliMatrices()::Dict{Int64,Matrix{ComplexF64}}
+
+	Dict(i=> PauliMatrix(i) for i=0:3)
+
+end
+
+
+PauliMatrix(i::Int)::Matrix{ComplexF64} = PauliMatrix(Val(i))
+
+PauliMatrix(::Val{0})::Matrix{ComplexF64} = [[1 0]; [0 1]]
+PauliMatrix(::Val{1})::Matrix{ComplexF64} = [[0 1]; [1 0]]
+PauliMatrix(::Val{2})::Matrix{ComplexF64} = [[0 -1im]; [1im 0]]
+PauliMatrix(::Val{3})::Matrix{ComplexF64} = [[1 0]; [0 -1]]
+
+
+
+function SpinMatrices(s::Real)::Dict
+	
+    """
+    Construct spin-s matrices for any half-integer spin.
+
+    Parameters
+    ----------
+
+    s : float or int
+        Spin representation to use, must be integer or half-integer.
+    include_0 : bool (default False)
+        If `include_0` is True, S[0] is the identity, indices 1, 2, 3
+        correspond to x, y, z. Otherwise indices 0, 1, 2 are x, y, z.
+
+    Returns
+    -------
+
+    ndarray
+        Sequence of spin-s operators in the standard spin-z basis.
+        Array of shape `(3, 2*s + 1, 2*s + 1)`, or if `include_0` is True
+        `(4, 2*s + 1, 2*s + 1)`.
+    """
+
+	d = Int(2s+1)
+
+	Sz = 1/2 * LA.diagm(0=>d-1:-2:-d)
+												
+  # first diagonal for general s from en.wikipedia.org/wiki/Spin_(physics)
+	
+	diag = [1/2*sqrt(i*(d-i)) for i in 1:d-1]
+
+	Sx = LA.diagm(1=>diag,-1=>diag)
+	
+	Sy = im*LA.diagm(1=>-diag,-1=>diag)
+
+	return Dict(0=>ArrayOps.UnitMatrix(d), 1=>Sx, 2=>Sy, 3=>Sz)
+
+end
+
+
+#===========================================================================#
+#
+#  
 #
 #---------------------------------------------------------------------------#
 
 
 function WeylRepr(t::Number, x::Number, y::Number, z::Number)::Matrix{ComplexF64} 
 
-	A  = t*Algebra.PauliMatrix(0)
+	A  = t*PauliMatrix(0)
 
-	A += x*Algebra.PauliMatrix(1)
+	A += x*PauliMatrix(1)
 
-	A += y*Algebra.PauliMatrix(2)
+	A += y*PauliMatrix(2)
 	
-	A += z*Algebra.PauliMatrix(3)
+	A += z*PauliMatrix(3)
 
 	return A 
 
-end 	
+end #generic Hermitian matrix when the args are real 
 
-dWeylRepr(i::Int)::Matrix{ComplexF64} = Algebra.PauliMatrix(i)  
+dWeylRepr(i::Int)::Matrix{ComplexF64} = PauliMatrix(i)  
 
 
 function dWeylRepr(::Number, ::Number, ::Number,
@@ -155,14 +217,85 @@ end
 #---------------------------------------------------------------------------#
 
 
+function O2Repr!(R::AbstractMatrix{<:Union{Float64,ComplexF64}}, 
+								 theta::Real)::Nothing
+
+	@assert LA.checksquare(R)==2 
+
+	R[1,1] = cos(theta) 
+
+	R[2,2] = R[1,1]
+
+	R[1,2] = sin(theta) 
+	
+	R[2,1] = -R[1,2]
+
+	return 
+
+end 
+
+
+function O2Repr(theta::Real)::Matrix{Float64}
+
+	R = zeros(2,2)
+
+	O2Repr!(R, theta)
+
+	return R
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
 
 
 
+#function U2Repr!(out::AbstractMatrix{ComplexF64},
+#								 phi::Real, 
+#								psi::Real, 
+#								theta::Real, 
+#								delta::Real 
+#								)::Nothing#Matrix{ComplexF64}
+#
+##	out = zeros(ComplexF64,2,2) 
+#
+#	@assert LinearAlgebra.checksquare(out)==2 
+#
+#	O2Repr!(out,theta) 
+#
+#	out[1,:] *= exp(1im*(phi/2+psi))
+#	out[2,:] *= exp(1im*(phi/2-psi)) 
+#
+#	out[:,1] *= exp(1im*delta)
+#	out[:,2] *= exp(-1im*delta)
+#
+#	return 
+#
+#end 
 
+function U2Repr(args::AbstractVector{<:Real})::Matrix{ComplexF64}
 
+	U2Repr(args...)
+
+end 
+
+function U2Repr(args::Vararg{<:Real,4})::Matrix{ComplexF64}
+	
+	out = WeylRepr(args...)
+
+	out .= exp(im*out)
+
+	return out 
+
+end 
 
 
 
