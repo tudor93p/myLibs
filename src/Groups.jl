@@ -78,6 +78,27 @@ end
 #---------------------------------------------------------------------------#
 
 
+function WeylVector(M::AbstractMatrix{<:Number})::Vector{<:Number}
+
+	out = [LA.dot(PauliMatrix(j),M)/2 for j=0:3]
+
+	return all(<(1e-14)∘abs∘imag, out) ? real(out) : out 
+
+end 
+
+																												 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
 function WeylRepr(t::Number, x::Number, y::Number, z::Number)::Matrix{ComplexF64} 
 
 	A  = t*PauliMatrix(0)
