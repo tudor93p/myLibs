@@ -9,7 +9,7 @@ import ..LA
 
 #===========================================================================#
 #
-# Pauli and general spin Matrices
+# Pauli 2x2 matrices 
 #
 #---------------------------------------------------------------------------#
 
@@ -28,6 +28,34 @@ PauliMatrix(::Val{0})::Matrix{ComplexF64} = [[1 0]; [0 1]]
 PauliMatrix(::Val{1})::Matrix{ComplexF64} = [[0 1]; [1 0]]
 PauliMatrix(::Val{2})::Matrix{ComplexF64} = [[0 -1im]; [1im 0]]
 PauliMatrix(::Val{3})::Matrix{ComplexF64} = [[1 0]; [0 -1]]
+
+
+
+#===========================================================================#
+#
+#	Gamma 4x4 matrices 
+#
+#---------------------------------------------------------------------------#
+
+function GammaMatrix!(G::AbstractMatrix{ComplexF64},
+										 i::Int,j::Int)::Nothing 
+
+	kron!(G,PauliMatrix(i),PauliMatrix(j))
+
+	return 
+
+end 
+function GammaMatrix(i::Int,j::Int)::Matrix{ComplexF64}
+
+	kron(PauliMatrix(i),PauliMatrix(j))
+
+end 
+
+#===========================================================================#
+#
+# general spin Matrices
+#
+#---------------------------------------------------------------------------#
 
 
 
@@ -317,8 +345,6 @@ function U2Repr(args::Vararg{<:Real,4})::Matrix{ComplexF64}
 	return out 
 
 end 
-
-
 
 
 

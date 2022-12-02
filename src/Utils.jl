@@ -1500,76 +1500,76 @@ end
 #
 #---------------------------------------------------------------------------#
 
-
-function IdentifyRanges(list::AbstractVector{<:Int}
-												)::Vector{Union{Int,OrdinalRange{Int,Int}}}
-
-	D2 = (diff(diff(list)).==0)
-
-	!any(D2) && return list
-
-	sectors =	map(filter(s->all(D2[s]),IdentifySectors(D2))) do s
-
-							return minimum(s):maximum(s)+2
-						end
-
-
-	conflict(S) = (j -> maximum(S[j-1])>=minimum(S[j]))
-
-	while true 
-
-		i = findfirst(conflict(sectors),2:length(sectors))
-
-		isnothing(i) && break
-
-		s1,s2 = sectors[i:i+1]
-
-		if length(s1) < length(s2)
-			
-			sectors[i] = minimum(s1):minimum(s2)-1
-
-		else
-
-			sectors[i+1] = maximum(s1)+1:maximum(s2)
-
-		end
-
-		sectors = filter(s->length(s)>2,sectors)
-
-	end
-
-#	if isempty(sectors)
 #
-#		d = filter(di->di>0,Algebra.FlatOuterDiff(q,q)[:])
-#		
-#		u = unique(d)
-#		
-#		c = zeros(Int64,length(u))
-#		
-#		for n in d c[indexin(n,u)[1]] +=1  end
+#function IdentifyRanges(list::AbstractVector{<:Int}
+#												)::Vector{Union{Int,OrdinalRange{Int,Int}}}
+#
+#	D2 = (diff(diff(list)).==0)
+#
+#	!any(D2) && return list
+#
+#	sectors =	map(filter(s->all(D2[s]),IdentifySectors(D2))) do s
+#
+#							return minimum(s):maximum(s)+2
+#						end
+#
+#
+#	conflict(S) = (j -> maximum(S[j-1])>=minimum(S[j]))
+#
+#	while true 
+#
+#		i = findfirst(conflict(sectors),2:length(sectors))
+#
+#		isnothing(i) && break
+#
+#		s1,s2 = sectors[i:i+1]
+#
+#		if length(s1) < length(s2)
+#			
+#			sectors[i] = minimum(s1):minimum(s2)-1
+#
+#		else
+#
+#			sectors[i+1] = maximum(s1)+1:maximum(s2)
+#
+#		end
+#
+#		sectors = filter(s->length(s)>2,sectors)
 #
 #	end
-
-	sector(i) = Assign_Value(findfirst(s->in(i,s),sectors),0)
-
-	return flatmap(IdentifySectors(sector, axes(list,1))) do S
-
-		!in(S,sectors) && return list[S]
-
-		(a,b) = extrema(S)
-		
-		step = list[a+1]-list[a]
-
-		step==1 && return [UnitRange(list[a], list[b])]
-		
-		return [StepRange(list[a], step, list[b])]
-
-	end
-
-
-end
-
-
+#
+##	if isempty(sectors)
+##
+##		d = filter(di->di>0,Algebra.FlatOuterDiff(q,q)[:])
+##		
+##		u = unique(d)
+##		
+##		c = zeros(Int64,length(u))
+##		
+##		for n in d c[indexin(n,u)[1]] +=1  end
+##
+##	end
+#
+#	sector(i) = Assign_Value(findfirst(s->in(i,s),sectors),0)
+#
+#	return flatmap(IdentifySectors(sector, axes(list,1))) do S
+#
+#		!in(S,sectors) && return list[S]
+#
+#		(a,b) = extrema(S)
+#		
+#		step = list[a+1]-list[a]
+#
+#		step==1 && return [UnitRange(list[a], list[b])]
+#		
+#		return [StepRange(list[a], step, list[b])]
+#
+#	end
+#
+#
+#end
+#
+#
 
 
 #===========================================================================#
