@@ -909,6 +909,14 @@ function matrixval(v::Union{Number,AbstractMatrix},
 end
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 
 
@@ -990,7 +998,15 @@ function Hopping_Term(value::AbstractMatrix,
 
   function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
 
-    condition(ri,rj) ? value .* fun(ri,rj) : Zero
+#    condition(ri,rj) ? value .* fun(ri,rj) : Zero
+		
+		condition(ri,rj) || return Zero
+
+		out = fun(ri,rj) 
+
+		out .*= fun(ri,rj) 
+
+		return out 
 
   end
 
@@ -1023,7 +1039,9 @@ function Hopping_Term(value::AbstractMatrix,
 
   return function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
   
-    value .* fun(ri,rj)
+		out = fun(ri,rj)
+		
+		out .*= value 
 
   end
 

@@ -726,7 +726,9 @@ struct HoppingTerm
 end 
 
 
-function HoppingTerm(basis::HamiltBasis, tij::Function, nr_uc::Int)::HoppingTerm
+function HoppingTerm(basis::HamiltBasis, 
+										 tij::Function, 
+										nr_uc::Int=1)::HoppingTerm
 
 	HoppingTerm(basis, tij, nr_uc, true)
 
@@ -757,6 +759,29 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function upgraded_tij(tij::Function)::Function 
+
+	tij 
+end 
+
+
+
+function upgraded_tij(tij::Function,
+											p1::Union{Number,Utils.List},
+											params...
+											)::Function 
+	
+	function tij_(ri::AbstractVector{<:Real},
+								rj::AbstractVector{<:Real},
+								)::Union{Number, AbstractMatrix{<:Number}}
+
+				tij(ri, rj, p1, params...)
+
+	end
+
+end 
+
+
 
 function upgraded_tij(basis0::HamiltBasis, basis::HamiltBasis,
 										 tij::Function)::Function
@@ -775,17 +800,17 @@ function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
 end 
 
 
-function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis, params...)
+function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis, 
+											p1::Union{Number,Utils.List},
+											params...)::Function
 
-	upgraded_tij(ht, basis, function tij(ri::AbstractVector{<:Real}, 
-																			 rj::AbstractVector{<:Real}
-																			 )::Union{Number,
-																							 AbstractMatrix{<:Number}}
+	upgraded_tij(ht, basis, upgraded_tij(ht.tij, p1, params...))
 
-								 							ht.tij(ri, rj, params...)
-
-													end)
 end 
+
+
+
+
 
 
 #===========================================================================#
@@ -858,7 +883,6 @@ function init_hopp_term(HT::HoppingTerm,
 
 end
 
-#, params...)
 
 
 

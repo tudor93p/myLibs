@@ -289,7 +289,6 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
         # ------------------- needed for the hoppings ----------------- #      
   Append!, Sum, Hoppings = TBmodel.Add_Hopping_Terms(target_basis.matrix_dim,
 																										 hopp_cutoff)
-		# value, condition, (function )
   
   maxdist, d_update! = TBmodel.Update_Maxdist!(dist_tol, hopp_cutoff) 
 
@@ -411,7 +410,7 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 	end
   
 
-	return Dict(
+	return Dict{Symbol,Any}(
 		:Hopping => Sum(Hoppings,cond0),
 		:Nr_UCs => Int(round(only(nmax))),	# provided the kind of hoppings above 
 		:hopp_cutoff => hopp_cutoff,
