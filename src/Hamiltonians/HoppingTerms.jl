@@ -761,7 +761,8 @@ end
 
 function upgraded_tij(tij::Function)::Function 
 
-	tij 
+	tij  
+
 end 
 
 
@@ -798,6 +799,15 @@ function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
 	upgraded_tij(ht.basis, basis, tij)
 	
 end 
+
+function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
+										 tij::Function,
+											p1::Union{Number,Utils.List}, params...)::Function 
+
+	upgraded_tij(ht, basis, upgraded_tij(tij, p1, params...))
+							 
+end 
+
 
 
 function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis, 
