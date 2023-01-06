@@ -328,7 +328,8 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
         # ----------------- local potential --------------- #      
 				
 	lp = HoppingTerms.init_hopp_term(local_potential, hopp_cutoff, 
-											0, dist_tol, target_basis, 
+											0, dist_tol, target_basis,
+											local_potential.tij,
 											param_H[:LocalPotential], param_H[:ChemicalPotential]
 											)
 

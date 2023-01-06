@@ -808,7 +808,7 @@ function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
 							 
 end 
 
-
+# a function cannot always be parameter because tij is a function -- find a better fix. Split upgraded_tij into two 
 
 function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis, 
 											p1::Union{Number,Utils.List},
