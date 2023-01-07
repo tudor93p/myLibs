@@ -53,7 +53,9 @@ for (argH, k) in [("k", rand(2)), ("phi", rand())]
 end 
 
 
-println()
+println() 
+
+
 H = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp,nr_orb=nr_orb)
 
 
@@ -62,11 +64,12 @@ H = TBmodel.Bloch_Hamilt(TBL; Hopping=hopp,nr_orb=nr_orb)
 
 @show H(1)
 
+@show size(H(1))
 
 
 println()
 
-F = Operators.Position(1, R, nr_orb=1,dim=2)#; kwargs...)#, fpos=df[2])
+F = Operators.Position(1, R, nr_orb=nr_orb,dim=2) 
 
 
 E =  LinearAlgebra.eigen(Matrix(H(1)))
@@ -81,7 +84,10 @@ P = E.vectors;
 @assert isapprox(H(1)*P[:,1:1] ,E.values[1]*P[:,1:1])
 
 
-@show size(F(P[:,1:3]))
+@show size(F(P[:,1:3])) 
+
+
+@show size(H(1))
 #@show size(F(transpose(P[:,1:3]);dim=1))
 
 
@@ -178,18 +184,49 @@ println()
 
 latt = Lattices.Lattice([1.0 0.0; 0.0 1.0], [0.0; 0.0], nothing, [2])
 
-HParams = (Hopping = 1.0, ChemicalPotential = 0.0, SC_Gap = nothing) 
+HParams = (Hopping = -1.0, ChemicalPotential = 2.0, SC_Gap = nothing) 
+
+HParams = (Hopping = -1.0, ChemicalPotential = 2.0, SC_Gap = nothing,
+					 LocalPotential= function v(r::AbstractVector{<:Real})
+						 r[1]
+						end 
+					) 
 
 hopp2 = H_Superconductor.SC_Domain(HParams, [1.0])
 
+@testset "t(i,i+1)==1" begin 
 
-HPerp = TBmodel.BlochHamilt_Perpendicular(latt, hopp2)
+	for r in eachcol(rand(2,5)) 
+
+		@test hopp2[:Hopping](r,r)[1,1] ≈ r[1]+HParams.ChemicalPotential
+	
+		for i=1:2, s=[-1,1] 
+	
+			r1 = zeros(2) 
+			r1[i] = s
+	
+			for args in [(r+r1,r),(r,r+r1)]
+	
+				@test hopp2[:Hopping](args...)[1,1] ≈ HParams.Hopping 
+	
+			end 
+				
+		end 
+	
+	end 
+	
+end 
+
+
+
+
+#HPerp = TBmodel.BlochHamilt_Perpendicular(latt, hopp2)
 
 #HPar,HPerp = TBmodel.BlochHamilt_ParallPerp(latt, hopp2)
 
 				
 
-@show Hperp[1]
+#@show Hperp[1]
 
 
 

@@ -329,9 +329,11 @@ function SC_Domain(param_H_::NamedTuple, dist::AbstractVector{<:Real};
 				
 	lp = HoppingTerms.init_hopp_term(local_potential, hopp_cutoff, 
 											0, dist_tol, target_basis,
-											local_potential.tij,
-											param_H[:LocalPotential], param_H[:ChemicalPotential]
+											param_H[:ChemicalPotential],
+											param_H[:LocalPotential], 
 											)
+
+#@show lp[2]([1,0],[1,0])
 
 	Append!(Hoppings, 1, lp[1], lp[2])
 

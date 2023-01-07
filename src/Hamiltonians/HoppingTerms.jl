@@ -768,7 +768,7 @@ end
 
 
 function upgraded_tij(tij::Function,
-											p1::Union{Function,Number,Utils.List},
+											p1::Union{Number,Utils.List},
 											params...
 											)::Function 
 	
@@ -802,13 +802,11 @@ end
 
 function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis,
 										 tij::Function,
-											p1::Union{Function,Number,Utils.List}, params...)::Function 
+											p1::Union{Number,Utils.List}, params...)::Function 
 
 	upgraded_tij(ht, basis, upgraded_tij(tij, p1, params...))
 							 
 end 
-
-# a function cannot always be parameter because tij is a function -- find a better fix. Split upgraded_tij into two 
 
 function upgraded_tij(ht::HoppingTerm, basis::HamiltBasis, 
 											p1::Union{Number,Utils.List},

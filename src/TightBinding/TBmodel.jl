@@ -998,16 +998,8 @@ function Hopping_Term(value::AbstractMatrix,
 
   function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
 
-#    condition(ri,rj) ? value .* fun(ri,rj) : Zero
-		
-		condition(ri,rj) || return Zero
-
-		out = fun(ri,rj) 
-
-		out .*= fun(ri,rj) 
-
-		return out 
-
+    condition(ri,rj) ? value .* fun(ri,rj) : Zero
+	
   end
 
 end
@@ -1039,9 +1031,7 @@ function Hopping_Term(value::AbstractMatrix,
 
   return function f(ri::AbstractVector, rj::AbstractVector)::AbstractMatrix
   
-		out = fun(ri,rj)
-		
-		out .*= value 
+		value .* fun(ri,rj)
 
   end
 
