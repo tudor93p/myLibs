@@ -2330,7 +2330,7 @@ function check_nr_atoms(atoms::AbstractMatrix{<:Real})::Nothing
 
 	if gethostname()=="tudor-HP" 
 	
-		@assert NrVecs(atoms)<5000 "Too many atoms"
+		@assert NrVecs(atoms)<=5000 "Too many atoms"
 
 	end  
 
