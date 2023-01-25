@@ -1,8 +1,35 @@
 using myLibs: Utils
 using BenchmarkTools
 
+import PyPlot 
+ 
+@testset "path connect" begin 
+
+	points0 = sort(rand(3))
+
+	points0 = [0,1,7]
 
 
+	dim = 2 
+	
+	points = reshape(points0,1,length(points0))  
+
+
+	path, xticks, x = Utils.PathConnect(points, 13; dim=dim, bounds=[1.2,5])
+
+	PyPlot.scatter(x, vcat(path...))
+
+
+
+
+
+end 
+
+
+
+
+
+error() 
 
 
 

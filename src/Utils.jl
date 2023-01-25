@@ -2859,14 +2859,14 @@ end
 
 
 function PathConnect(points::AbstractVector, n::Int;
-										 kwargs...)::Tuple{Vector,Vector{Float64}} 
+										 kwargs...)::Tuple{Vector,Vector{Float64},Vector{Float64}} 
 
 	PathConnect(points, n, LA.norm.(diff(points)); kwargs...)
 
 end 
 
 function PathConnect(points::AbstractVector, n::Int, dist::AbstractVector;
-										 kwargs...)::Tuple{Vector,Vector{Float64}}
+										 kwargs...)::Tuple{Vector,Vector{Float64},Vector{Float64}}
 
 	reshape.(PathConnect(VecAsMat(points, 1), n, dist; dim=2, kwargs...), :)
 
@@ -2876,7 +2876,7 @@ end
 #										 fdist::Function=identity,
 
 function PathConnect(points::AbstractMatrix, n::Int; 
-										 dim::Int, kwargs...)::Tuple{Matrix,Vector{Float64}}
+										 dim::Int, kwargs...)::Tuple{Matrix,Vector{Float64},Vector{Float64}}
 
 	PathConnect(points, n,
 							LA.norm.(eachslice(diff(points,dims=dim),dims=dim));
@@ -2895,7 +2895,7 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 
 	nr_intervals = size(points, dim) - 1
 
-	nr_intervals > 0 || return points, [] 
+	nr_intervals > 0 || return points, [], []
 
 	nr_intervals==length(dist) || error("There should be $nr_intervals distance(s), you provided ",length(dist))
 
@@ -2904,7 +2904,7 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 
 	if n <= nr_intervals + end_point 
 	
-		return selectdim(points, dim, 1:n), xticks[1:n]
+		return selectdim(points, dim, 1:n), xticks[1:n], LinRange(bounds..., n)
 
 	end 
 	
@@ -2912,7 +2912,7 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 	ns = PropDistributeBallsToBoxes(n-end_point, dist)  
 
 
-	for i in findall(ns .== 0)[1:min(end,count(ns.>0))]
+	for i in findall(==(0), ns)[1:min(end,count(>(0),ns))]
 
 		ns[argmax(ns)] -= 1 # "steal" one unit 
 
@@ -2935,7 +2935,19 @@ function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 	end
 
 
-  return path, xticks
+
+	x = mapreduce(vcat, 1:nr_intervals) do i 
+    
+		ep = end_point && i==nr_intervals
+
+		return LinRange(xticks[i],xticks[i+1],ns[i]+1)[1:end-!ep]
+
+	end 
+
+
+
+
+	return path, xticks, x
 
 end
 
