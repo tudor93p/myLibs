@@ -9,6 +9,16 @@ import ..Utils, ..Algebra, ..ArrayOps
 import ..Operators, ..GreensFunctions, ..LayeredSystem
 
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
 #===========================================================================#
 #
 # Local DOS from a Green's function given as a matrix
@@ -71,11 +81,16 @@ function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 		ldos[inds] = LDOS(g; proj=proj, nr_at=length(inds), size_H=size(g,1), dim=dim)
 
+
 	end
 
 	return ldos
 	
 end
+
+
+
+
 
 
 
@@ -328,6 +343,53 @@ function CaroliConductance(gR_SD::AbstractMatrix,
 	LA.tr(gamma_source * gR_SD * gamma_drain * gA_DS) 
 
 end 
+
+#function LDOS_Decimation_dueToLead(gR::AbstractMatrix, 
+#													 gamma::AbstractMatrix, 
+#													 gA::AbstractMatrix; 
+#													 )::ComplexF64
+#
+#	@assert LA.ishermitian(gamma)
+#
+#	LA.tr(gR * gamma * gA) 
+#
+#end 
+
+
+
+#function LDOS_Decimation_dueToLead(
+
+#function LDOS_Decimation_dueToLead(GD::Function, 
+#																	 NrLayers::Int, indsLayer::Function,
+#																	 lead::AbstractString, uc::Int
+#																	 ; 
+#												 proj::Function=identity, dim::Int, VirtLeads...)::Vector{Float64}
+#
+#
+#	dev_atoms = Dict(("Layer",L) => indsLayer(L) for L in 1:NrLayers)
+#
+#	nr_at = sum(length, values(dev_atoms))
+#
+#	### 
+#	#lead_atoms = LayeredSystem.LeadAtomOrder(nr_at; dim=dim, VirtLeads...)
+#
+#
+#	
+#	ldos = zeros(Float64, nr_at)
+#
+#	for (key,inds) in pairs(dev_atoms)
+#
+#		g = GD(key...,lead, uc) 
+#
+#		LA.diag(g * Gamma * g')/2pi 
+#
+#
+#
+##%		ldos[inds] = LDOS(g; proj=proj, nr_at=length(inds), size_H=size(g,1), dim=dim)
+#
+##trace_orbitals( g*proj(Gamma*g' 
+#end 
+#
 
 
 
@@ -1230,7 +1292,21 @@ function SiteTransmission(Gr::Function, Ga::Function,
 
 	return siteT 
 
-end 
+end  
+
+
+#
+#function LDOS_Decimation_dueToLead(Gr::Function, Ga::Function,
+#													args...; 
+#													kwargs...
+#													)::Vector{Float64}
+#
+#	LDOS_Decimation_dueToLead_(args..., Gr, Ga; kwargs...)
+#
+#end  
+
+
+
 
 function SiteTransmission(G::Function, 
 													Hoppings::AbstractVector{<:AbstractMatrix},
@@ -1247,8 +1323,14 @@ function SiteTransmission(G::Function,
 
 end
  
-
-
+#function LDOS_Decimation_dueToLead(G::Function, 
+#													args...; 
+#													kwargs...)::Vector{Float64}
+#
+#	LDOS_Decimation_dueToLead_(args..., G; kwargs...)
+#
+#end
+#
 
 
 
@@ -1306,6 +1388,38 @@ function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 
 end
 
+
+#function LDOS_Decimation_dueToLead_(
+##																		Hoppings::AbstractVector{<:AbstractMatrix},
+##													 Bonds::AbstractVector{NTuple{2,Int}},
+##													 RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
+#													 SE_lead::Function, 
+#													 lead::AbstractString,
+#													 lead_uc::Int,
+#													 Gs::Vararg{Function}
+#													 ; kwargs... 
+#													 )::Vector{Float64}
+#
+##nr_at, NrLayers not defined
+#
+#	ldos = zeros(nr_at) 
+#
+#	Gamma = GreensFunctions.DecayWidth(SE_lead(lead, lead_uc)) 
+#
+##	sectors = Utils.IdentifySectors(first, Bonds)
+#
+##	errmsg = Vector{String}(undef, length(sectors))
+#
+#	for layer in 1:NrLayers 
+#
+#		addLDOSlead!(layer, ldos, Gs..., Gamma, lead, lead_uc; kwargs...)
+#
+#	end 
+#
+#
+#	return ldos 
+#
+#end
 
 
 
@@ -1412,8 +1526,55 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
+#function LDOSlead(Gr_iL::AbstractMatrix{ComplexF64},
+#								 Ga_Li::AbstractMatrix{ComplexF64},
+#								 W_L::AbstractMatrix{ComplexF64},
+#								 )::Matrix{ComplexF64}
+#
+#	Gr_iL*W_L*Ga_Li 
+#
+#end  
+#
+#
+#function LDOSlead(
+#									gR::Function,
+#									gA::Function,
+#									layer::Int,
+#									lead::AbstractString,
+#									uc::Int, args...; kwargs...
+#									)::Matrix{ComplexF64}
+#
+#	LDOSlead(gR("Layer",layer,lead,uc),
+#					 gA(lead,uc,"Layer",layer),
+#					 lead,uc, args...; kwargs...
+#					 )
+#
+#end 
+#
+#
+#
+#
+#function addLDOSlead!(
+#											ldos::AbstractVector{Float64},
+#											layer::Int,
+#											layer_inds::AbstractVector{Int},
+#
+#											gR::Function,
+#											gA::Function,
+#											Gamma::AbstractMatrix{ComplexF64},
+#											lead::AbstractString, lead_uc::Int; kwargs...)
+#
+#
+#
+#
+#end 
 
 #===========================================================================#
 #
