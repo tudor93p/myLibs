@@ -315,7 +315,7 @@ end
 
 function RotVecs(R::AbstractMatrix{Float64}; dim::Int, kwargs...)::Function 
 
-	function rot_vecs(vecs::AbstractMatrix{<:Real})::Matrix{Float64} where N
+	function rot_vecs(vecs::AbstractMatrix{<:Real})::Matrix{Float64}
 
 		RotVecs(vecs, R; dim=dim)
 

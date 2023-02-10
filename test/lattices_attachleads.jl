@@ -1,16 +1,17 @@
 import myLibs: Lattices, Geometry 
 
-import PyCall 
+import PyPlot 
+#import PyCall 
 using OrderedCollections:OrderedDict
 
 
 println() 
 	
-path = "/media/tudor/Tudor/Work/scripts/python_libraries/tests/"
-
-pushfirst!(PyCall.PyVector(PyCall.pyimport("sys")."path"), path)
-
-pytest = PyCall.pyimport("Lattices_AlignLead_test")
+#path = "/media/tudor/Tudor/Work/scripts/python_libraries/tests/"
+#
+#pushfirst!(PyCall.PyVector(PyCall.pyimport("sys")."path"), path)
+#
+#pytest = PyCall.pyimport("Lattices_AlignLead_test")
 
 
 println() 
@@ -109,11 +110,13 @@ end
 
 
 
-Lead = Lattices.Lattice([-1.0 0.0; 0.0 2.0],
+Lead = Lattices.Lattice([-1.0 0.0; 0.0 1.0],
 												OrderedDict{Any, Matrix{Float64}}("Lead-1" => [-4.5 -4.5; 1.5 2.5]),
 												nothing,
 												
-												[1])
+												[2])
+
+Lattices.ShiftAtoms!(Lead,r=rand(2)*10)
 															 
 Atoms = [-4.5 -4.5 -4.5 -4.5 -4.5 -3.5 -3.5 -2.5 -2.5 -1.5 -1.5 -0.5 -0.5 0.5 0.5 1.5 1.5 2.5 2.5 3.5 3.5 4.5 4.5 4.5 4.5 4.5; -2.0 -1.0 0.0 1.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 2.0 -2.0 -1.0 0.0 1.0 2.0];
 															 
@@ -121,30 +124,37 @@ Atoms = [-4.5 -4.5 -4.5 -4.5 -4.5 -3.5 -3.5 -2.5 -2.5 -1.5 -1.5 -0.5 -0.5 0.5 0.
 @show Lattices.LattVec(Lead) 
 
 @show size(Atoms) 
+PyPlot.close()
+PyPlot.scatter(eachrow(Atoms)...,label="Device")
 
+PyPlot.scatter(eachrow(Lattices.PosAtoms(Lead))...,label="Lead")
 
-Lattices.Align_toAtoms!(Lead, Atoms)
+Lattices.Align_toAtoms!(Lead, Atoms, 1)
 
+PyPlot.scatter(eachrow(Lattices.PosAtoms(Lead))...,label="Aligned")
 
 @show Lattices.PosAtoms(Lead)
 
-jl2([5,6],
-		mapreduce(a->15*[cos(a) sin(a)], vcat,rand(5)*2pi),
-		rand())
-
-
-jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
-		[[1 2];[1 0]],
-		hcat(vcat.(Base.product(1:5,1:5)...)...) .- 1.0,
-		Lattices.SquareLattice()
-		)
-
+#jl2([5,6],
+#		mapreduce(a->15*[cos(a) sin(a)], vcat,rand(5)*2pi),
+#		rand())
+#
+#
+#jl3(Lattices.ShiftAtoms(Lattices.SquareLattice(), -rand(2)),
+#		[[1 2];[1 0]],
+#		hcat(vcat.(Base.product(1:5,1:5)...)...) .- 1.0,
+#		Lattices.SquareLattice()
+#		)
+#
 #import PyPlot; fig,ax = PyPlot.subplots()
 #
 #pytest.plot0(14, 0* pi/180, 5, ax, jl2, jl3)
 #
 
 #pytest.plot(jl2, jl3) 
+#
+#
+PyPlot.legend()
 
 
 

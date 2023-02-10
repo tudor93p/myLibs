@@ -3446,7 +3446,8 @@ function fSame(val::Union{Number,AbstractArray{<:Number}},
 
 	fSame(atol)(val)
 
-end 
+end  
+
 
 function fSame(atol::Float64)::Function
 
@@ -3459,7 +3460,7 @@ function fSame(atol::Float64)::Function
 
 
 	function same(a::AbstractArray, b::AbstractArray; atol=atol
-								)::Bool where {Ta,Tb,Na,Nb}
+								)::Bool
 
     isapprox(a,b,atol=atol)
 

@@ -1,18 +1,15 @@
 module Geometry
 #############################################################################
 
-import ConcaveHull, CGAL
-#import GeometryBasics, 
+import ConcaveHull 
 
 import LinearAlgebra; const LA=LinearAlgebra
 
-#using GeometryBasics: Point, MultiPoint, LineString, Line 
-import GeometryBasics 
+#import GeometryBasics 
+import LazySets 
 
-using CGAL: Point2 as Point, Line2 as Line, Segment2 as Segment, do_intersect, squared_distance, projection
 
 import ..Utils, ..ArrayOps, ..Algebra
-
 
 
 
@@ -148,7 +145,7 @@ function rhomboidVertices_fromDVectors(v::AbstractMatrix; dim)::Matrix
 
 end
 
-
+# hypercube 
 
 #===========================================================================#
 #
@@ -157,57 +154,55 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Points(V::AbstractMatrix; dim=2)::Vector{Point}
 
-	Points(eachslice(V, dims=dim)...)
+#function points_common_type(ps...)::DataType 
+#
+#	T = typeof(ps[1][1])  
+#
+#	for p in ps 
+#
+#		T = promote_type(T,typeof(p[1]),typeof(p[2]))
+#		
+#	end 
+#
+#	return GeometryBasics.Point2{T}
+#
+#end 
+#
+#function Points(V::AbstractMatrix; dim=2)::Vector{<:GeometryBasics.Point2}
+#
+#	Points(eachslice(V, dims=dim)...)
+#
+#end 
+#
+#function Points(ps::Vararg{<:AbstractVector}; kwargs...)::Vector{<:GeometryBasics.Point2} 
+#
+#	P = points_common_type(ps...) 
+#
+#	return P[p isa P ? p : P(p) for p in ps]
+#
+#end 
+#
+#
+#
+#function Points(ps::AbstractVector{<:GeometryBasics.Point2}; kwargs...)::Vector{<:GeometryBasics.Point2} 
+#
+#	P = points_common_type(ps) 
+#
+#	for p_ in ps 
+#
+#		p_ isa P && continue 
+#
+#		return Vector{P}[p isa P ? p : P(p) for p in ps]
+#
+#	end 
+#
+#	return ps
+#
+#end  
+#
 
-end 
 
-
-function Points(ps::Vararg{<:AbstractVector}; kwargs...)::Vector{Point}
-
-	[Point(p[1],p[2]) for p in ps]
-
-end 
-
-function Points(ps::AbstractVector{<:Point}; kwargs...)::Vector{Point} 
-
-	ps 
-
-end 
-
-function Points(ps::Vararg{<:Point})::Vector{Point}
-
-	collect(ps)
-
-end 
-
-
-function Segments(ps::Vararg{<:Point,N})::Vector{Segment} where N
-
-	[Segment(ps[i],ps[i+1]) for i in 1:N-1]
-
-end  
-
-function Segments(ps...; dim=2)::Vector{Segment}
-
-	Segments(Points(ps...; dim=dim)...)
-	
-
-end 
-
-
-function xyz(P)::Vector{Float64}
-
-	[getproperty(CGAL, f)(P) for f in [:x, :y, :z][1:CGAL.dimension(P)]]
-
-end
-
-		
-
-#function SquaredDistance(p1::Point, p2::Point)::Float64
-
-#CGAL.Point2
 
 
 
@@ -266,7 +261,21 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
+
+function convex_hull_segm(vertices::AbstractVector{<:AbstractVector{<:Real}}
+													)::Vector{LazySets.LineSegment}
+
+	hull = LazySets.convex_hull(vertices) 
+
+	return [LazySets.LineSegment(hull[i-1 + (i<2)*length(hull)],hull[i]) for i=axes(hull,1)]
+
+end 
 
 
 
@@ -277,35 +286,100 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function nearest_point(x::Union{<:Line, <:Point}, 
-											 points::AbstractVector{Point})::Point 
+#Fix2(f, x) behaves similarly to y->f(y, x).
+#Fix1(f, x) behaves similarly to y->f(x, y).
 
-	partialsort(points, 1, by = p->squared_distance(x, p)) 
+
+function nearest_point(x::Union{<:AbstractVector{<:Real},
+																<:LazySets.Line,
+																},
+											 points::AbstractVector{T}
+											 )::T where T<:AbstractVector{<:Real}
+
+# distance must use Line, not Line2D 
+# project uses Line2D, not line 
+
+	argmin(Base.Fix1(LazySets.distance, x), points)
+
+end  
+
+function project_point_to_line(p::AbstractVector{<:Real},
+															 line::Union{LazySets.Line,LazySets.Line2D}, 
+															 )::Vector{Float64} 
+	
+	LazySets.project(p, line_to_line2D(line))
 
 end 
 
-function nearest_points(line::Line, points::AbstractVector{Point})::Tuple{Point,Point}
+															 
+function nearest_points(line::Union{LazySets.Line,LazySets.Line2D}, 
+											 points::AbstractVector{T},
+											 )::Tuple{AbstractVector{<:Real},T
+																} where T<:AbstractVector{<:Real}
+
+# distance must use Line
+# project uses Line2D 
 
 	p = nearest_point(line, points)
 
-	return projection(line, p), p
+	return project_point_to_line(p, line), p
 
 end 
 
 
 
-function any_intersects(line::Line, objects::AbstractVector)::Bool
+function line_to_line2D(line::LazySets.Line)::LazySets.Line2D 
 
-	any(x -> do_intersect(line, x), objects)
+	LazySets.Line2D(line.p, line.p+line.d)
+
+end    
+
+
+
+function line_to_line2D(line::LazySets.Line2D)::LazySets.Line2D 
+
+	line 
+
+end  
+
+
+
+function any_intersects(line::Union{LazySets.Line,
+																		LazySets.Line2D,
+																		LazySets.LineSegment},
+												objects::AbstractVector)::Bool
+
+#	!all(Base.Fix2(LazySets.is_intersection_empty,line),objects) 
+
+	for obj in objects 
+
+		LazySets.is_intersection_empty(line, obj) || return true 
+
+	end 
+
+	return false 
+	
+end 
+#
+#
+#function any_intersects(objects::AbstractVector)::Function
+#
+#	Base.Fix2(any_intersects, objects)
+#
+#end 
+
+function find_close_points(x::Union{<:AbstractVector{<:Real},
+																<:LazySets.Line,
+																},
+											 points::AbstractVector{<:AbstractVector{<:Real}};
+											 atol::Real=1e-8
+											 )::Vector{Int}
+
+	findall(<(atol) ∘ Base.Fix1(LazySets.distance, x), points)
+
 
 end 
 
-
-function any_intersects(objects::AbstractVector)::Function
-
-	anyint(line::Line)::Bool = any_intersects(line, objects)
-
-end 
 
 
 
@@ -318,68 +392,152 @@ end
 
 
 
-function Maximize_ContactSurface(starting_points::AbstractMatrix{Float64}, 
-																 direction::AbstractVector{Float64}, 
-																 vertices::AbstractMatrix{Float64}; 
+function Maximize_ContactSurface(starting_points::AbstractMatrix{<:Real}, 
+																 direction::AbstractVector{<:Real}, 
+																 vertices::AbstractMatrix{<:Real}; 
 																 dim::Int,
-																 prepare_vertices::Bool=true, 
 																 kwargs...)::Vector{Float64}
 
-	prepare_vertices && return Maximize_ContactSurface(starting_points, direction, prepare_polygon_vertices(vertices; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
-
-
-	poly_verts = Points(vertices; dim=dim)
-
-
-
-	line(start::AbstractVector) = Line(Points(start, start + direction)...)
-	line(start::AbstractVector, shift::AbstractVector) = line(start+shift)
-
-	
-	iter_start = eachslice(starting_points, dims=dim) 
-
-
-	ray_cuts = any_intersects(Segments(CGAL.convex_hull_2(poly_verts))) 
-
-	nr_inside(args...)::Int = count((ray_cuts(line(s, args...)) for s in iter_start))
-
-
-	shifts,nrs = Utils.zipmap(iter_start) do start
-
-		p_line, p = nearest_points(line(start), poly_verts) 
-								# the closest p and its projection on the line
-
-		shift = xyz(p - p_line) 	# vector from the line to the vertex  
-
-		return shift, nr_inside(shift)
-
-	end 
-
-
-	# choose the smallest shift that maximizes the number of rays inside 
-
-	shift_perp = argmin(LA.norm, shifts[collect(nrs).==maximum(nrs)])
-
-
-
-	shifts_parallel = Utils.mapif(!isnothing, iter_start .+ [shift_perp]) do start 
-
-		L = line(start) 
-
-		ps = filter(p->squared_distance(L, p)<1e-12, poly_verts)
-
-		return isempty(ps) ? nothing : xyz(nearest_point(Point(start...), ps)) - start
-
-
-	end 
-
-									# smallest parallel shift 
-	
-	return shift_perp + argmin(LA.norm, shifts_parallel) - direction
+	Maximize_ContactSurface(
+										Vector{Float64}.(eachslice(starting_points,dims=dim)), 
+										convert(AbstractVector{Float64},direction),
+										collect(eachslice(vertices,dims=dim));
+										kwargs...
+										)
 
 end 
 
 
+function Maximize_ContactSurface(
+								starting_points::AbstractVector{<:AbstractVector{<:Real}},
+								direction::AbstractVector{Float64},
+							 vertices::AbstractVector{<:AbstractVector{<:Real}};
+																 kwargs...)::Vector{Float64}
+
+
+	N = length(starting_points)
+
+	lines = Vector{LazySets.Line}(undef,N)
+
+	shifts = zeros(length(first(starting_points)),N)
+
+	nrs = zeros(Int, N) 
+	
+	
+
+
+
+	for i=1:N 
+
+
+		lines[i] = LazySets.Line(starting_points[i], direction)
+
+
+		
+		shifts[:,i] .= nearest_point(lines[i], vertices)
+		#closest vertex 
+
+
+		shifts[:,i] -= project_point_to_line(selectdim(shifts,2,i), lines[i])
+		# vector from the line to the closest vertex  
+
+	end 
+
+	
+	hull_segm = convex_hull_segm(vertices) 
+
+
+	for i=1:N,j=1:N 
+		
+		nrs[i] += any_intersects(LazySets.translate(lines[j], selectdim(shifts,2,i)),hull_segm)
+			# count how many shifted lines intersect the hull 
+
+	end 
+
+
+
+	println.(eachcol(shifts))
+
+	# choose the smallest shift that maximizes the number of rays inside 
+
+	shift_out = copy(argmin(LA.norm, 
+													(selectdim(shifts, 2, i) for i=findall(==(maximum(nrs)),nrs))))
+
+
+
+	for i=1:N 
+
+		# implement the shift so far 
+		LazySets.translate!(lines[i], shift_out)
+		
+		shifts[:,i] .= 0 #-shift_out 
+		shifts[:,i] .-= starting_points[i]
+
+
+		# vertices extremely close to the shifted line 
+		inds_ps = find_close_points(lines[i], vertices)
+
+		if isempty(inds_ps)
+			
+			nrs[i] = 0  
+
+		else 
+		
+			nrs[i] = 1 
+
+
+
+			shifts[:,i] += nearest_point(-selectdim(shifts,2,i)+shift_out, 
+																	 view(vertices, inds_ps)) 
+
+
+				
+		end 
+
+	end   
+
+
+
+	shift_out += argmin(LA.norm, 
+											eachcol(selectdim(shifts, 2, findall(==(1),nrs)))
+											)
+	# smallest parallel shift 
+
+
+#	shift_out -= direction # no contact 
+
+
+	return shift_out 
+
+
+end 
+
+
+#function Maximize_ContactSurface2(starting_points::AbstractMatrix{<:Real}, 
+#																 direction::AbstractVector{<:Real}, 
+#																 vertices::AbstractMatrix{<:Real}; 
+#																 dim::Int,
+#																 kwargs...)::Vector{Float64}
+#
+#
+#	dir_parallel = LinearAlgebra.normalize(direction) 
+#
+##	D = [dir_parallel;; dir_parallel[2]; -dir_parallel[1]] # on columns 
+#
+#	D = [dir_parallel[1]; -dir_parallel[2] ;;
+#			 dir_parallel[2]; dir_parallel[1]
+#			 ] # on rows 
+#
+#
+#	m = Maximize_ContactSurface2(D*starting_points, D*vertices; kwargs...)
+#
+#		Maximize_ContactSurface2(D*transpose(starting_points),
+#														 D*transpose(vertices);
+#														 kwargs...)
+#
+#
+#
+#end 
 
 
 

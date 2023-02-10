@@ -2603,66 +2603,121 @@ function Align_toAtoms!(latt::Lattice,
 end 
 
 
+#
+#function Align_toAtoms!(latt::Lattice, 
+#												surface::AbstractMatrix{<:Real}, 
+#												shift_dir::Int=-1; 
+#												kwargs...)::Lattice 
+#	
+#	Align_toAtoms!(latt, 
+#								 surface, 
+#								 sign(shift_dir)*LattVec(latt)[:,abs(shift_dir)];
+#								 kwargs...)
+#
+#end 
 
-function Align_toAtoms!(latt::Lattice, 
-												surface::AbstractMatrix{<:Real}, 
-												shift_dir::Int=-1; 
-												kwargs...)::Lattice 
-	
-	Align_toAtoms!(latt, 
-								 surface, 
-								 sign(shift_dir)*LattVec(latt)[:,abs(shift_dir)];
-								 kwargs...)
 
-end 
+function lambda123(R::AbstractVector,
+								V::AbstractVector 
+								)::Float64
+
+	lambda = 0.0 
+
+	for (r,v) in Base.Iterators.product(R,V)
+
+		if r-v>lambda 
+
+			lambda = r-v 
+
+		end 
+
+	end 
+
+	return lambda 
+
+end  
+
+function lambda123(R::AbstractMatrix,
+								d::AbstractVector,
+								V::AbstractMatrix;
+								dim::Int=VECTOR_STORE_DIM
+								)::Float64
+
+	dim==1 && return lambda123(R*d, V*d)/sum(abs2,d)
+
+	dim==2 && return lambda123(transpose(R)*d, transpose(V)*d)/sum(abs2,d)
+
+	error()
+
+end  
+
+
+
+
 
 
 function Align_toAtoms!(latt::Lattice, 
 												surface::AbstractMatrix{<:Real}, 
 												shift_dir::AbstractVector{<:Real};
-												prepare_vertices::Bool=true, 
-												order_vertices::Bool=true, 
+#												prepare_vertices::Bool=true, 
+#												order_vertices::Bool=true, 
 												kwargs...)::Lattice
 
 	# shift_dir = +/- i means positive/negative a_i
 	# slowed down if all atoms provided instead of the surface ones
-
-#	if isnothing(bonds)
-#		
-#		c = Utils.DistributeBallsToBoxes.([-1,1], LattDim(latt))
-#
-#		bonds = CombsOfVecs(latt, hcat(vcat(c...)...))
-#
-#	end 
 	
-	prepare_vertices && return Align_toAtoms!(latt, Geometry.prepare_polygon_vertices(surface; dim=VECTOR_STORE_DIM, order_vertices=order_vertices), shift_dir; prepare_vertices=false, kwargs...)
+	ShiftAtoms!(latt; r=-shift_dir*lambda123(PosAtoms(latt), shift_dir, surface)*1.1)
 
-
-	while true 
-
-		r = max(1,Algebra.LargestLengthscale(surface; dim=VECTOR_STORE_DIM))
-
-		ShiftAtoms!(latt; r=-shift_dir*r*1.3)
-	
-		do_overlap(latt, surface) || break  
-
-	end 
 
 
 	ShiftAtoms!(latt, r=Geometry.Maximize_ContactSurface(PosAtoms(latt),
 																											 shift_dir,
 																											 surface, 
 																											 dim=VECTOR_STORE_DIM,
-																											 prepare_vertices=false)
+																											 )
 							)
 
-	#bridge may be needed !! bonds must be provided  
+	#bridge may be needed !! bonds must be provided  etc
 
+	ShiftAtoms!(latt; r=-shift_dir)
 
 
 	return latt 
 
 end 
+
+
+function Align_toAtoms!(latt::Lattice, 
+												surface::AbstractMatrix{<:Real}, 
+												shift_dir::Int=-1; 
+												kwargs...)::Lattice 
+	
+	shift_dir_v = sign(shift_dir)*vec(LattVec(latt, abs(shift_dir)))
+
+	lambda = lambda123(PosAtoms(latt), shift_dir_v, surface)
+
+
+	ShiftAtoms!(latt; r=-shift_dir_v*lambda*1.1)
+
+	ShiftAtoms!(latt, r=Geometry.Maximize_ContactSurface(PosAtoms(latt),
+																											 shift_dir_v,
+																											 surface, 
+																											 dim=VECTOR_STORE_DIM,
+																											 )
+							)
+	
+	ShiftAtoms!(latt; n=setindex!(zeros(Int,LattDim(latt)),
+																-sign(shift_dir),
+																abs(shift_dir))
+							)
+
+	return latt
+
+end 
+
+
+
+
 
 
 
