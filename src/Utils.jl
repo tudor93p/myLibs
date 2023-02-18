@@ -34,6 +34,82 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function periods_outside_interval(j::Real, a::Real, b::Real, T::Real)::Int 
+
+#	ceil(max(0,(a-j)/T))-ceil(max(0,(j-b)/T))
+
+	j<a && return  ceil((a-j)/T) 
+	j>b && return -ceil((j-b)/T)
+
+	return 0
+
+end 
+
+function bring_periodic_to_interval(j::T1, a::Real, b::Real, T::T2
+																		)::promote_type(T1,T2) where {
+																												T1<:Real,T2<:Real}
+	j + T*periods_outside_interval(j, a, b, T)
+
+end  
+
+
+
+function dist_periodic_!(D::AbstractArray{Float64},
+												 i::Int,
+												 a::Real,
+												 b::Real,
+												 T::Real,
+												 )::Nothing 
+
+	setindex!(D, bring_periodic_to_interval(a-b,0,T,T), i)
+
+	setindex!(D, min(D[i], T-D[i]), i)
+
+	return 
+
+end  
+
+
+function reduce_dist_periodic(op::Function,
+															A::Union{<:Real, AbstractArray{<:Real}},
+															B::Union{<:Real, AbstractArray{<:Real}},
+															args...; init=nothing)
+
+	isempty(A) && return init 
+	isempty(B) && return init 
+
+	hasmethod(op, (Float64,)) || return init  
+
+	isa(A,AbstractArray) && isa(B,AbstractArray) && @assert length(A)==length(B)
+
+
+	D = Vector{Float64}(undef, 1)
+
+	dist_periodic_!(D, 1, get(A,1,A), get(B,1,B), args...)
+
+	out = [op(only(D))]
+
+	length(A)==1 && length(B)==1 && return only(out)
+
+	for i=2:max(length(A),length(B))
+
+		dist_periodic_!(D, 1, get(A,i,A), get(B,i,B), args...)
+
+		setindex!(out, op(only(out), only(D)), 1) 
+
+	end 
+
+	return only(out)
+
+end 
+
+
 
 #===========================================================================#
 #
@@ -41,24 +117,31 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 #
 #---------------------------------------------------------------------------#
 
-function dist_periodic_!(D::AbstractArray{Float64,N} where N,
-												 i::Int,
-												 a::Real,
-												 b::Real,
-												 T::Real,
-												 nmax::Int=1)::Nothing 
+# For loop inefficient!! replaced 
+#
+#function dist_periodic_!(D::AbstractArray{Float64,N} where N,
+#												 i::Int,
+#												 a::Real,
+#												 b::Real,
+#												 T::Real,
+#												 nmax::Int=1)::Nothing 
+#
+#	D[i] = abs(a - b + nmax*T)
+#
+#	for n in -nmax:nmax-1
+#
+#	 	D[i] = min(D[i], abs(a - b + n*T))
+#
+#	end 
+#
+#	return 
+#
+#end  
 
-	D[i] = abs(a - b + nmax*T)
 
-	for n in -nmax:nmax-1
 
-	 	D[i] = min(D[i], abs(a - b + n*T))
 
-	end 
 
-	return 
-
-end  
 
 function dist_periodic!(D::AbstractArray{Float64,N},
 												A::AbstractArray{<:Real,N}, 
@@ -923,7 +1006,7 @@ function DistributeBallsToBoxes(balls::Int, boxes::Int,
 
 	boxes==0 && return [Int[]]
 
-	return Utils.flatmap(DistributeBallsToBoxes_(UInt(balls), boxes)) do X
+	return flatmap(DistributeBallsToBoxes_(UInt(balls), boxes)) do X
 
 		iter = Base.product((unique(vcat(expand(x)...)) for x in X)...)
 
@@ -3422,7 +3505,7 @@ everything_is_null(param::Function; kwargs...)::Bool = false
 
 everything_is_null(param::Number; ka...)::Bool = isapprox(param, 0; ka...)
 
-function everything_is_null(param::Utils.List; kwargs...)::Bool 
+function everything_is_null(param::List; kwargs...)::Bool 
 
 	for item in param  
 

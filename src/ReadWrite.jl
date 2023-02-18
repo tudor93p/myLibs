@@ -2,7 +2,7 @@ module ReadWrite
 #############################################################################
 
 import ..DlmF
-import FileIO, JLD
+import FileIO, JLD, OrderedCollections
 
 import ..Utils, ..ArrayOps
 
