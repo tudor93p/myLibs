@@ -144,8 +144,8 @@ function Write_NamesVals(filename::Function,
 	writable(x::Number, name) = writable(vcat(x), name) 
 
 	function writable(D::AbstractDict, name) 
-		
-		Dict(k=>writable(v,name) for (k,v) in pairs(D))
+
+		Utils.dict_like(D, (k=>writable(v,name) for (k,v) in pairs(D)))
 
 	end 
 
