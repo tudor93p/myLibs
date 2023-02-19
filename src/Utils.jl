@@ -3603,14 +3603,23 @@ function getprop(prop::Union{List,Symbol}, std_value=nothing)::Function
 
 end 
 
+function getprop(M::Module, prop::Symbol, std_value=nothing)
 
-function getprop(M, prop::Symbol, std_value=nothing)
-
-	allnames = isa(M,Module) ? names(M, all=true, imported=true) : propertynames(M)
+	allnames = names(M, all=true, imported=true) 
 
 	return in(prop, allnames) ? getproperty(M, prop) : std_value 
 
 end 
+
+
+function getprop(M, prop::Symbol, std_value=nothing)
+
+	allnames = propertynames(M)
+
+	return in(prop, allnames) ? getproperty(M, prop) : std_value 
+
+end 
+
 
 
 function getprop(M, prop::List, std_value=nothing)

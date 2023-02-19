@@ -1,7 +1,7 @@
 name = "myLibs"
 uuid = "0cc41259-d48e-4a81-8a6d-ec7e330e4bca"
 authors = ["tudor <tudor.pahomi@gmail.com>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"

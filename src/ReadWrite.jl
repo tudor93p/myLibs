@@ -266,7 +266,7 @@ function good_data(D::T)::T where T<:AbstractDict
 
 		@show typeof(v) 
 
-		error("JLD data is not read correctly! 'import JLD' in the script using ReadWrite should solve the problem")
+		error("JLD data is not read correctly! Import JLD or the package defining that data type in the script using ReadWrite should solve the problem")
 
 	end 
 
