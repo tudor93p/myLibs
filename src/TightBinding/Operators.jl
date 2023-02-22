@@ -887,12 +887,12 @@ function MatrixElem(P1::AbstractMatrix{<:Number},
 										Op::AbstractMatrix{<:Number},
 										P2::AbstractMatrix{<:Number},
 										csdim::Int,
-										I::Colon,
+										I::Colon=Colon(),
 										)::Matrix
 
-	csdim==1 && return P1' * Op * P2 
+	csdim==1 && return *(P1', Op, P2) 
 
-	csdim==2 && return conj(P1)*Op*transpose(P2)
+	csdim==2 && return *(conj(P1), Op, transpose(P2))
 
 end 
 
