@@ -107,7 +107,116 @@ function reduce_dist_periodic(op::Function,
 
 	return only(out)
 
+end  
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function closest_periodic_shifted_a(a::Real,
+													b::Real,
+													T::Real,
+													)::Float64 
+
+
+	d = bring_periodic_to_interval(a-b, 0, T, T)
+
+	return d+b -(d>T/2)*T
+
+end    
+
+
+function closest_periodic_shifted_a_and_dist!(storage::AbstractVector{Float64},
+																			a::Real,
+													b::Real,
+													T::Real,
+													)::AbstractVector{Float64}
+
+	fill!(storage, a)
+	
+	storage[2] -= b 
+
+	storage .+= T*periods_outside_interval(storage[2], 0, T, T)
+
+
+	if storage[2]>T/2 
+
+		storage .-= T 
+
+		storage[2] *= -1 
+
+	end 
+
+	return storage 
+
+end   
+
+function closest_periodic_shifted_a(a::Real,
+													B::AbstractArray{<:Real},
+													T::Real,
+													)::Float64 
+
+
+	out = closest_periodic_shifted_a_and_dist!(zeros(2), a, B[1], T)
+
+	current = zeros(2) 
+
+	for b in view(B,2:lastindex(B))
+
+		closest_periodic_shifted_a_and_dist!(current, a, b, T) 
+
+		current[2]<out[2] && copy!(out, current)
+
+	end 
+
+	return out[1]
+
 end 
+
+
+
+function closest_periodic_b(a::Real,
+														 B::AbstractArray{<:Real},
+														 T::Real)::Float64
+
+	D = Float64[B[1], 0.0, 0.0]
+
+	dist_periodic_!(D, 2, a, B[1], T)
+
+	for i=2:lastindex(B)
+
+		dist_periodic_!(D, 3, a, B[i], T)
+
+		D[3]<D[2] || continue 
+	
+		D[1] = B[i] 
+
+		D[2] = D[3] 
+
+	end 
+
+
+	return D[1]
+
+end 
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1933,6 +2042,29 @@ end
 
 
 
+function day_change_str(t0::Dates.DateTime,
+												t2::Dates.DateTime 
+												)::String
+
+	n = Dates.days(t2)-Dates.days(t0)
+
+	return n==0 ? "" : string("(",n>0 ? "+" : "-",abs(n),")")
+
+
+end  
+
+function tot_seconds_short(t12::Dates.Period)::String 
+
+	tot_seconds_short(round(t12,Dates.Second(1)))
+
+end 
+
+function tot_seconds_short(t12::Dates.Second)::String 
+
+	t12.value<60 ? "" : string(" = ", t12.value, "s")
+
+end 
+
 
 #===========================================================================#
 #
@@ -1953,29 +2085,40 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 	if start > nr_scripts
 
-    println(string("\nI am $idproc and I am not doing any jobs (nr.jobs < nr.processes).\n"))
-    return
+		return println(string("\nI am $idproc and I am not doing any jobs (nr.jobs < nr.processes).\n"))
 
   end
 
 	stop = min(nr_scripts, get_arg(start, arg_pos+2, Int64))
 
 
-	njobs = size(allparamcombs,1)
+	njobs = length(allparamcombs)
 
-	which_ = EqualDistributeBallsToBoxes_cumulRanges(njobs, nr_scripts, start, stop)
+	which_ = begin 
+		
+		w = EqualDistributeBallsToBoxes_cumulRanges(njobs, nr_scripts, start, stop)
 
+		@assert step(w)==1 
 
-	if step(which_)==1 
-
-		which_ = UnitRange(extrema(which_)...)
+		UnitRange(first(w),last(w))
 
 	end 
 
-  
-  println("\nI am $idproc and I am doing jobs $which_ out of $njobs.\n")
+	which_ = 23:77
 
-	doparams = allparamcombs[which_] 
+	n = length(which_)
+	
+	doparams = view(allparamcombs, which_)
+
+	df = Dates.dateformat"HH:MM:SS"
+
+	t0 = Dates.now()
+  
+	println(string("\nI am $idproc and I am doing $n jobs ($which_) out of $njobs.",
+								 "\n\t * Timestamp: ",
+								 Dates.format(t0,Dates.dateformat"mm/dd HH:MM:SS")
+								 ))
+
 
 
 
@@ -1986,10 +2129,32 @@ function Distribute_Work(allparamcombs::AbstractVector,
  
 		local x = vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...) 
 
-		#    print_progress(ip,time1)
-#  function print_progress(ip,t1)
+		t2 = Dates.now()
 
-		println(string("\nI am $idproc and I completed $ip/",length(which_)," jobs (last one: ",which_[ip],"/$which_ in ", Int(round(Dates.value(Dates.now()-t1)/1000)),"s)."))
+		t12 = ceil(max(t2-t1,Dates.Second(1)),Dates.Second(1))
+		
+		t02 = ceil(max(t2-t0,Dates.Second(1)),Dates.Second(1))
+
+		t23 = ceil(max(div((t2-t0)*(n-ip),ip), Dates.Second(1)), Dates.Second(1))
+
+
+
+		println(string("\nI am $idproc and I completed job ",
+									which_[ip]," of $which_",
+									"\n\t * Total jobs done: $ip/$n",
+								 "\n\t * Timestamp: ",
+								 Dates.format(t2,df),day_change_str(t0,t0),
+									"\n\t * Time taken last: ",
+									Dates.canonicalize(t12), tot_seconds_short(t12),
+#									 "\n\t * Time ",which_[ip],"/$which_ in ", 
+#									 Dates.canonicalize(t12),
+#									 " = ", t12.value, "s",
+									 "\n\t * Elapsed time: ",
+									Dates.canonicalize(t02), tot_seconds_short(t02),
+									 "\n\t * Projection: ",
+									Dates.canonicalize(t23), tot_seconds_short(t23),
+#									 Int(round(Dates.value(Dates.now()-t1)/1000)),"s",
+									 ))
 
 #    println(strout)
 

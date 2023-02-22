@@ -2,7 +2,8 @@ module SignalProcessing
 #############################################################################
 
 
-import Dierckx, FFTW, ..Algebra 
+import Dierckx, FFTW, LinearAlgebra 
+import ..Algebra
 
 #===========================================================================#
 #
@@ -196,6 +197,14 @@ function Interp1D(x, y, k::Int, X; kwargs...)
 
 end
 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 function LinearInterp1D(y1::T1, y2::T2 
 												)::Function where {T1<:Number,T2<:Number}
 
@@ -225,20 +234,25 @@ function LinearInterp1D(y1, y2, x1::Real, x2::Real)::Function
 end 
 
 
-function LinearInterp1D(y1::AbstractArray{T1,N} where T1<:Number, 
-												y2::AbstractArray{T2,N} where T2<:Number,
-												)::Function where N
+function LinearInterp1D(y1::AbstractArray{T1,N},
+												y2::AbstractArray{T2,N}
+												)::Function where {N,T1<:Number,T2<:Number}
 
 	slope = y2 - y1 
 
-	T = typeof(0.1*sum(slope))
 
-	return function lin_interp_1D(x::Real)::Array{T,N}
+	return function lin_interp_1D(x::Real)::Array{promote_type(Float64,T1,T2),N}
 
-		x<=0 && return y1 
-		x>=1 && return y2 
+		out = Array{promote_type(Float64,T1,T2),N}(undef, size(slope))
 
-		y1 + slope*x 
+		x<=0 && return copy!(out,y1)
+		x>=1 && return copy!(out,y2)
+
+		return LinearAlgebra.axpy!(x, slope, copy!(out, y1))
+
+#		x*slope + out 
+
+#		y1 + slope*x 
 
 	end 
 
