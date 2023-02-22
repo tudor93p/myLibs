@@ -40,18 +40,34 @@ const List = Union{AbstractVector, AbstractSet, Tuple, Base.Generator,
 #
 #---------------------------------------------------------------------------#
 
-function periods_outside_interval(j::Real, a::Real, b::Real, T::Real)::Int 
+function periods_outside_interval(j::Real)::Int 
 
-#	ceil(max(0,(a-j)/T))-ceil(max(0,(j-b)/T))
+	ceil(-j) 
 
-	j<a && return  ceil((a-j)/T) 
-	j>b && return -ceil((j-b)/T)
+end   
+function periods_outside_interval(j::Real, T::Real)::Int 
+
+	periods_outside_interval(j/T)
+
+end 
+
+function periods_outside_interval(j::Real, a::Real, b::Real, T::Real=b-a)::Int 
+	j<a && return periods_outside_interval(j-a,T)
+	j>b && return -periods_outside_interval(b-j,T)
 
 	return 0
 
 end 
 
-function bring_periodic_to_interval(j::T1, a::Real, b::Real, T::T2
+#function periods_outside_interval(j::Real, a::Real, b::Real, T::Real=b-a)::Int 
+#	j<a && return  ceil((a-j)/T) 
+#	j>b && return -ceil((j-b)/T)
+#
+#	return 0
+#
+#end 
+
+function bring_periodic_to_interval(j::T1, a::Real, b::Real, T::T2=b-a
 																		)::promote_type(T1,T2) where {
 																												T1<:Real,T2<:Real}
 	j + T*periods_outside_interval(j, a, b, T)
@@ -67,7 +83,7 @@ function dist_periodic_!(D::AbstractArray{Float64},
 												 T::Real,
 												 )::Nothing 
 
-	setindex!(D, bring_periodic_to_interval(a-b,0,T,T), i)
+	setindex!(D, bring_periodic_to_interval(a-b,0,T), i)
 
 	setindex!(D, min(D[i], T-D[i]), i)
 
@@ -111,6 +127,19 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function reduce_index(i::Int, period::Int)::Int 
+
+	bring_periodic_to_interval(i,1,period,period)
+
+end 
+
 
 
 #===========================================================================#
@@ -126,7 +155,7 @@ function closest_periodic_shifted_a(a::Real,
 													)::Float64 
 
 
-	d = bring_periodic_to_interval(a-b, 0, T, T)
+	d = bring_periodic_to_interval(a-b, 0, T)
 
 	return d+b -(d>T/2)*T
 
@@ -143,7 +172,7 @@ function closest_periodic_shifted_a_and_dist!(storage::AbstractVector{Float64},
 	
 	storage[2] -= b 
 
-	storage .+= T*periods_outside_interval(storage[2], 0, T, T)
+	storage .+= T*periods_outside_interval(storage[2], 0, T)
 
 
 	if storage[2]>T/2 
