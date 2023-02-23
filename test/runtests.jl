@@ -24,7 +24,7 @@ for f in [
 
 #"lattices",
 
-#"geometry",
+"geometry",
 
 #"lattices_attachleads",
 
@@ -63,7 +63,7 @@ for f in [
 
 #"tbmodel",
 
-"utils",
+#"utils",
 
 #"utils_splitws",
 #"oper" ,

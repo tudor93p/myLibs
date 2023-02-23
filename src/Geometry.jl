@@ -5,9 +5,7 @@ import ConcaveHull
 
 import LinearAlgebra; const LA=LinearAlgebra
 
-#import GeometryBasics 
 import LazySets 
-
 
 import ..Utils, ..ArrayOps, ..Algebra
 
@@ -220,36 +218,13 @@ end
 
 function concave_hull(points::AbstractVector{<:AbstractVector{T}}; outdim=2)::Vector{Vector{T}} where T<:Real
 	
-	ch = ConcaveHull.concave_hull(points)
-
-
-	return ch.vertices 
-
-#	s = ArrayOps.Array_from_ListIndsVals(
-#							[outdim,[2,1][outdim]],
-#							[length(ch.vertices), length(ch.vertices[1])]
-#							)
-#
-#	@show ch 
-#@show s  
-#
-#	out = similar(ch, Tuple(s))
-#
-#	
-#	for (i,v) in enumerate(ch.vertices)
-#
-#		setindex!(selectdim(out, dim, i), v, :)
-#
-#	end 
-#
-#
-#	return out
+	ConcaveHull.concave_hull(points).vertices 
 
 end 
 
 
 
-function concave_hull(points::AbstractMatrix{T}; dim=2, kwargs...)::Matrix{T} where T<:Real
+function concave_hull(points::AbstractMatrix{T}; dim::Int=2, kwargs...)::Matrix{T} where T<:Real
 
 	ch = concave_hull(collect(eachslice(points, dims=dim)); kwargs...)
 
