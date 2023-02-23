@@ -2171,31 +2171,16 @@ function Distribute_Work(allparamcombs::AbstractVector,
 		println(string("\nI am $idproc and I completed job ",
 									which_[ip]," of $which_",
 									"\n\t * Total jobs done: $ip/$n",
-								 "\n\t * Timestamp: ",
+									"\n\t * Timestamp:       ",
 								 Dates.format(t2,df),day_change_str(t0,t0),
 									"\n\t * Time taken last: ",
 									Dates.canonicalize(t12), tot_seconds_short(t12),
-#									 "\n\t * Time ",which_[ip],"/$which_ in ", 
-#									 Dates.canonicalize(t12),
-#									 " = ", t12.value, "s",
-									 "\n\t * Elapsed time: ",
+									"\n\t * Elapsed time:    ",
 									Dates.canonicalize(t02), tot_seconds_short(t02),
-									 "\n\t * Projection: ",
+									"\n\t * Projection:      ",
 									Dates.canonicalize(t23), tot_seconds_short(t23),
-#									 Int(round(Dates.value(Dates.now()-t1)/1000)),"s",
 									 ))
 
-#    println(strout)
-
-#    open("/home/pahomit/progress.txt","a") do fout
-#
-#      DlmF.writedlm(fout,[strout])
-#
-#    end
-
-#    return Dates.now()
-
-#  end
   
   end
 
