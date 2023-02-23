@@ -51,7 +51,9 @@ function periods_outside_interval(j::Real, T::Real)::Int
 
 end 
 
-function periods_outside_interval(j::Real, a::Real, b::Real, T::Real=b-a)::Int 
+function periods_outside_interval(j::Real, a::Real, b::Real, T::Real=b-a
+																 )::Int 
+
 	j<a && return periods_outside_interval(j-a,T)
 	j>b && return -periods_outside_interval(b-j,T)
 
@@ -2132,8 +2134,6 @@ function Distribute_Work(allparamcombs::AbstractVector,
 		UnitRange(first(w),last(w))
 
 	end 
-
-	which_ = 23:77
 
 	n = length(which_)
 	
