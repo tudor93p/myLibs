@@ -5,7 +5,7 @@ import PyPlot
 
 
 
-Utils.Distribute_Work(1:100,(args...;kwargs...)->sleep(3*rand()))
+Utils.Distribute_Work(1:10,(args...;kwargs...)->sleep(3*rand()))
 
 
 

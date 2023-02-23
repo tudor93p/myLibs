@@ -2168,21 +2168,32 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 
 
-		println(string("\nI am $idproc and I completed job ",
+		S = string("\nI am $idproc and I completed job ",
 									which_[ip]," of $which_",
-									"\n\t * Total jobs done: $ip/$n",
-									"\n\t * Timestamp:       ",
+									"\n\t * Timestamp:        ",
 								 Dates.format(t2,df),day_change_str(t0,t0),
-									"\n\t * Time taken last: ",
+									"\n\t * Time taken last:  ",
 									Dates.canonicalize(t12), tot_seconds_short(t12),
-									"\n\t * Elapsed time:    ",
+									"\n\t * Total jobs done:  $ip/$n",
+									"\n\t * Elapsed time:     ",
 									Dates.canonicalize(t02), tot_seconds_short(t02),
-									"\n\t * Projection:      ",
+									)
+
+		if ip<n 
+
+			S *= string("\n\t * Projection:       ",
 									Dates.canonicalize(t23), tot_seconds_short(t23),
-									 ))
+									 )
+
+		end 
+
+		println(S) 
+
 
   
   end
+
+	println() 
 
 
 	return 
