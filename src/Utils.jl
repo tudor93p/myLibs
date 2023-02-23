@@ -2096,6 +2096,25 @@ function tot_seconds_short(t12::Dates.Second)::String
 
 end 
 
+function canonicalize_maxtwo(dt::Dates.Period)::Dates.CompoundPeriod 
+
+	P = Dates.canonicalize(dt).periods  
+
+	isempty(P) && return Dates.canonicalize(dt)
+
+	D = (Dates.Second,Dates.Minute,Dates.Hour,Dates.Day,Dates.Week)
+
+	i0 = findfirst(Base.Fix1(isa, P[1]), D)
+
+	@assert !isnothing(i0)
+
+	T = D[max(i0-1,1)](1)
+
+	return Dates.canonicalize(round(dt, T))
+
+end 
+
+
 
 #===========================================================================#
 #
@@ -2159,30 +2178,33 @@ function Distribute_Work(allparamcombs::AbstractVector,
 		local x = vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...) 
 
 		t2 = Dates.now()
-
+		
 		t12 = ceil(max(t2-t1,Dates.Second(1)),Dates.Second(1))
 		
 		t02 = ceil(max(t2-t0,Dates.Second(1)),Dates.Second(1))
 
 		t23 = ceil(max(div((t2-t0)*(n-ip),ip), Dates.Second(1)), Dates.Second(1))
 
+		t3 = t2 + t23  
 
 
 		S = string("\nI am $idproc and I completed job ",
 									which_[ip]," of $which_",
 									"\n\t * Timestamp:        ",
-								 Dates.format(t2,df),day_change_str(t0,t0),
+								 Dates.format(t2,df),day_change_str(t0,t2),
 									"\n\t * Time taken last:  ",
-									Dates.canonicalize(t12), tot_seconds_short(t12),
+									canonicalize_maxtwo(t12), #tot_seconds_short(t12),
 									"\n\t * Total jobs done:  $ip/$n",
 									"\n\t * Elapsed time:     ",
-									Dates.canonicalize(t02), tot_seconds_short(t02),
+									canonicalize_maxtwo(t02), #tot_seconds_short(t02),
 									)
 
 		if ip<n 
 
 			S *= string("\n\t * Projection:       ",
-									Dates.canonicalize(t23), tot_seconds_short(t23),
+									canonicalize_maxtwo(t23), #tot_seconds_short(t23),
+									"\n\t * Estimated end:    ",
+								 Dates.format(t3,df),day_change_str(t0,t3),
 									 )
 
 		end 
