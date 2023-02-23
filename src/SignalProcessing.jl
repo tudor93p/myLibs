@@ -521,6 +521,145 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+# algo: https://www.johndcook.com/blog/standard_deviation/
+# 1962 Welford  
+# #
+# used in: SnakeStates/src/DeviceWithLeads/src/TasksPlots.jl
+# and in: Luxemburg/check_WLO/WLO/src/WLO.jl 
+# 
+#
+
+function init_run_ms()::Vector{Float64}
+
+	zeros(4)
+
+end 
+
+function init_run_m()::Vector{Float64}
+
+	zeros(2)
+
+end 
+
+function init_run_ms!(storage::AbstractVector{Float64})::Nothing 
+
+	storage .= 0 
+
+	return 
+
+end  
+
+function run_m1!(storage::AbstractArray{<:Number}, 
+								 k::Real, xk::Number,
+								 inds...)::Nothing 
+
+	storage[inds...] += (xk-storage[inds...])/k 
+
+	return 
+
+end 
+
+function run_m1!(storage::AbstractArray{<:Number}, 
+								 k::Real, xk::AbstractArray,
+								 inds...)::Nothing 
+
+	LinearAlgebra.axpby!(1/k, xk, 1-1/k, view(storage, inds...))
+
+	return 
+
+end 
+
+
+function run_m!(storage::AbstractVector{Float64}, xk::Real)::Nothing
+
+	storage[1] += 1
+
+	run_m1!(storage, storage[1], xk, 2)
+
+end 
+
+
+function run_ms!(storage::AbstractVector{Float64}, xk::Real)::Nothing
+
+	# storage[1]: k-1 
+	
+	storage[1] += 1
+
+	# storage[1]: k
+
+	#	storage[2] and storage[3]: M(k-1)
+
+	storage[3] += (xk-storage[3])/storage[1]
+
+	# storage[3]: M(k) 
+
+	#	storage[4] S(k-1) 
+	
+	storage[4] += (xk-storage[2])*(xk-storage[3])
+
+	# storage[4]: S(k) 
+	
+	storage[2] = storage[3] 
+
+	# storage[2]: M(k)
+	
+	return 
+
+end 
+
+function run_var(storage::AbstractVector{Float64})::Float64 
+
+	storage[1]>1 ? storage[4]/(storage[1]-1) : 0.0
+
+end 
+
+
+function run_mean(storage::AbstractVector{Float64})::Float64 
+
+	storage[2] 
+
+end 
+
+function run_sigma(storage::AbstractVector{Float64})::Float64 
+	
+	sqrt(run_var(storage))
+
+end  
+
+
+function run_ms!(storage::AbstractVector{Float64},
+								 X::AbstractVector{<:Real})::Nothing 
+
+	for x in X 
+
+		run_ms!(storage, x) 
+
+	end  
+
+end  
+
+
+function run_ms(X::AbstractVector{<:Real})::Vector{Float64}
+
+	storage = init_run_ms()
+
+	run_ms!(storage, X)
+
+	return storage
+
+end 
+
+
+
+
+
+
 
 
 
