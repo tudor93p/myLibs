@@ -13,6 +13,19 @@ import ..LA
 #
 #---------------------------------------------------------------------------#
 
+function PMinput(i::Int)::Val 
+	
+	@assert 0<=i<=3 
+	
+	return Val(i) 
+
+end 
+
+function PMinput(c::Union{AbstractChar,AbstractString})::Val 
+	
+	PMinput(parse(Int,c))
+
+end 
 
 
 function PauliMatrices()::Dict{Int64,Matrix{ComplexF64}}
@@ -21,8 +34,10 @@ function PauliMatrices()::Dict{Int64,Matrix{ComplexF64}}
 
 end
 
-
-PauliMatrix(i::Int)::Matrix{ComplexF64} = PauliMatrix(Val(i))
+PauliMatrix(i::Union{AbstractChar,
+										 AbstractString,
+										 Int
+										 })::Matrix{ComplexF64} = PauliMatrix(PMinput(i))
 
 PauliMatrix(::Val{0})::Matrix{ComplexF64} = [[1 0]; [0 1]]
 PauliMatrix(::Val{1})::Matrix{ComplexF64} = [[0 1]; [1 0]]
@@ -37,17 +52,37 @@ PauliMatrix(::Val{3})::Matrix{ComplexF64} = [[1 0]; [0 -1]]
 #
 #---------------------------------------------------------------------------#
 
-function GammaMatrix!(G::AbstractMatrix{ComplexF64},
-										 i::Int,j::Int)::Nothing 
 
-	kron!(G,PauliMatrix(i),PauliMatrix(j))
+function GMinput(ij::AbstractString
+								 )::Tuple{Val,Val}
 
-	return 
+	map(PMinput, Tuple(ij)) 
+
+end  
+
+function GMinput(ij::Vararg{Union{AbstractChar,AbstractString,Int},2}
+								 )::Tuple{Val,Val}
+
+	map(PMinput, ij) 
 
 end 
-function GammaMatrix(i::Int,j::Int)::Matrix{ComplexF64}
 
-	kron(PauliMatrix(i),PauliMatrix(j))
+function GammaMatrix!(G::AbstractMatrix{ComplexF64},
+											args::Union{AbstractChar,AbstractString,Int}...
+											)::AbstractMatrix{ComplexF64}
+
+	i,j = GMinput(args...) 
+
+	return kron!(G, PauliMatrix(i), PauliMatrix(j))
+
+end  
+
+function GammaMatrix(args::Union{AbstractChar,AbstractString,Int}...
+										 )::Matrix{ComplexF64}
+
+	i,j = GMinput(args...) 
+
+	return kron(PauliMatrix(i),PauliMatrix(j))
 
 end 
 

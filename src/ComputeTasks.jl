@@ -1377,7 +1377,7 @@ function add_line!(data::AbstractDict,
 	
 	for q in (k,string(k))
 
-		q in keys(P) || continue 
+		haskey(P,q) || continue 
 		
 		setindex!(data, P[q], n*"line")
 
