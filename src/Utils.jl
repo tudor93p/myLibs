@@ -2191,12 +2191,12 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 
 		S = string("\nI am $idproc (",myid(),") and I completed job ",
-							which_[ip]," of $which_ ($njobs)",
+							which_[ip]," of $which_",#" ($njobs)",
 									"\n\t * Timestamp:        ",
 								 Dates.format(t2,df),day_change_str(t0,t2),
 									"\n\t * Time taken last:  ",
 									canonicalize_maxtwo(t12), #tot_seconds_short(t12),
-									"\n\t * Total jobs done:  $ip/$n",
+									"\n\t * Total jobs done:  $ip/$n ($njobs)",
 									"\n\t * Elapsed time:     ",
 									canonicalize_maxtwo(t02), #tot_seconds_short(t02),
 									)
