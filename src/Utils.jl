@@ -2161,8 +2161,10 @@ function Distribute_Work(allparamcombs::AbstractVector,
 	df = Dates.dateformat"HH:MM:SS"
 
 	t0 = Dates.now()
-  
-	println(string("\nI am $idproc and I am doing $n jobs ($which_) out of $njobs.",
+ 
+
+	println(string("\nI am $idproc (",myid(),
+								 ") and I am doing $n jobs ($which_) out of $njobs.",
 								 "\n\t * Timestamp: ",
 								 Dates.format(t0,Dates.dateformat"mm/dd HH:MM:SS")
 								 ))
@@ -2188,8 +2190,8 @@ function Distribute_Work(allparamcombs::AbstractVector,
 		t3 = t2 + t23  
 
 
-		S = string("\nI am $idproc and I completed job ",
-									which_[ip]," of $which_",
+		S = string("\nI am $idproc (",myid(),") and I completed job ",
+							which_[ip]," of $which_ ($njobs)",
 									"\n\t * Timestamp:        ",
 								 Dates.format(t2,df),day_change_str(t0,t2),
 									"\n\t * Time taken last:  ",
