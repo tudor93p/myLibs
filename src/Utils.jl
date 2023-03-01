@@ -1131,6 +1131,38 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function FillBoxesWithBalls(nballs::Int, capacity::Int)::Vector{Int}
+
+	nr_full_boxes, last_boxes =  divrem(nballs, capacity)
+
+	last_boxes==0 && return fill(capacity, nr_full_boxes) 
+
+	boxes = fill(capacity,nr_full_boxes+1)
+
+	boxes[end] = last_boxes 
+
+	return boxes  
+
+end 
+
+function FillBoxesWithBalls(A::AbstractVector, args...)::Vector{Int}
+
+	FillBoxesWithBalls(length(A), args...)
+
+end 
+
+function FillBoxesWithBalls_cumulRanges(args...)
+
+	sepLengths_cumulRanges(FillBoxesWithBalls(args[1:2]...), args[3:end]...)
+
+end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
 
 
 
@@ -1236,6 +1268,13 @@ function PropDistributeBallsToBoxes(balls::Int, sizes::AbstractVector{<:Number})
 end 
 
 
+function PropDistributeBallsToBoxes_cumulRanges(args...)
+
+	d = PropDistributeBallsToBoxes(args[1:2]...)
+
+	return sepLengths_cumulRanges(d, args[3:end]...)
+
+end 
 
 
 function EqualDistributeBallsToBoxes_cumulRanges(args...)
@@ -1247,13 +1286,6 @@ function EqualDistributeBallsToBoxes_cumulRanges(args...)
 end 
 
 
-function PropDistributeBallsToBoxes_cumulRanges(args...)
-
-	d = PropDistributeBallsToBoxes(args[1:2]...)
-
-	return sepLengths_cumulRanges(d, args[3:end]...)
-
-end 
 
 
 
@@ -2127,9 +2159,12 @@ function Distribute_Work(allparamcombs::AbstractVector,
 												 vararg::Bool=false, arg_pos::Int=1, kwargs0...
 												 )::Nothing
 
-  nr_scripts = min(length(allparamcombs), get_arg(1, arg_pos, Int64))
+	njobs = length(allparamcombs) 
+
+  nr_scripts = min(njobs, get_arg(1, arg_pos, Int64))
 
 	start =  get_arg(1, arg_pos+1, Int64)
+
 
 	idproc = gethostname()
 
@@ -2139,10 +2174,7 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
   end
 
-	stop = min(nr_scripts, get_arg(start, arg_pos+2, Int64))
-
-
-	njobs = length(allparamcombs)
+	stop = min(nr_scripts, get_arg(start, arg_pos+2, Int64)) 
 
 	which_ = begin 
 		
@@ -2172,7 +2204,6 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 
 
-
   for (ip,p) in enumerate(doparams)
   
     t1 = Dates.now()
@@ -2190,7 +2221,10 @@ function Distribute_Work(allparamcombs::AbstractVector,
 		t3 = t2 + t23  
 
 
-		S = string("\nI am $idproc (",myid(),") and I completed job ",
+		S = string("\nI am $idproc (",
+#							 myid(),
+							 start==stop ? start : (start:stop),
+							 ") and I completed job ",
 							which_[ip]," of $which_",#" ($njobs)",
 									"\n\t * Timestamp:        ",
 								 Dates.format(t2,df),day_change_str(t0,t2),
@@ -2200,6 +2234,7 @@ function Distribute_Work(allparamcombs::AbstractVector,
 									"\n\t * Elapsed time:     ",
 									canonicalize_maxtwo(t02), #tot_seconds_short(t02),
 									)
+
 
 		if ip<n 
 
@@ -2236,7 +2271,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function sepLengths_cumulRanges(L::AbstractVector{Int})::Vector{OrdinalRange{Int,Int}}
+function sepLengths_cumulRanges(L::AbstractVector{Int}
+															 )::Vector{UnitRange{Int}}
 	
 	boundaries = cumsum([0;L]) 
 	
@@ -2245,17 +2281,17 @@ function sepLengths_cumulRanges(L::AbstractVector{Int})::Vector{OrdinalRange{Int
 end 
 
 function sepLengths_cumulRanges(L::AbstractVector{Int},
-															 i::Int, j::Int=i)::OrdinalRange{Int,Int}
+															 i::Int, j::Int=i)::UnitRange{Int}
 
 	i>j && error("'j'=$j must be at least 'i'=$i")
 
-	return range(1+sum(L[1:i-1]),step=1,length=sum(L[i:j]))
+	return range(1+sum(view(L, 1:i-1)), length=sum(view(L, i:j)))
 
 end 
 
 #sepLengths_cumulRanges(L)[i:j+1]
 
-function sepLengths_cumulRanges(As::Any)::Vector{OrdinalRange{Int,Int}}
+function sepLengths_cumulRanges(As::Any)::Vector{UnitRange{Int}}
 
 	sepLengths_cumulRanges([size(A,1) for A in As])
 
