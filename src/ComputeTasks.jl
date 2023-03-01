@@ -604,52 +604,60 @@ function combine_files_exist(tasks::AbstractVector{CompTask})::Function
 
 end 
 
+
+function NT_to_strvec(nt::NamedTuple)::AbstractVector{<:AbstractString}
+
+	ch = [',',' ', ')','('] 
+
+	return Utils.flatmap(split(strip(string(nt),ch),",")) do S
+
+		[strip(s,ch) for s in split(S, "=")]
+
+	end   
+
+end 
+
+
 function NTs_nice_print(NTs::AbstractVector{<:NamedTuple}
 												)::Tuple{Matrix{String},String}
 
-	ch = [',',' ', ')','(']
+	A = Matrix{String}(undef, 2*length(NTs[1]), length(NTs))
 
-	str_intpars::Matrix{String} = mapreduce(hcat, NTs) do pr_ip
+	for (j,nt)=enumerate(NTs)
 
-		Utils.flatmap(split(strip(string(pr_ip),ch),",")) do S
-
-			[strip(s,ch) for s in split(S, "=")]
-
-		end 
+		setindex!(A, NT_to_strvec(nt), :, j)
 
 	end 
-	
-	max_len = maximum(length, str_intpars; dims=2)[:]
+
+	max_len = maximum(length, A; dims=2)[:]
 
 
-	for (j,S) in enumerate(eachcol(str_intpars))
+	for (j,S) in enumerate(eachcol(A))
 
 		for (i,(l,s)) in enumerate(zip(max_len,S))
 	
-			str_intpars[i,j] = repeat(" ",l-length(s))*s
+			A[i,j] = repeat(" ",l-length(s))*s
 
 		end 
-
-	end  
-	
-
-	out = mapreduce(hcat,eachcol(str_intpars)) do S 
-
-		s = join([join(s," = ") for s=Base.Iterators.partition(S,2)],"  |  ")
-
-		return [s,s]
 
 	end 
 
 
-	nr_progress = 78 - length(first(out)) - 5 
+	A = mapslices(A; dims=1) do S
+
+		fill(join([join(s," = ") for s=Iterators.partition(S,2)],"  |  "), 2)
+
+	end 
+
+
+	nr_progress = 78 - length(first(A)) - 5 
 
 
 	if nr_progress > 0
 
-		for (i,S) in enumerate(eachcol(out))
+		for (i,S) in enumerate(eachcol(A))
 	
-			ps = [(i+j-2)/size(out,2) for j=1:2]
+			ps = [(i+j-2)/size(A,2) for j=1:2]
 
 			ns = [Int(floor(nr_progress*p)) for p in ps]#(f,p) in zip([floor,round],ps)]
 
@@ -670,17 +678,17 @@ function NTs_nice_print(NTs::AbstractVector{<:NamedTuple}
 
 			for j=1:2 
 
-				out[j,i] *= "   ["*repeat("#",ns[j])*repeat("-",nr_progress-ns[j])
+				A[j,i] *= "   ["*repeat("#",ns[j])*repeat("-",nr_progress-ns[j])
 	
 				if all(Nps .>= 2)
 			
-					L = length(out[j,i]) - nr_progress  + 1 + div(Nps[j],2) + (nr_progress>2ns[j])*(ns[j] + (Nps[j]%2))
+					L = length(A[j,i]) - nr_progress  + 1 + div(Nps[j],2) + (nr_progress>2ns[j])*(ns[j] + (Nps[j]%2))
 
-					out[j,i] = string(out[j,i][1:L-1],procs[j],out[j,i][L+nprocs[j]:end]) 
+					A[j,i] = string(A[j,i][1:L-1],procs[j],A[j,i][L+nprocs[j]:end]) 
 	
 				end 
 	
-				out[j,i] *= "]"
+				A[j,i] *= "]"
 
 			end 
 	
@@ -688,7 +696,8 @@ function NTs_nice_print(NTs::AbstractVector{<:NamedTuple}
 
 	end 
 
-	return out, repeat(" ",length(first(out)))
+
+	return A, repeat(" ",length(first(A)))
 
 end 
 
