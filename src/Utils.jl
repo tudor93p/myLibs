@@ -2185,7 +2185,7 @@ function Distribute_Work(allparamcombs::AbstractVector,
 		UnitRange(first(w),last(w))
 
 	end 
-
+	
 	n = length(which_)
 	
 	doparams = view(allparamcombs, which_)
@@ -2195,8 +2195,12 @@ function Distribute_Work(allparamcombs::AbstractVector,
 	t0 = Dates.now()
  
 
-	println(string("\nI am $idproc (",myid(),
-								 ") and I am doing $n jobs ($which_) out of $njobs.",
+	println(string("\nI am $idproc (",#myid(),
+							 start==stop ? start : (start:stop),"/$nr_scripts",
+							 ") and I am doing $n job",repeat("s",n>1),
+								 " (",
+								 n==1 ? only(which_) : which_,
+								 ") out of $njobs.",
 								 "\n\t * Timestamp: ",
 								 Dates.format(t0,Dates.dateformat"mm/dd HH:MM:SS")
 								 ))
@@ -2223,7 +2227,7 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 		S = string("\nI am $idproc (",
 #							 myid(),
-							 start==stop ? start : (start:stop),
+							 start==stop ? start : (start:stop),"/$nr_scripts",
 							 ") and I completed job ",
 							which_[ip]," of $which_",#" ($njobs)",
 									"\n\t * Timestamp:        ",
@@ -2244,6 +2248,10 @@ function Distribute_Work(allparamcombs::AbstractVector,
 								 Dates.format(t3,df),day_change_str(t0,t3),
 									 )
 
+		else 
+
+			S*= "\n"
+
 		end 
 
 		println(S) 
@@ -2252,7 +2260,7 @@ function Distribute_Work(allparamcombs::AbstractVector,
   
   end
 
-	println() 
+#	println() 
 
 
 	return 

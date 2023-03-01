@@ -73,6 +73,8 @@ for f in [
 #"bandstr" |> pr_in
 
 
+#"tasks2",
+#"tasks",
 
 #"tasks_multi",
 
@@ -92,7 +94,6 @@ end
 
 
 
-#"tasks" #|> pr_in
 
 
 

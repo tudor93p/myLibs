@@ -255,7 +255,10 @@ function get_data_all(task;
 											mute::Bool=true, kwargs...)
 
 
-	AC = task.get_paramcombs()
+	AC = task.get_paramcombs() # can be heavy -- work with inds & views instead
+
+
+	# check_data &&  hold off until a certain time 
 
 	check_data && filter!(c->!task.files_exist(c...; kwargs...), AC)
 
@@ -272,7 +275,7 @@ function get_data_all(task;
 
   Utils.Distribute_Work(AC, task.get_data;
 												vararg = true,
-												force_comp =! check_data, 
+												force_comp = !check_data, 
 												mute=mute)
 
 	return
