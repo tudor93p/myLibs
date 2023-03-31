@@ -6,7 +6,7 @@ module Utils
 import ..LA 
 
 
-import Dates, Combinatorics,Optim, Random 
+import Dates, Combinatorics,Optim, Random#, IterTools 
 
 
 using Distributed 
@@ -1687,12 +1687,13 @@ end
 
 function IdentifySectors(list::AbstractVector{T}; kwargs...
 												 )::Vector{UnitRange{Int}} where T<:Union{
-																							<:Int, <:AbstractSet, <:Bool,
-																							<:Tuple{Vararg{<:Int}}, 
-																							<:Tuple{Vararg{<:Bool}},
-																							<:AbstractVector{<:Int}, 
-																							<:AbstractVector{<:Bool},
+																							Int, <:AbstractSet, Bool,
+																							<:Tuple{Vararg{Int}}, 
+																							<:Tuple{Vararg{Bool}},
+																							<:AbstractVector{Int}, 
+																							<:AbstractVector{Bool}
 																	}
+
 	IdentifySectors_customF(==, list)
 
 end 
@@ -1700,8 +1701,8 @@ end
 
 function IdentifySectors(list::AbstractVector{T}; tol=1e-8, kwargs...
 												 )::Vector{UnitRange{Int}} where T<:Union{
-														<:ComplexF64, <:Float64,
-														<:AbstractVector{<:Union{<:ComplexF64,<:Float64}},
+														ComplexF64, Float64,
+														<:AbstractVector{<:Union{ComplexF64,Float64}},
 																	}
 
 	IdentifySectors_customF(fSame(tolNF(tol)[2]), list) 
@@ -1710,7 +1711,7 @@ end
 
 
 
-new_sector(start::Int,j::Int)::Vector{UnitRange{Int}} = [1+start:j+start]
+#new_sector(start::Int,j::Int)::Vector{UnitRange{Int}} = [1+start:j+start]
 
 
 
@@ -1718,35 +1719,54 @@ new_sector(start::Int,j::Int)::Vector{UnitRange{Int}} = [1+start:j+start]
 
 
 
+#function IdentifySectors_customF2(same::Function, 
+#																 list::AbstractVector, 
+#												 sectors::Vector{UnitRange{Int}}=UnitRange{Int}[], 
+#												 start::Int=0
+#												 )::Vector{UnitRange{Int}} 
+#
+#	@assert length(sectors)<=start+length(list)  "Ill-defined sectors"
+#
+#
+#	for i in axes(list,1)
+#
+#		if same(list[i], list[1])		# still within the sector
+#	
+#			i==length(list) && return vcat(sectors, new_sector(start, i))
+#			# sector ended abruptly
+#
+#
+#		else  # sector ended already at i-1
+#
+#		return IdentifySectors_customF2(same, view(list,i:length(list)),
+#																		 vcat(sectors, new_sector(start, i-1)),
+#																		 start+i-1)
+#
+#		end 
+#
+#	end
+#
+#end
+
+
 function IdentifySectors_customF(same::Function, list::AbstractVector, 
-												 sectors::Vector{UnitRange{Int}}=UnitRange{Int}[], 
-												 start::Int=0
-												 )::Vector{UnitRange{Int}} 
+																 )::Vector{UnitRange{Int}} 
 
-	@assert length(sectors)<=start+length(list)  "Ill-defined sectors"
+	edges = falses(length(list))
 
+	edges[1] = 1 
 
-	for i in axes(list,1)
+	for i=2:length(list)
 
-		if same(list[i], list[1])		# still within the sector
-	
-			i==length(list) && return vcat(sectors, new_sector(start, i))
-			# sector ended abruptly
-
-
-		else  # sector ended already at i-1
-
-			return IdentifySectors_customF(same, list[i:end],
-																		 vcat(sectors, new_sector(start, i-1)),
-																		 start+i-1)
-
-		end 
+		same(list[i-1], list[i]) && continue 
+		
+		edges[i] = 1 
 
 	end
 
+	return rSectors(edges)
+
 end
-
-
 
 
 #===========================================================================#
@@ -2279,12 +2299,124 @@ end
 #
 #---------------------------------------------------------------------------#
 
+	
+function rSectors!(s::AbstractVector{UnitRange{Int}},
+									 lBoundaries::AbstractVector{Int},
+									 )::AbstractVector{UnitRange{Int}}
+	
+	for i=1:length(lBoundaries)-1
+
+		setindex!(s, lBoundaries[i]:lBoundaries[i+1]-1, i)
+
+	end  
+
+	return s 
+
+end 
+
+function rSectors!(s::AbstractVector{UnitRange{Int}},
+									 lBoundaries::AbstractVector{Int},
+									 R::Int,
+									 )::AbstractVector{UnitRange{Int}}
+	
+	setindex!(s, lBoundaries[end]:R, length(s)) 
+
+	rSectors!(s, lBoundaries)
+
+end 
+
+
+function rSectors(lBoundaries::AbstractArray{Bool},
+									R::Int=length(lBoundaries)
+									)::Vector{UnitRange{Int}}
+
+	rSectors(findall(lBoundaries), R)
+
+end  
+
+function lSectors(rBoundaries::AbstractArray{Bool},
+									)::Vector{UnitRange{Int}}
+
+	lSectors(findall(rBoundaries))
+
+end  
+
+#function rSectors(L::Int,
+#									lBoundaries::AbstractArray{Bool},
+#									R::Int=length(lBoundaries)
+#									)::Vector{UnitRange{Int}}
+#
+#	rSectors(L, findall(lBoundaries), R)
+#
+#end 
+
+
+
+
+#function rSectors(L::Int, 
+#									lBoundaries::AbstractVector{Int}, 
+#									R::Int,
+#										)::Vector{UnitRange{Int}}
+#
+#	@assert lBoundaries[end]<=R && L<=lBoundaries[1]
+#
+#	s = Vector{UnitRange{Int}}(undef, length(lBoundaries)+1)
+#
+#	s[1] = L:lBoundaries[1]-1
+#
+#	rSectors!(view(s, 2:length(s)), lBoundaries, R)
+#	
+#	return s 
+#
+#end 
+
+function rSectors(lBoundaries::AbstractVector{Int}, R::Int 
+										)::Vector{UnitRange{Int}}
+
+	@assert lBoundaries[end]<=R 
+
+	s = Vector{UnitRange{Int}}(undef, length(lBoundaries))
+
+	rSectors!(s, lBoundaries, R)
+
+end  
+
+
+
+
+
+function lSectors(rBoundaries::AbstractVector{Int}, L::Int=1
+										)::Vector{UnitRange{Int}}
+
+	@assert rBoundaries[1]>=L
+	#s = Vector{UnitRange{Int}}(undef, length(rBoundaries))
+
+	#s[1] = L:rBoundaries[1]
+
+	#for i=2:length(rBoundaries)
+
+	#	s[i] = rBoundaries[i-1]+1:rBoundaries[i]
+
+	#end 
+
+	#@assert s==
+	[get(rBoundaries,i-1,L-1)+1:R for (i,R)=enumerate(rBoundaries)]
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 function sepLengths_cumulRanges(L::AbstractVector{Int}
 															 )::Vector{UnitRange{Int}}
 	
-	boundaries = cumsum([0;L]) 
-	
-	return [boundaries[j]+1:boundaries[j+1] for j in axes(L,1)]
+	lSectors(cumsum(L))
+
 
 end 
 
