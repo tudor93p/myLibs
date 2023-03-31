@@ -1717,7 +1717,7 @@ end
 
 #		vcat(sectors, UnitRange{Int}[])
 
-
+# extremely inefficient!!
 
 #function IdentifySectors_customF2(same::Function, 
 #																 list::AbstractVector, 

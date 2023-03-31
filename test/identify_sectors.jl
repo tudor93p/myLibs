@@ -116,18 +116,44 @@ A = [1,1,1,3,4,5,5,1]
 
 		n = Int(round(10.0^p ))
 
-	#	n<50000 || break 
+#		n<50000 || break 
 
 		@show n 
 
 		A = sort!(rand(1:n,n))
+	
+		B = collect(zip(A,rand(n)))
+
 
 
 @time	s1 = Utils.IdentifySectors_customF(==,A)
 
 #	@time s2 = Utils.IdentifySectors_customF2(==,A)
-#@test s1==s2 
-println()
+
+function f0(x)
+
+#	sleep(0.1)
+
+	return first(x) 
+
+end  
+
+@time	s3 = Utils.IdentifySectors(f0,B)
+#@time	s4 = Utils.IdentifySectors2(f0,B)
+
+
+
+
+#@test s1==s2  
+
+@test s1==s3
+#@test s1==s4
+
+println() 
+
+
+
+
 end 
 
 end 
