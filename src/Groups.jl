@@ -375,7 +375,8 @@ function U2Repr(args::Vararg{<:Real,4})::Matrix{ComplexF64}
 	
 	out = WeylRepr(args...)
 
-	out .= exp(im*out)
+	out .= cis(out)
+#	out .= exp(im*out)
 
 	return out 
 

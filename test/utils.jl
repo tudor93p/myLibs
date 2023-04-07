@@ -7,6 +7,16 @@ import PyPlot
 
 #Utils.Distribute_Work(1:3,(args...;kwargs...)->sleep(2*rand()))
 
+@testset "Utils.reduce_index=mod1" begin 
+
+
+
+for n=1:100,i=-300:300 
+
+   @test Utils.reduce_index(i,n)==mod1(i,n)
+
+end
+end 
 
 
 error() 

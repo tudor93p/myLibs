@@ -647,11 +647,14 @@ function iter_k_or_phi(ms::NTuple{N, Union{Int,<:AbstractVector{Int}}},
 
 end 
 
-function BlochPhase(k,R)::ComplexF64
+#function BlochPhase(k,R)::ComplexF64
 
-	exp(im * LA.dot(k,R))
+BlochPhase = cis∘LA.dot
 
-end 
+#	exp(im * LA.dot(k,R))
+##	cis(LA.dot(k,R))
+
+#end 
 
 function Assemble_Bloch_Hamiltonian(intra::AbstractMatrix, (ms, Rms, Tms);
 																		kwargs...)::Function

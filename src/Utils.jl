@@ -47,7 +47,9 @@ function periods_outside_interval(j::Real)::Int
 end   
 function periods_outside_interval(j::Real, T::Real)::Int 
 
-	periods_outside_interval(j/T)
+	#periods_outside_interval(j/T)
+
+	cld(-j,T)
 
 end 
 
@@ -136,9 +138,15 @@ end
 #---------------------------------------------------------------------------#
 
 
+#already in Base: mod1
 function reduce_index(i::Int, period::Int)::Int 
 
-	bring_periodic_to_interval(i,1,period,period)
+	@warn "Deprecated function reduce_index(i,n)==mod1(i,n). 
+	Use the built-in mod1 instead."
+
+#	return mod1(i,period)
+
+	return bring_periodic_to_interval(i,1,period,period)
 
 end 
 
