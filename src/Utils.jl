@@ -80,12 +80,18 @@ end
 
 
 
-function dist_periodic_!(D::AbstractArray{Float64},
+function dist_periodic_!(D::AbstractArray{Td},
 												 i::Int,
-												 a::Real,
-												 b::Real,
-												 T::Real,
-												 )::Nothing 
+
+												 a::Ta,
+												 b::Tb,
+												 T::Tt,
+
+												 )::Nothing where {Td<:Real,Ta<:Real,Tb<:Real,Tt<:Real}
+
+
+	@assert Td <: promote_type(Ta,Tb,Tt) 
+
 
 	setindex!(D, bring_periodic_to_interval(a-b,0,T), i)
 
@@ -97,21 +103,27 @@ end
 
 
 function reduce_dist_periodic(op::Function,
-															A::Union{<:Real, AbstractArray{<:Real}},
-															B::Union{<:Real, AbstractArray{<:Real}},
-															args...; init=nothing)
+															A::Union{Ta, AbstractArray{Ta}},
+															B::Union{Tb, AbstractArray{Tb}},
+															args...; init=nothing 
+															) where {Ta<:Real, Tb<:Real}
+
 
 	isempty(A) && return init 
 	isempty(B) && return init 
 
-	hasmethod(op, (Float64,)) || return init  
+	T = promote_type(Ta,Tb)
+
+	hasmethod(op, (T,)) || return init  
 
 	isa(A,AbstractArray) && isa(B,AbstractArray) && @assert length(A)==length(B)
 
 
-	D = Vector{Float64}(undef, 1)
+	D = Vector{T}(undef, 1)
 
+	
 	dist_periodic_!(D, 1, get(A,1,A), get(B,1,B), args...)
+	
 
 	out = [op(only(D))]
 
@@ -119,7 +131,9 @@ function reduce_dist_periodic(op::Function,
 
 	for i=2:max(length(A),length(B))
 
+	
 		dist_periodic_!(D, 1, get(A,i,A), get(B,i,B), args...)
+	
 
 		setindex!(out, op(only(out), only(D)), 1) 
 
@@ -227,11 +241,15 @@ function closest_periodic_b(a::Real,
 
 	D = Float64[B[1], 0.0, 0.0]
 
+	
 	dist_periodic_!(D, 2, a, B[1], T)
+	
 
 	for i=2:lastindex(B)
 
+	
 		dist_periodic_!(D, 3, a, B[i], T)
+	
 
 		D[3]<D[2] || continue 
 	
@@ -265,33 +283,8 @@ end
 #
 #---------------------------------------------------------------------------#
 
-# For loop inefficient!! replaced 
-#
-#function dist_periodic_!(D::AbstractArray{Float64,N} where N,
-#												 i::Int,
-#												 a::Real,
-#												 b::Real,
-#												 T::Real,
-#												 nmax::Int=1)::Nothing 
-#
-#	D[i] = abs(a - b + nmax*T)
-#
-#	for n in -nmax:nmax-1
-#
-#	 	D[i] = min(D[i], abs(a - b + n*T))
-#
-#	end 
-#
-#	return 
-#
-#end  
 
-
-
-
-
-
-function dist_periodic!(D::AbstractArray{Float64,N},
+function dist_periodic!(D::AbstractArray{<:Real,N},
 												A::AbstractArray{<:Real,N}, 
 												b::Real,
 												args...
@@ -307,20 +300,20 @@ function dist_periodic!(D::AbstractArray{Float64,N},
 
 end 
 
-function dist_periodic!(D::AbstractArray{Float64,N},
+function dist_periodic!(D::AbstractArray{<:Real,N},
 												b::Real,
 												A::AbstractArray{<:Real,N}, 
 												args...
 												)::Nothing where N
 
-	dist_periodic(D, A, b, args...)
+	dist_periodic!(D, A, b, args...)
 
 end 
 
 
 
 
-function dist_periodic!(D::AbstractArray{Float64,N},
+function dist_periodic!(D::AbstractArray{<:Real,N},
 												A::AbstractArray{<:Real,N}, 
 												B::AbstractArray{<:Real,N},
 												args...
@@ -329,21 +322,22 @@ function dist_periodic!(D::AbstractArray{Float64,N},
 	@assert size(D)==size(A)==size(B)
 
 	for (i,(a,b)) in enumerate(zip(A,B))
-		
-		dist_periodic_!(D, i, a, b, args...)
+
+		dist_periodic_!(D, i, a, b, args...) 
 
 	end 
 
 end 
 
 
-function dist_periodic(A::AbstractArray{<:Real,N}, 
-											 args...
-											 )::Array{Float64,N} where N
+function dist_periodic(A::AbstractArray{Ta,N}, 
+											B::Union{Tb, AbstractArray{Tb,N}},
+											T::Tt,
+											)::Array{<:Real,N} where {N,Ta<:Real,Tb<:Real,Tt<:Real}
 
-	D = Array{Float64,N}(undef, size(A)...)
+	D = Array{promote_type(Ta,Tb,Tt),N}(undef, size(A)...)
 
-	dist_periodic!(D, A, args...)
+	dist_periodic!(D, A, B, T)
 
 	return D
 
@@ -351,11 +345,13 @@ end
 
 
 
-function dist_periodic(a::Real, b::Real, args...)::Float64
+function dist_periodic(a::Ta, b::Tb, T::Tt 
+											 )::promote_type(Ta,Tb,Tt) where {Ta<:Real,Tb<:Real,Tt<:Real}
 
-	D = Vector{Float64}(undef, 1)
 
-	dist_periodic_!(D, 1, a, b, args...) 
+	D = Vector{promote_type(Ta,Tb,Tt)}(undef, 1)
+	
+	dist_periodic_!(D, 1, a, b, T)
 
 	return only(D) 
 

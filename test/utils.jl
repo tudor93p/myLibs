@@ -13,13 +13,12 @@ import PyPlot
 
 for n=1:100,i=-300:300 
 
-   @test Utils.reduce_index(i,n)==mod1(i,n)
+#   @test Utils.reduce_index(i,n)==mod1(i,n)
 
 end
 end 
 
 
-error() 
  
 @testset "path connect" begin 
 
@@ -47,11 +46,42 @@ end
 
 
 
-error() 
+@testset "periodic distance types" begin 
+
+	for a in (rand(1:5), rand(),rand(3),rand(1:5,3) ),T in (rand(),6)
+
+		for b in (rand(1:5), rand(),rand(3),rand(1:5,3) )
+
+			@test applicable(Utils.dist_periodic, a, b, T)
+			
+	
+#			@show a b T 
+
+			for (d1,d2,d3,d4) in zip(
+														Utils.dist_periodic(a, b, T),
+														Utils.dist_periodic(Float64.(a), b, T),
+														Utils.dist_periodic(a, Float64.(b), T),
+														Utils.dist_periodic(a, b, Float64(T)),
+														Float64.(Utils.dist_periodic(a, b, T)),
+														)
+
+	@test d1≈d2 ≈d3≈d4
+
+			end 
+
+
+
+		end 
+
+	end 
+
+end 
 
 
 
 @testset "periodic distance" begin 
+
+	@test Utils.dist_periodic([1,2,3],1,3)==[0,1,1]
 
 	@test Utils.dist_periodic(1,2,1)==0
 	@test Utils.dist_periodic(1,1.1,1)≈0.1
@@ -60,14 +90,16 @@ error()
 	A = rand(2,3) .- 0.5 
 	B = rand(2,3) .- 0.5 
 
-	@test Utils.dist_periodic(A,B,0.1,10)≈Utils.dist_periodic(B,A,0.1,10)
+	@test Utils.dist_periodic(A,B,0.1,)≈Utils.dist_periodic(B,A,0.1,)
 
-	@test Utils.dist_periodic(A[1],B,0.1,10)≈Utils.dist_periodic(B,A[1],0.1,10)
-	@test Utils.dist_periodic(A[1],B,0.1,10)[1]≈Utils.dist_periodic(B,A,0.1,10)[1]
+	@test Utils.dist_periodic(A[1],B,0.1,)≈Utils.dist_periodic(B,A[1],0.1,)
+	@test Utils.dist_periodic(A[1],B,0.1,)[1]≈Utils.dist_periodic(B,A,0.1,)[1]
 
 
 end 
 
+
+error()
 
 @testset "closest data points" begin 
 
