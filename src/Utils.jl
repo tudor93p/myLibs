@@ -2178,27 +2178,53 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function Distribute_Work(allparamcombs::AbstractVector,
-												 do_work::Function; 
-												 vararg::Bool=false, arg_pos::Int=1, kwargs0...
-												 )::Nothing
+function Distribute_Work(allparamcombs::AbstractVector; kwargs0...)
 
-	njobs = length(allparamcombs) 
+	Distribute_Work(length(allparamcombs); kwargs0...)
+
+end 
+
+function Distribute_Work(njobs::Int;
+												 arg_pos::Int=1, kwargs0...
+												 ) 
 
   nr_scripts = min(njobs, get_arg(1, arg_pos, Int64))
 
 	start =  get_arg(1, arg_pos+1, Int64)
 
+	idproc = gethostname()
+	
+	stop = min(nr_scripts, get_arg(start, arg_pos+2, Int64)) 
 
+
+	out = (nr_scripts, start, stop)
+
+	if start > nr_scripts
+
+		println(string("\nI am $idproc and I am not doing any jobs (nr.jobs < nr.processes).\n"))
+
+		return false,out
+
+	end
+
+	return true,out 
+
+end  
+
+function Distribute_Work(allparamcombs::AbstractVector,
+												 do_work::Function,
+												 (nr_scripts, start, stop)::NTuple{3,Int};
+												 vararg::Bool=false, arg_pos::Int=1, kwargs0...
+												 ) 
 	idproc = gethostname()
 
 	if start > nr_scripts
 
-		return println(string("\nI am $idproc and I am not doing any jobs (nr.jobs < nr.processes).\n"))
+		println(string("\nI am $idproc and I am not doing any jobs (nr.jobs < nr.processes).\n"))
 
-  end
-
-	stop = min(nr_scripts, get_arg(start, arg_pos+2, Int64)) 
+	end 
+	
+	njobs = length(allparamcombs) 
 
 	which_ = begin 
 		
@@ -2208,10 +2234,9 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 		UnitRange(first(w),last(w))
 
-	end 
-	
+	end  
 	n = length(which_)
-	
+
 	doparams = view(allparamcombs, which_)
 
 	df = Dates.dateformat"HH:MM:SS"
@@ -2288,7 +2313,21 @@ function Distribute_Work(allparamcombs::AbstractVector,
 
 
 	return 
+end 
 
+
+
+
+function Distribute_Work(allparamcombs::AbstractVector,
+												 do_work::Function; 
+												 kwargs0...
+												 ) 
+	
+	active,args = Utils.Distribute_Work(allparamcombs; kwargs0...)
+
+	active && Distribute_Work(allparamcombs, do_work, args; kwargs0...)
+
+	return 
 
 end
 

@@ -247,38 +247,74 @@ end
 #
 #---------------------------------------------------------------------------#
 
-
-function get_data_all(task; 
+function get_data_all_prep(task; 
 											shuffle::Bool=false, seed=nothing, 
 											rev::Bool=false,
 											check_data::Bool=true,
-											mute::Bool=true, kwargs...)
+											mute::Bool=true, kwargs... 
+											)
 
 
-	AC = task.get_paramcombs() # can be heavy -- work with inds & views instead
+	AC = task.get_paramcombs() # can be heavy 
+
+	inds_AC = Vector(eachindex(AC))
+
+	if check_data 
+		
+		filter!(inds_AC) do i 
+			
+			!task.files_exist(AC[i]...; kwargs...)
+
+		end 
+
+	end 
 
 
-	# check_data &&  hold off until a certain time 
+	active, dw_args = Utils.Distribute_Work(inds_AC) 
 
-	check_data && filter!(c->!task.files_exist(c...; kwargs...), AC)
-
-	rev && reverse!(AC)
-
+	rev && reverse!(inds_AC)
 
   if shuffle
 	
 		seed isa Int && Random.seed!(seed)
 
-		Random.shuffle!(AC)
+		Random.shuffle!(inds_AC)
 
 	end
 
-  Utils.Distribute_Work(AC, task.get_data;
-												vararg = true,
-												force_comp = !check_data, 
-												mute=mute)
+	return active, (AC[inds_AC], dw_args), (force_comp = !check_data, mute=mute)
 
-	return
+end 
+
+function get_data_all(task, active::Bool, 
+											AC::AbstractVector,
+											dw_args::NTuple{3,Int};
+											 force_comp::Bool=false, mute::Bool=true,
+													 )::Nothing 
+
+	active && Utils.Distribute_Work(AC, task.get_data, dw_args;
+												vararg = true,
+												force_comp=force_comp, mute=mute
+												)
+	return 
+
+end
+
+
+
+
+
+function get_data_all(task; 
+											kwargs...
+											#shuffle::Bool=false, seed=nothing, 
+											#rev::Bool=false,
+											#check_data::Bool=true,
+											#mute::Bool=true, kwargs... 
+											)::Nothing
+
+	active, args, kwargs = get_data_all_prep(task; kwargs...)
+
+	get_data_all(task, active, args...; kwargs...)
 
 end
 
