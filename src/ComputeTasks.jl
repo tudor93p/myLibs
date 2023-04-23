@@ -1396,68 +1396,68 @@ function init_multitask(C::Parameters.Calculation,
 
 end 
 
-function add_line!(data::AbstractDict,
-									 P::UODict,
-									 k::Union{Symbol,AbstractString},
-									 n::Char
-									 )::Nothing 
 
-	add_line!(data, P, k, string(n))
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function add_line!(data::AbstractDict, P::UODict,
+									 k::Union{Symbol,<:AbstractString},
+									 n
+									 )::AbstractDict 
+
+	line = get_line(n, P, k) 
+
+	return isnothing(line) ? data : setindex!(data, line...)
 
 end 
-function add_line!(data::AbstractDict,
-									 P::UODict,
-									 k::Union{Symbol,AbstractString},
-									 n::Int
-									 )::Nothing 
 
-	add_line!(data, P, k, 'x'+n-1)
+
+function get_line(n::AbstractChar, args...)::Union{Nothing,Tuple{<:Any,String}}
+
+	get_line(string(n), args...)
 
 end 
 
-function add_line!(data::AbstractDict,
-									 P::UODict,
-									 k::Symbol,
-									 n::AbstractString
-									 )::Nothing 
+function get_line(n::Int, args...)::Union{Nothing,Tuple{<:Any,String}}
 
-	in(n,["x","y"]) || return 
-	
-	for q in (k,string(k))
+	get_line('x'+n-1, args...)
 
-		haskey(P,q) || continue 
-		
-		setindex!(data, P[q], n*"line")
+end 
 
-		return 
+
+function get_line(n::AbstractString,
+									P::UODict,
+									k::Union{Symbol,<:AbstractString},
+									)::Union{Nothing,Tuple{<:Any,String}}
+
+	if n in ("x","y")
+
+		for q in (Symbol(k), string(k))
+
+			haskey(P,q) && return (P[q], n*"line")
+
+		end 
 
 	end 
 
-	return 
+	return nothing 
 
 end 
 	
-function add_line!(data::AbstractDict,
-									 P::UODict,
-									 k::AbstractString,
-									 n::AbstractString
-									 )::Nothing
-
-	in(n,["x","y"]) || return 
 	
-	for q in (k,Symbol(k))
 
-		q in keys(P) || continue 
-		
-		setindex!(data, P[q], n*"line")
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-		return 
 
-	end 
-
-	return 
-
-end 
 
 function init_multitask_(C::Parameters.Calculation, 
 												 internal_keys::OrderedDict,#{Symbol,Int},

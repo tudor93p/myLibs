@@ -2261,7 +2261,9 @@ function Distribute_Work(allparamcombs::AbstractVector,
   
     t1 = Dates.now()
  
-		local x = vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...) 
+		vararg ? do_work(p...; kwargs0...) : do_work(p; kwargs0...) 
+
+		GC.gc() # might release some memory 
 
 		t2 = Dates.now()
 		
