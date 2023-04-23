@@ -1192,30 +1192,6 @@ function parse_external_params(int_dim::Int,
 					)
 
 																											
-
-
-
-
-#
-#	make_function(f::Function)::Function = f
-#
-#
-#
-#	function make_function(ext_par_method::AbstractVector{<:Real})
-#
-#		D -> ext_par_method
-#
-#	end 
-#
-#
-#
-#	any(s_or_f) && return make_function.(getindex.(ext_par, 2))
-#
-#	return getindex.(ext_par, 2)
-#
-#
-
-
 end 
 
 
@@ -1410,45 +1386,78 @@ function add_line!(data::AbstractDict, P::UODict,
 									 n
 									 )::AbstractDict 
 
-	line = get_line(n, P, k) 
+	vi = get_linedata(n, P, k)
 
-	return isnothing(line) ? data : setindex!(data, line...)
-
-end 
-
-
-function get_line(n::AbstractChar, args...)::Union{Nothing,Tuple{<:Any,String}}
-
-	get_line(string(n), args...)
-
-end 
-
-function get_line(n::Int, args...)::Union{Nothing,Tuple{<:Any,String}}
-
-	get_line('x'+n-1, args...)
+	return (isnothing(vi) || isnothing(vi[1])) ? data : setindex!(data, vi...)
 
 end 
 
 
-function get_line(n::AbstractString,
+
+function encode_dir(n::AbstractChar)::String 
+
+	encode_dir(string(n))
+
+end 
+
+function encode_dir(n::Int)::String 
+
+	encode_dir('x'+n-1)
+
+end 
+
+function encode_dir(n::AbstractString)::String 
+
+	n
+
+end 
+
+function get_linedata(n_,)::Union{Nothing,String}
+
+	n = encode_dir(n_)
+
+	return n in ("x","y") ? n*"line" : nothing 
+
+end  
+
+function get_linedata(::Any, ::UODict, ::Nothing)::Nothing 
+
+	nothing 
+
+end 
+
+function get_linedata(n_,
 									P::UODict,
 									k::Union{Symbol,<:AbstractString},
+									backup::Any=nothing
 									)::Union{Nothing,Tuple{<:Any,String}}
 
-	if n in ("x","y")
+	line = get_linedata(n_)
 
-		for q in (Symbol(k), string(k))
+	isnothing(line) && return nothing 
 
-			haskey(P,q) && return (P[q], n*"line")
+	for q in (Symbol(k), string(k))
 
-		end 
+		haskey(P,q) && return (P[q], line)
 
 	end 
 
-	return nothing 
+	return (backup, line) 
 
 end 
-	
+
+function get_linedata(n, P::UODict,)
+
+	get_linedata(n, P, get_linedata(n))
+
+end 
+
+
+
+#get(data,encode_dir(n_)*"line",nothing)
+
+
+
 	
 
 #===========================================================================#
