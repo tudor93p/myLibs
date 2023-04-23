@@ -1388,7 +1388,7 @@ function add_line!(data::AbstractDict, P::UODict,
 
 	line = get_linedata(n) 
 
-	val = get_linedata(n, P, k)
+	val = get_linedata(P, k)
 	
 	isnothing(line) || isnothing(val)  || setindex!(data, val, line)
 
@@ -1425,23 +1425,24 @@ function get_linedata(n_,)::Union{Nothing,String}
 
 end  
 
-function get_linedata(::Any, ::UODict, ::Nothing)::Nothing 
+function get_linedata(::UODict, ::Nothing)::Nothing 
 
 	nothing 
 
 end 
 
-function get_linedata(n_,
+function get_linedata(
 									P::UODict,
-									k::Union{Symbol,<:AbstractString}=get_linedata(n_),
+									k::Union{Symbol,<:AbstractString},
 									backup::Any=nothing
 									)
 
-	line = get_linedata(n_)
+	haskey(P,k) && return P[k]
 
-	isnothing(line) && return nothing 
 
-	for q in (Symbol(k), string(k))
+	for f in (Symbol, string)
+
+		q = f(k)
 
 		haskey(P,q) && return P[q]
 
@@ -1450,6 +1451,13 @@ function get_linedata(n_,
 	return backup 
 
 end 
+
+function get_linedata(n, P::UODict, backup...)
+
+	get_linedata(P, get_linedata(n), backup...)
+
+end 
+
 
 
 
