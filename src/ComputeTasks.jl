@@ -1386,9 +1386,13 @@ function add_line!(data::AbstractDict, P::UODict,
 									 n
 									 )::AbstractDict 
 
-	vi = get_linedata(n, P, k)
+	line = get_linedata(n) 
 
-	return (isnothing(vi) || isnothing(vi[1])) ? data : setindex!(data, vi...)
+	val = get_linedata(n, P, k)
+	
+	isnothing(line) || isnothing(val)  || setindex!(data, val, line)
+
+	return data 
 
 end 
 
@@ -1410,7 +1414,8 @@ function encode_dir(n::AbstractString)::String
 
 	n
 
-end 
+end
+
 
 function get_linedata(n_,)::Union{Nothing,String}
 
@@ -1428,9 +1433,9 @@ end
 
 function get_linedata(n_,
 									P::UODict,
-									k::Union{Symbol,<:AbstractString},
+									k::Union{Symbol,<:AbstractString}=get_linedata(n_),
 									backup::Any=nothing
-									)::Union{Nothing,Tuple{<:Any,String}}
+									)
 
 	line = get_linedata(n_)
 
@@ -1438,23 +1443,14 @@ function get_linedata(n_,
 
 	for q in (Symbol(k), string(k))
 
-		haskey(P,q) && return (P[q], line)
+		haskey(P,q) && return P[q]
 
 	end 
 
-	return (backup, line) 
+	return backup 
 
 end 
 
-function get_linedata(n, P::UODict,)
-
-	get_linedata(n, P, get_linedata(n))
-
-end 
-
-
-
-#get(data,encode_dir(n_)*"line",nothing)
 
 
 
