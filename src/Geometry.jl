@@ -431,7 +431,6 @@ function Maximize_ContactSurface(
 
 
 
-	println.(eachcol(shifts))
 
 	# choose the smallest shift that maximizes the number of rays inside 
 
