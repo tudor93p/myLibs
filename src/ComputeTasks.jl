@@ -1774,7 +1774,6 @@ function init_multitask_(C::Parameters.Calculation,
 	
 		out_dict[n*"label"] = replace(string(k),"_"=>" ")
 
-
 	end 
 		
 

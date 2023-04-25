@@ -2288,6 +2288,7 @@ function Distribute_Work(allparamcombs::AbstractVector,
 									"\n\t * Total jobs done:  $ip/$n ($njobs)",
 									"\n\t * Elapsed time:     ",
 									canonicalize_maxtwo(t02), #tot_seconds_short(t02),
+									"\n\t * Args: ",p,
 									)
 
 
