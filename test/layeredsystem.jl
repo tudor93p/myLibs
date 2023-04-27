@@ -38,10 +38,10 @@ D, = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2)
 
 
 
-LayeredSystem.LayeredSystem_toGraph(D[:NrLayers]; 
-																		RightLead=Dict(:label=>"A"), 
-																		LeftLead=Dict(:label=>"B"))
-
+#LayeredSystem.LayeredSystem_toGraph(D[:NrLayers]; 
+#																		RightLead=Dict(:label=>"A"), 
+#																		LeftLead=Dict(:label=>"B"))
+#
 
 end 
 
@@ -111,8 +111,10 @@ leadB = get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"B"),atoms,1))
 
 @show nr_layers 
 
-	g = LayeredSystem.LayeredSystem_toGraph(nr_layers; VirtLeads...)
+g = LayeredSystem.LayeredSystem_toGraph(nr_layers) 
 
+
+LayeredSystem.add_leads!(g; VirtLeads...)
 
 
 

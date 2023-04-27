@@ -21,7 +21,8 @@ import ..LA
 
 import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps, ..Algebra
 
-
+import MetaGraphs
+import MetaGraphs: MetaDiGraph 
 
 
 #===========================================================================#
@@ -1241,84 +1242,169 @@ function Plot_Graph((fname,IndsAtomsOfLayer)::Tuple, NrLayers::Int, g)
 end 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-function LayeredSystem_toGraph(NrLayers::Int;
-															 LeftLead=nothing, RightLead=nothing)
 					"""			 
 	NrLayers -> upper bound of n,m  (lower bound is 1)
 
-	If any leads are specified, they must contain
-		-	an identifier :label => label::String
-
 				"""
+function LayeredSystem_toGraph(NrLayers::Int)::MetaDiGraph
 
 
 #	LeftLead  = CheckLead(LeftLead,"LeftLead")
 #	RightLead = CheckLead(RightLead,"RightLead")
 
-	Leads = filter(!isnothing, [LeftLead,RightLead])
-
-	NrLeadUCs = 1
-
   g = Graph.MetaDiPath(NrLayers)
 
-	Graph.set_props!(g,Dict(:NrLayers=>NrLayers,
-													:UCsLeads=>NrLeadUCs,
-													:LeadLabels=>[Lead[:label] for Lead in Leads]
-											 ))
+	Graph.set_prop!(g, :NrLayers, NrLayers)
 
 	for i in 1:NrLayers
 
-		Graph.set_props!(g,i,Dict(:type=>"Layer",
-														 	:name=>("Layer",i),
-															)
-														)
+		Graph.set_props!(g, i, Dict(:type=>"Layer", :name=>("Layer",i)))
+
 	end
 
+	MetaGraphs.set_indexing_prop!(g, :name)
 
-	for Lead in Leads, i in 1:NrLeadUCs
-
-			Graph.add_vertex!(g,Dict(
-							:type=>"VirtualLead",
-							:name=>(Lead[:label],i),
-												 ))
-	end
-
-  node = Graph.node_by_prop!(g,:name)
-
-
-	
-	if !isnothing(RightLead)
-
-		Graph.add_edge!(g, NrLayers,
-										node(RightLead[:label],1))
-
-		for i in 1:NrLeadUCs-1
-
-				Graph.add_edge!(g,node(RightLead[:label], i),
-													node(RightLead[:label], i+1),
-											)
-			end 
-	end
-
-	if !isnothing(LeftLead)
-
-		Graph.add_edge!(g,node(LeftLead[:label], 1),
-											1
-											)
-
-		for i in 1:NrLeadUCs-1
-
-				Graph.add_edge!(g, node(LeftLead[:label],i+1),
-													 node(LeftLead[:label],i),
-											)
-		end # intercell is given in the u direction: opposite to i+1->i 
-	end
-
-
-	return g
+	return g 
 
 end
+
+get_node(g::MetaDiGraph, name::Tuple{String,Int})::Int = g[name, :name]
+get_node(g::MetaDiGraph, T::String, I::Int)::Int = get_node(g, (T,I))
+
+get_node(g::MetaDiGraph, L::AbstractDict, I::Int)::Int = get_node(g, L[:label], I)
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function add_leads!(g::MetaDiGraph; 
+										LeftLead=nothing, RightLead=nothing, 
+										)::MetaDiGraph 
+
+
+	Graph.set_prop!(g, :UCsLeads, 1)
+
+	Graph.set_prop!(g, :LeadLabels, 
+									vcat(
+											 isnothing(LeftLead) ? [] : LeftLead[:label],
+											 isnothing(RightLead) ? [] : RightLead[:label],
+											 )
+									)
+
+	add_lead!(g, RightLead, :RightLead)
+	add_lead!(g, LeftLead, :LeftLead)
+
+end 
+
+
+
+add_lead!(g::MetaDiGraph, ::Nothing, ::Any)::MetaDiGraph = g 
+
+
+function add_lead!(g::MetaDiGraph,
+										lead::AbstractDict{Symbol,Any},
+										label::Symbol,
+																	)::MetaDiGraph 
+
+	N = Graph.get_prop(g, :UCsLeads)
+
+	for i in 1:N
+
+		Graph.add_vertex!(g, Dict(:type=>"VirtualLead", :name=>(lead[:label],i)))
+
+	end
+
+	
+	if label==:RightLead 
+
+		add_lead_edges!(g, lead, 1:N-1, 2:N)
+
+	elseif label==:LeftLead
+		
+	# intercell is given in the u direction: opposite to i+1->i 
+		add_lead_edges!(g, lead, 2:N, 1:N-1)
+
+	end  
+
+	attach_lead!(g, lead, label)
+
+end  
+
+
+
+function add_lead_edges!(g::MetaDiGraph,
+										lead::AbstractDict{Symbol,Any},
+										I::AbstractVector{Int},
+										J::AbstractVector{Int},
+										)::MetaDiGraph
+
+	for (i,j) in zip(I,J) 
+	
+		Graph.add_edge!(g, get_node(g, lead, i), get_node(g, lead, j))
+
+	end 
+
+	return g 
+
+end 
+
+
+
+attach_lead!(g::MetaDiGraph, ::Nothing, args...)::MetaDiGraph = g
+
+function attach_lead!(g::MetaDiGraph, 
+											lead::AbstractDict{Symbol,Any}, 
+											label::Symbol)::MetaDiGraph 
+
+	attach_lead!(g, lead, Val(label))
+
+end 
+
+function attach_lead!(g::MetaDiGraph, 
+											lead::AbstractDict{Symbol,Any}, 
+											::Val{:RightLead},
+													 )::MetaDiGraph
+
+	Graph.add_edge!(g, 
+									get_node(g, "Layer", Graph.get_prop(g, :NrLayers)), 
+									get_node(g, lead, 1))
+
+	return g 
+
+end 
+
+function attach_lead!(g::MetaDiGraph,
+											lead::AbstractDict{Symbol,Any},
+											::Val{:LeftLead},
+													 )::MetaDiGraph 
+
+	Graph.add_edge!(g, get_node(g, lead, 1), get_node(g, "Layer", 1))
+
+	return g 
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 
 
