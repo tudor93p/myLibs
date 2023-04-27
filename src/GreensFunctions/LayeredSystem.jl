@@ -259,7 +259,9 @@ function get_LeadContacts(device::Union{Lattices.Lattice, AbstractMatrix},
 													isBond::Function;
 												 kwargs...)::Vector{Int} 
 
-	findall(any.(eachcol(isBond(lead, Lattices.PosAtoms(device)))))
+#	findall(any.(eachcol(isBond(lead, Lattices.PosAtoms(device)))))
+	
+	findall(view(any(isBond(lead, Lattices.PosAtoms(device)),dims=1),:))
 														 
 end 
 
@@ -331,7 +333,8 @@ function LayerAtomRels_(Atoms::AbstractMatrix, ::Val{:forced};
 												kwargs...
 												)::Tuple{Dict{Symbol,Any}, Vector{Vector{Int}}}
 
-	LeadContacts = get_LeadContacts(Atoms; kwargs...)
+
+	LeadContacts = get_LeadContacts(Atoms; isBond=isBond, kwargs...)
 
 	out = Distribute_Atoms(Atoms, isBond, LeadContacts; dim=dim)
 
@@ -832,7 +835,9 @@ function Distribute_Leads(
 
 
 
-	VirtLeads, LeadSizes = Dict(), Dict()
+	VirtLeads = Dict{Symbol,Dict{Symbol,Any}}()
+
+	LeadSizes = Dict() 
 
 	for ((side,n),i) in filter!(p->!isempty(p.second),lead_distrib)
 
@@ -846,8 +851,9 @@ function Distribute_Leads(
 
 	end
 
+
 	
-	SideOfLead, LeadsOfSide_ = Utils.FindPartners([string(Leads[i][:label])=>string(side) for ((side,n),I) in lead_distrib for i in I ], sortfirst=string)
+	SideOfLead, LeadsOfSide_ = Utils.FindPartners([string(Leads[i][:label])=>string(side) for ((side,n),I) in lead_distrib for i in I], sortfirst=string)
 
 
 

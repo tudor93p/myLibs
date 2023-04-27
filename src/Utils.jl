@@ -3794,7 +3794,7 @@ function CombsOfVecs(v::AbstractVector{Tv},
 										 )::Matrix{promote_type(Tv,Tc)} where {Tv<:Number,
 																													 Tc<:Number}
 
-	CombsOfVecs(VecAsMat(v, dim), coeff; dim=dim)
+	CombsOfVecs(VecAsMat(v, 3-dim), coeff; dim=dim)
 
 end 
 

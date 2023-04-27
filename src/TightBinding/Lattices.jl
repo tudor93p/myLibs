@@ -2582,25 +2582,25 @@ end
 #---------------------------------------------------------------------------#
 
 
-function Align_toAtoms!(latt::Lattice, latt2::Lattice, args...;
-												kwargs...)::Lattice
+#function Align_toAtoms!(latt::Lattice, latt2::Lattice, args...;
+#												kwargs...)::Lattice
+#
+#	Align_toAtoms!(latt, PosAtoms(latt2), Distances(latt2)[1], args...;
+#								 kwargs...)
+#
+#end 
 
-	Align_toAtoms!(latt, PosAtoms(latt2), Distances(latt2)[1], args...;
-								 kwargs...)
 
-end 
-
-
-function Align_toAtoms!(latt::Lattice, 
-												atoms::AbstractMatrix{<:Real},
-												d_nn::Float64, args...;
-												prepare_vertices=false, order_vertices=false,
-												kwargs...)::Lattice
-
-	Align_toAtoms!(latt::Lattice, SurfaceAtoms(atoms, d_nn), args...; 
-								 prepare_vertices=true, order_vertices=true, kwargs...) 
-								 
-end 
+#function Align_toAtoms!(latt::Lattice, 
+#												atoms::AbstractMatrix{<:Real},
+#												d_nn::Float64, args...;
+#												prepare_vertices=false, order_vertices=false,
+#												kwargs...)::Lattice
+#
+#	Align_toAtoms!(latt::Lattice, SurfaceAtoms(atoms, d_nn), args...; 
+#								 prepare_vertices=true, order_vertices=true, kwargs...) 
+#								 
+#end 
 
 
 #
@@ -2621,19 +2621,7 @@ function lambda123(R::AbstractVector,
 								V::AbstractVector 
 								)::Float64
 
-	lambda = 0.0 
-
-	for (r,v) in Base.Iterators.product(R,V)
-
-		if r-v>lambda 
-
-			lambda = r-v 
-
-		end 
-
-	end 
-
-	return lambda 
+	maximum(Base.splat(-),Iterators.product(R,V),init=0.0)
 
 end  
 
@@ -2643,13 +2631,28 @@ function lambda123(R::AbstractMatrix,
 								dim::Int=VECTOR_STORE_DIM
 								)::Float64
 
-	dim==1 && return lambda123(R*d, V*d)/sum(abs2,d)
+	dim==1 && return lambda123(R*d, V*d)
 
-	dim==2 && return lambda123(transpose(R)*d, transpose(V)*d)/sum(abs2,d)
+	dim==2 && return lambda123(transpose(R)*d, transpose(V)*d) 
 
 	error()
 
-end  
+end   
+
+#function lambda1234(R::AbstractMatrix,
+#								d::AbstractVector;
+#								dim::Int=VECTOR_STORE_DIM
+#								)#::Float64
+#
+#	dim==1 && return R*d
+#
+#	dim==2 && return transpose(R)*d
+#	
+##	dim==2 && return transpose(transpose(d)*R)
+#
+#	error()
+#
+#end  
 
 
 
@@ -2657,7 +2660,7 @@ end
 
 
 function Align_toAtoms!(latt::Lattice, 
-												surface::AbstractMatrix{<:Real}, 
+												atoms::AbstractMatrix{<:Real}, 
 												shift_dir::AbstractVector{<:Real};
 #												prepare_vertices::Bool=true, 
 #												order_vertices::Bool=true, 
@@ -2666,13 +2669,13 @@ function Align_toAtoms!(latt::Lattice,
 	# shift_dir = +/- i means positive/negative a_i
 	# slowed down if all atoms provided instead of the surface ones
 	
-	ShiftAtoms!(latt; r=-shift_dir*lambda123(PosAtoms(latt), shift_dir, surface)*1.1)
+	ShiftAtoms!(latt; r=-shift_dir*lambda123(PosAtoms(latt), shift_dir, atoms)*1.1)
 
 
 
 	ShiftAtoms!(latt, r=Geometry.Maximize_ContactSurface(PosAtoms(latt),
 																											 shift_dir,
-																											 surface, 
+																											 atoms, 
 																											 dim=VECTOR_STORE_DIM,
 																											 )
 							)
@@ -2688,20 +2691,24 @@ end
 
 
 function Align_toAtoms!(latt::Lattice, 
-												surface::AbstractMatrix{<:Real}, 
+												atoms::AbstractMatrix{<:Real}, 
 												shift_dir::Int=-1; 
 												kwargs...)::Lattice 
-	
+
+
 	shift_dir_v = sign(shift_dir)*vec(LattVec(latt, abs(shift_dir)))
 
-	lambda = lambda123(PosAtoms(latt), shift_dir_v, surface)
+	LA.normalize!(shift_dir_v) 
+
+
+	lambda = lambda123(PosAtoms(latt), shift_dir_v, atoms)
 
 
 	ShiftAtoms!(latt; r=-shift_dir_v*lambda*1.1)
 
 	ShiftAtoms!(latt, r=Geometry.Maximize_ContactSurface(PosAtoms(latt),
 																											 shift_dir_v,
-																											 surface, 
+																											 atoms, 
 																											 dim=VECTOR_STORE_DIM,
 																											 )
 							)

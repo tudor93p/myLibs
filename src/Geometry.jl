@@ -2,6 +2,7 @@ module Geometry
 #############################################################################
 
 import ConcaveHull 
+#import  PyPlot
 
 import LinearAlgebra; const LA=LinearAlgebra
 
@@ -365,18 +366,65 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function directional_argminmax(P::AbstractMatrix{<:Real},
+														direction::AbstractVector{<:Real};
+														dim::Int,
+														)::Vector{Int}
+
+	ndir = LA.normalize(direction)
+
+	return Utils.flatmap((ndir, [ndir[2],-ndir[1]])) do v
+
+		proj = view(Utils.CombsOfVecs(v, P; dim=dim), :)
+
+		return [argmin(proj), argmax(proj)]
+
+	end |> sort! |> unique! 
+
+end 
+
+function directional_argminmax(P::AbstractVector{<:AbstractVector{<:Real}},
+														direction::AbstractVector{<:Real};
+														)::Vector{Int}
+
+	ndir = LA.normalize(direction)
+
+	return Utils.flatmap((ndir, [ndir[2],-ndir[1]])) do v
+
+		proj = map(Base.Fix1(LA.dot,v), P)
+
+		return [argmin(proj), argmax(proj)]
+
+	end |> sort! |> unique! 
+
+end 
 
 
 function Maximize_ContactSurface(starting_points::AbstractMatrix{<:Real}, 
 																 direction::AbstractVector{<:Real}, 
 																 vertices::AbstractMatrix{<:Real}; 
 																 dim::Int,
+																 project_reduce::Bool=true,
 																 kwargs...)::Vector{Float64}
 
-	Maximize_ContactSurface(
-										Vector{Float64}.(eachslice(starting_points,dims=dim)), 
-										convert(AbstractVector{Float64},direction),
+
+	I::AbstractVector{Int} = if project_reduce 
+
+		directional_argminmax(starting_points, direction; dim=dim)
+	
+			else 
+
+		axes(starting_points,dim) 
+
+	end 
+
+	return Maximize_ContactSurface(
+										[Vector{Float64}(selectdim(starting_points,dim,i)) for i=I],
+#										Vector{Float64}.(eachslice(starting_points,dims=dim)), 
+										LA.normalize(direction),
+#										convert(AbstractVector{Float64},direction),
 										collect(eachslice(vertices,dims=dim));
+										project_reduce=false,
 										kwargs...
 										)
 
@@ -387,8 +435,15 @@ function Maximize_ContactSurface(
 								starting_points::AbstractVector{<:AbstractVector{<:Real}},
 								direction::AbstractVector{Float64},
 							 vertices::AbstractVector{<:AbstractVector{<:Real}};
-																 kwargs...)::Vector{Float64}
+							 project_reduce::Bool=false,
+															 kwargs...)::Vector{Float64}
 
+
+	if project_reduce 
+
+		starting_points = starting_points[directional_argminmax(starting_points, direction)]
+			
+	end 
 
 	N = length(starting_points)
 
@@ -400,27 +455,29 @@ function Maximize_ContactSurface(
 	
 	
 
-
-
 	for i=1:N 
 
-
 		lines[i] = LazySets.Line(starting_points[i], direction)
-
-
 		
 		shifts[:,i] .= nearest_point(lines[i], vertices)
 		#closest vertex 
-
 
 		shifts[:,i] -= project_point_to_line(selectdim(shifts,2,i), lines[i])
 		# vector from the line to the closest vertex  
 
 	end 
 
-	
-	hull_segm = convex_hull_segm(vertices) 
 
+	hull_segm = convex_hull_segm(vertices)   
+
+
+
+#################3
+#	for a in hull_segm
+#	PyPlot.plot(eachrow(hcat(a.p,a.q))...,c="yellow")
+#end 
+##sleep(2)
+#####################33
 
 	for i=1:N,j=1:N 
 		
@@ -428,7 +485,6 @@ function Maximize_ContactSurface(
 			# count how many shifted lines intersect the hull 
 
 	end 
-
 
 
 
@@ -459,11 +515,8 @@ function Maximize_ContactSurface(
 		
 			nrs[i] = 1 
 
-
-
 			shifts[:,i] += nearest_point(-selectdim(shifts,2,i)+shift_out, 
 																	 view(vertices, inds_ps)) 
-
 
 				
 		end 
@@ -494,7 +547,7 @@ end
 #																 kwargs...)::Vector{Float64}
 #
 #
-#	dir_parallel = LinearAlgebra.normalize(direction) 
+#	dir_parallel = LA.normalize(direction) 
 #
 ##	D = [dir_parallel;; dir_parallel[2]; -dir_parallel[1]] # on columns 
 #

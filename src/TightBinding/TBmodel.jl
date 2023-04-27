@@ -787,7 +787,9 @@ end
 
 function Compute_Hopping_Matrices(
 						Lattice::NTuple{3,AbstractArray};
-						dist_tol::Float64=1e-5, parallel::Bool=false,	kwargs...
+						dist_tol::Float64=1e-5, 
+#						parallel::Bool=false,	
+						kwargs...
 						)::Tuple{SpA.SparseMatrixCSC, <:Any}
 
 
@@ -815,13 +817,15 @@ function Compute_Hopping_Matrices(
 
 	# if few procs, Rms will be distributed. Otherwise -> atoms
 
- 	Tms = (parallel && nprocs()<=length(Rms) ? pmap : map)(Rms) do Rm
+# 	Tms = (parallel && nprocs()<=length(Rms) ? pmap : map)(Rms) do Rm
+#
+#    HoppingMatrix(AtomsUC,	Rm .+ AtomsUC;
+#													kwargs...,
+#													parallel = parallel && nprocs()>length(Rms)
+#      										)
+#  end
 
-    HoppingMatrix(AtomsUC,	Rm .+ AtomsUC;
-													kwargs...,
-													parallel = parallel && nprocs()>length(Rms)
-      										)
-  end
+	Tms = [HoppingMatrix(AtomsUC,	Rm .+ AtomsUC; kwargs...) for Rm=Rms]
 
 
 	nonzeroT = findall(>(0)∘SpA.nnz, Tms)
@@ -829,7 +833,7 @@ function Compute_Hopping_Matrices(
 
 
 	intra = findfirst(m -> m==-m, ms)
-		# corresponds to the intra-cell hopping
+	# m=0 or [0,0] etc. corresponds to the intra-cell hopping
 
   inter = nonzeroT[nonzeroT .!= intra]
 		# correspond to the non-zero inter-cell hopping

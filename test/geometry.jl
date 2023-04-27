@@ -15,13 +15,16 @@ each(A) =eachslice(A,dims=dim)
 
 scatter(A;kwargs...) = plt.scatter(eachslice(A,dims=dim2)...; kwargs...)
 
-starting_points = Utils.PathConnect((a->vcat(a,a + [0 4]))(rand(1,2)), 5; dim=dim)[1]
+nr_start = 30
+radius = 20
+
+starting_points = Utils.PathConnect((a->vcat(a,a + [0 nr_start-1]))(rand(1,2)), nr_start; dim=dim)[1]
 
 
 
 direction = [1.0,0.0]#rand(2) #[1.0,1.0] 
 
-center = Algebra.Mean(starting_points, dim) + [0,5]
+center = Algebra.Mean(starting_points, dim) + [0,max(radius,nr_start)]
 
 for i in axes(starting_points,dim)
 
@@ -40,11 +43,11 @@ angles = sort(rand(8))*2pi
 
 #angles = range(0,2pi,length=21)
 #
-polygon = hcat(cos.(angles), sin.(angles))*9
+polygon = hcat(cos.(angles), sin.(angles))*radius
 
 
 
-V = vcat((hcat(a...) for a in Base.product(-5:5,-5:5))...) .+0.0
+V = vcat((hcat(a...) for a in Base.product(-radius:radius,-radius:radius))...) .+0.0
 
 @show size(V) size(polygon)
 
@@ -54,20 +57,21 @@ V = vcat((hcat(a...) for a in Base.product(-5:5,-5:5))...) .+0.0
 
 V = selectdim(V, dim, map(Geometry.PointInPolygon_wn(polygon, dim=dim),
 												 each(V)))
-
-scatter(V; c="lightgray")
-
-V = transpose(Lattices.SurfaceAtoms(transpose(V),1))
-
-#v,s = Algebra.Mean.([V, starting_points], dim) 
-
-
+#
+###################
+##surface  not necessary! convex hull takes care
+#scatter(V; c="lightgray")
+#V = transpose(Lattices.SurfaceAtoms(transpose(V),1))
+##################
+##v,s = Algebra.Mean.([V, starting_points], dim) 
+#
+#
 
 dmax = maximum(Algebra.OuterDist(V, V,dim=dim))
 
 
 
-while any(Geometry.PointInPolygon_wn(V; dim=dim), each(starting_points))
+#while any(Geometry.PointInPolygon_wn(V; dim=dim), each(starting_points))
 
 	for i in axes(starting_points, dim)
 
@@ -75,7 +79,7 @@ while any(Geometry.PointInPolygon_wn(V; dim=dim), each(starting_points))
 
 	end 
 
-end 
+#end 
 
 
 
@@ -152,12 +156,12 @@ l1 = LazySets.Line(starting_points[1,:],direction)
 pltline(l1, X,c="b")
 
 
+println()
 
+m = Geometry.Maximize_ContactSurface(starting_points, direction, V; dim=dim) 
 
-
-
-
-m = Geometry.Maximize_ContactSurface(starting_points, direction, V; dim=dim)
+println("\n------")
+@time m = Geometry.Maximize_ContactSurface(starting_points, direction, V; dim=dim)
 
 																		 
 #sp = vcat((hcat((p+m)...) for p in each(starting_points))...)
@@ -174,15 +178,14 @@ m = Geometry.Maximize_ContactSurface(starting_points, direction, V; dim=dim)
 #end 
 #
 
-#scatter(sp;c="red",label="shifted")
-
-@show m  
+#scatter(sp;c="green",label="shifted")
 
 
 
-pltline(LazySets.Line(starting_points[1,:]+m,direction),X,c="red")
+
+pltline(LazySets.Line(starting_points[1,:]+m,direction),X,c="green")
 plt.gca().autoscale(enable=true)
-	plt.scatter(eachcol(starting_points .+ transpose(m))...,c="red",marker="x")
+	plt.scatter(eachcol(starting_points .+ transpose(m))...,c="green",marker="x")
 
 plt.legend()
 plt.show()
