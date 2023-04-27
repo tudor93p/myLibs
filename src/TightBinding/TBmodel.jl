@@ -198,60 +198,206 @@ end
 #				
 #---------------------------------------------------------------------------#
 
+function _Hamilt_indices(nr_orbitals::Int, nr_atoms::Int
+												)::AbstractMatrix{Int}
+
+	LinearIndices((nr_orbitals,nr_atoms))
+
+end 
+
+function _Hamilt_indices(nr_orbitals::Int, nr_atoms::Int, 
+												 orbs::Union{Colon,<:AbstractVector{Int}},
+												 atoms::Union{Colon,<:AbstractVector{Int}},
+												)::AbstractMatrix{Int}
+
+	view(_Hamilt_indices(nr_orbitals, nr_atoms), orbs,atoms)
+
+end 
+
+
+#function _Hamilt_indices(nr_orbitals::Int, nr_atoms::AbstractVector{Int}, 
+#												)::AbstractMatrix{Int}
+#
+#	_Hamilt_indices(nr_orbitals, maximum(nr_atoms))
+#
+#end
+
+
+
+
+
+
 function Hamilt_indices(orbital::Int, atom::Int, nr_orbitals::Int)::Int
 
-	orbital + (atom - 1) * nr_orbitals
+	_Hamilt_indices(nr_orbitals, atom)[orbital,end]
 
 end
 
 function Hamilt_indices(orbitals::AbstractVector{<:Int}, 
 												atom::Int, nr_orbitals::Int)::Vector{Int}
 
-	Hamilt_indices.(orbitals, atom, nr_orbitals)
+	_Hamilt_indices(nr_orbitals,atom)[orbitals,end]
+
+end 
+
+function Hamilt_indices(nr_orbitals::Int,#orbitals::AbstractVector{<:Int}, 
+												atom::Int)::Vector{Int}
+
+	_Hamilt_indices(nr_orbitals,atom)[:,end]
 
 end
-
-
 
 function Hamilt_indices(orbital::Int,
 												atoms::AbstractVector{<:Int}, 
 												nr_orbitals::Int)::Vector{Int}
 
-	Hamilt_indices.(orbital, atoms, nr_orbitals)
+	_Hamilt_indices(nr_orbitals,maximum(atoms))[orbital,atoms]
 
-end
+end 
+
+function orbat_indices(nr_orbitals::Int, iH::Int)::NTuple{2,Int} 
+
+	CartesianIndices((nr_orbitals, iH))[iH].I
+
+end  
 
 
+#function Hamilt_indices(orbital::Int, atom::Int, nr_orbitals::Int)::Int
+#
+#	orbital + (atom - 1) * nr_orbitals
+#
+#end
+#
+#function Hamilt_indices(orbitals::AbstractVector{<:Int}, 
+#												atom::Int, nr_orbitals::Int)::Vector{Int}
+#
+#	Hamilt_indices.(orbitals, atom, nr_orbitals)
+#
+#end
+#
+#
+#
+#function Hamilt_indices(orbital::Int,
+#												atoms::AbstractVector{<:Int}, 
+#												nr_orbitals::Int)::Vector{Int}
+#
+#	Hamilt_indices.(orbital, atoms, nr_orbitals)
+#
+#end
 
-function Hamilt_indices_all(orbs::Utils.List, atoms::Utils.List,
+function atorb_iter(; iter::AbstractString="atoms")::Int 
+
+	iter=="atoms" && return 2 
+	
+	iter=="orbitals" && return 1 
+	
+	error("'iter' should be either 'orbitals' or 'atoms'")
+
+end  
+function atorb_iter(inds::AbstractMatrix{Int}; 
+										kwargs...)::Vector{<:AbstractVector{Int}}
+
+	collect(eachslice(inds; dims=atorb_iter(;kwargs...))) 
+
+end 
+
+function Hamilt_indices_all(nr_orb::Int,
+														nr_at::Int;
+														kwargs...
+														)::Vector{<:AbstractVector{Int}}
+
+	atorb_iter(_Hamilt_indices(nr_orb,nr_at); kwargs...)
+
+end   
+
+function Hamilt_indices_all(nr_orb::Int,
+														atoms::AbstractVector{Int};
+														kw...
+														)::Vector{<:AbstractVector{Int}}
+
+	atorb_iter(_Hamilt_indices(nr_orb,maximum(atoms),:,atoms); kw...)
+
+end  
+
+
+function Hamilt_indices_all(orbs::AbstractVector{Int},
+														atoms::AbstractVector{Int};
+														warn::Bool=true,
+														kw...
+														)::Vector{<:AbstractVector{Int}}
+
+	if all(Base.splat(==), enumerate(orbs)) 
+
+		warn && @warn "Use instead Hamilt_indices_all(nr_orb, atoms; kwargs...)"
+		return Hamilt_indices_all(length(orbs), atoms; kw...)
+
+	end 
+
+	error("Provide 'nr_orb'")
+
+end  
+
+
+function Hamilt_indices_all(orbs::AbstractVector{Int},
+														atoms::AbstractVector{Int},
+														nr_orb::Int;
+														warn::Bool=true,
+														kw...
+														)::Vector{<:AbstractVector{Int}}
+
+	if nr_orb==length(orbs) && all(Base.splat(==), enumerate(orbs)) 
+
+		warn && @warn "Use instead Hamilt_indices_all(nr_orb, atoms; kwargs...)"  
+
+		return Hamilt_indices_all(nr_orb, atoms; kw...)
+
+	end 
+
+	atorb_iter(_Hamilt_indices(nr_orb,maximum(atoms),orbs,atoms); kw...)
+
+end  
+
+
+function Hamilt_indices_all_flat(orbs::AbstractVector{Int},
+														atoms::AbstractVector{Int},
 														d0::Int=length(orbs);
-														iter::AbstractString="atoms",flat::Bool=false
-														)::Vector
+														iter::AbstractString="atoms",
+#														flat::Bool=false,
+														warn::Bool=true,
+														)::Vector{Int}
 
-	iter=="orbitals" && flat==true && @warn "The function returns flat  Hamiltonian indices by iterating over orbitals. In multi-orbital system, the order will *not* be consistent with the way the Hamiltonian is built and unexpected results will occur.\n"
+	@assert (iter=="atoms" || iter=="orbitals") "'iter' should be either 'orbitals' or 'atoms'"
 
-#  f(x) = flat ? vcat(x...) : x
-
-#  iter == "orbitals"  && return f(map(i->Hamilt_indices(i,atoms,d0),orbs))
-  
-	inds_generator = if iter=="orbitals"  
-		
-		(Hamilt_indices(i,atoms,d0) for i in orbs)
-
-										elseif iter=="atoms"
-
-		(Hamilt_indices(orbs,i,d0) for i in atoms) 
-
-										end 
+	inds = _Hamilt_indices(d0,maximum(atoms),orbs,atoms)
 
 
-	return flat ? vcat(inds_generator...) : collect(inds_generator)
+	iter=="atoms" && return inds[:]
+	
+	warn && @warn "The function returns flat  Hamiltonian indices by iterating over orbitals. In multi-orbital system, the order will *not* be consistent with the way the Hamiltonian is built and unexpected results will occur.\n"
+
+	return transpose(inds)[:]
+
+#	
+#	"orbitals"
+#
+#	inds_generator = if iter=="orbitals"  
+#		
+#		(Hamilt_indices(i,atoms,d0) for i in orbs)
+#
+#										elseif iter=="atoms"
+#
+#		(Hamilt_indices(orbs,i,d0) for i in atoms) 
+#
+#										end 
+#
+#
+#	return flat ? vcat(inds_generator...) : collect(inds_generator)
 
 
   
 #  iter == "atoms" && return f(map(i->Hamilt_indices(orbs,i,d0),atoms))
 
-  error("'iter' should be either 'orbitals' or 'atoms'")
+#  error("'iter' should be either 'orbitals' or 'atoms'")
 
 end
 
@@ -348,23 +494,23 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function flat_indsvals(i::Int64, j::Int64, v::Number, d0::Int64=1)::Matrix
-
-	flat_indsvals(i, j, hcat(v), d0)
-
-end 
-
-
-function flat_indsvals(i::Int64, j::Int64, v::AbstractMatrix, d0::Int64)::Matrix
-
-
-  I,J,V = SpA.findnz(SpA.sparse(v))
-
-  return hcat(Hamilt_indices.([I,J],[i,j],d0)...,V)
-
-end 
-
-
+#function flat_indsvals(i::Int64, j::Int64, v::Number, d0::Int64=1)::Matrix
+#
+#	flat_indsvals(i, j, hcat(v), d0)
+#
+#end 
+#
+#
+#function flat_indsvals(i::Int64, j::Int64, v::AbstractMatrix, d0::Int64)::Matrix
+#
+#
+#  I,J,V = SpA.findnz(SpA.sparse(v))
+#
+#  return hcat(Hamilt_indices.([I,J],[i,j],d0)...,V)
+#
+#end 
+#
+#
 
 #===========================================================================#
 #
@@ -372,16 +518,16 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function indsvals_to_Tm(indsvals::AbstractMatrix, n::Int64, m::Int64=n
-											 )::SpA.SparseMatrixCSC
-
-	types = (Int64, Int64, ComplexF64)
-
-	hopps = (convert(Vector{t}, c) for (t,c) in zip(types, eachcol(indsvals)))
-
-  return SpA.sparse(hopps..., n, m)
-
-end
+#function indsvals_to_Tm(indsvals::AbstractMatrix, n::Int64, m::Int64=n
+#											 )::SpA.SparseMatrixCSC
+#
+#	types = (Int64, Int64, ComplexF64)
+#
+#	hopps = (convert(Vector{t}, c) for (t,c) in zip(types, eachcol(indsvals)))
+#
+#  return SpA.sparse(hopps..., n, m)
+#
+#end
 
 
 
@@ -392,27 +538,27 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function get_hopps(atom_i::Int, Ri::AbstractVector, 
-									 Rsj::AbstractMatrix, 
-									 hopping::Function, hopp_cutoff::Float64, 
-									 d0::Int)::Matrix{ComplexF64}
-
-  hopps = hopping.([Ri],eachcol(Rsj))
-		# compute the hopping amplitudes from Ri to all Rj-s
-
-	@assert d0==(isa(rand(hopps),Number) ? 1 : LA.checksquare(rand(hopps)))
-
-  atoms_js = findall(LA.norm.(hopps) .> hopp_cutoff)
-		# check which amplitudes are nonzero
-
-
-  isempty(atoms_js) && return zeros(0, 3)
-
-  return vcat(flat_indsvals.([atom_i], atoms_js, hopps[atoms_js], [d0])...)
-
-
-end
-
+#function get_hopps(atom_i::Int, Ri::AbstractVector, 
+#									 Rsj::AbstractMatrix, 
+#									 hopping::Function, hopp_cutoff::Float64, 
+#									 d0::Int)::Matrix{ComplexF64}
+#
+#  hopps = hopping.([Ri],eachcol(Rsj))
+#		# compute the hopping amplitudes from Ri to all Rj-s
+#
+#	@assert d0==(isa(rand(hopps),Number) ? 1 : LA.checksquare(rand(hopps)))
+#
+#  atoms_js = findall(LA.norm.(hopps) .> hopp_cutoff)
+#		# check which amplitudes are nonzero
+#
+#
+#  isempty(atoms_js) && return zeros(0, 3)
+#
+#  return vcat(flat_indsvals.([atom_i], atoms_js, hopps[atoms_js], [d0])...)
+#
+#
+#end
+#
 
 #===========================================================================#
 #
@@ -423,27 +569,214 @@ end
 #---------------------------------------------------------------------------#
 
 
-function HoppingMatrix(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
-											 Hopping::Function, 
-											 nr_orb::Int=1, 
-											 parallel::Bool=false, 
+#function HoppingMatrix_old(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
+#											 Hopping::Function, 
+#											 nr_orb::Int=1, 
+#											 parallel::Bool=false, 
+#											 hopp_cutoff::Float64=1e-6, 
+#											 kwargs...
+#											 )::SpA.SparseMatrixCSC
+#
+#
+#  indsvals_to_Tm(vcat(
+#
+#      (parallel ? pmap : map)(enumerate(eachcol(Rsi))) do (i,Ri)
+#      	# for each atom i at position Ri
+#
+#				get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, nr_orb)
+#
+#	  	# find the atoms where it hopps and the amplitudes
+#
+#    end...), size(Rsi,2)*nr_orb, size(Rsj,2)*nr_orb)
+#
+#end  
+
+function init_HoppingMatrix(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
+														nr_orb::Int=1, kwargs...
+														)
+
+	haskey(kwargs, :parallel) && @warn "kwarg 'parallel' not used" kwargs[:parallel]
+
+	return init_HoppingMatrix(size(Rsi,2), size(Rsj,2), nr_orb)
+
+end 
+function init_HoppingMatrixAndNZ(Rsi::AbstractMatrix, Rsj::AbstractMatrix=Rsi;
+														nr_orb::Int=1, kwargs...
+														)
+
+	haskey(kwargs, :parallel) && @warn "kwarg 'parallel' not used" kwargs[:parallel]
+
+	return init_HoppingMatrixAndNZ(size(Rsi,2), size(Rsj,2), nr_orb)
+
+end 
+
+function init_HoppingMatrix(n::Int, m::Int, nr_orb::Int) 
+
+	(SpA.spzeros(ComplexF64, n*nr_orb, m*nr_orb),
+	 SpA.spzeros(ComplexF64, nr_orb, nr_orb),
+	 Hamilt_indices_all(nr_orb, max(n,m)),
+	 )
+
+end  
+
+function init_HoppingMatrixAndNZ(n::Int, m::Int, nr_orb::Int) 
+
+	(SpA.spzeros(ComplexF64, n*nr_orb, m*nr_orb),
+	 SpA.spzeros(Bool, n, m),
+	 SpA.spzeros(ComplexF64, nr_orb, nr_orb),
+	 Hamilt_indices_all(nr_orb, max(n,m)),
+	 )
+
+end 
+
+
+
+
+function get_hopp_nz!(Hopping::Function, 
+											h::SpA.SparseMatrixCSC, 
+											Ri::AbstractVector{<:Real}, 
+											Rj::AbstractVector{<:Real}=Ri;
 											 hopp_cutoff::Float64=1e-6, 
 											 kwargs...
-											 )::SpA.SparseMatrixCSC
+							)::Bool
+
+	h .= Hopping(Ri,Rj)
+	
+	SpA.droptol!(h, hopp_cutoff)
+	
+	return SpA.nnz(h)>0 
+
+end 
 
 
-  indsvals_to_Tm(vcat(
+function HoppingMatrix(Rsi::AbstractMatrix, Rsj::AbstractMatrix;
+											 Hopping::Function, 
+											 kwargs...
+											 )::SpA.SparseMatrixCSC{ComplexF64}
 
-      (parallel ? pmap : map)(enumerate(eachcol(Rsi))) do (i,Ri)
-      	# for each atom i at position Ri
+	H,h,iH = init_HoppingMatrix(Rsi, Rsj; kwargs...)
 
-				get_hopps(i, Ri, Rsj, Hopping, hopp_cutoff, nr_orb)
+	for (j,Rj)=enumerate(eachcol(Rsj)), (i,Ri)=enumerate(eachcol(Rsi))
 
-	  	# find the atoms where it hopps and the amplitudes
+		if get_hopp_nz!(Hopping, h, Ri, Rj; kwargs...)
+			
+			setindex!(H,h, iH[i], iH[j])
 
-    end...), size(Rsi,2)*nr_orb, size(Rsj,2)*nr_orb)
+		end 
+		
+	end  
 
-end
+	return H 
+
+end  
+
+function HoppingMatrixAndNZ(Rsi::AbstractMatrix, Rsj::AbstractMatrix;
+											 Hopping::Function, 
+											 kwargs...
+											 )::Tuple{SpA.SparseMatrixCSC{ComplexF64},
+																SpA.SparseMatrixCSC{Bool},
+																}
+
+	H,NZ,h,iH = init_HoppingMatrixAndNZ(Rsi, Rsj; kwargs...)
+
+	for (j,Rj)=enumerate(eachcol(Rsj)), (i,Ri)=enumerate(eachcol(Rsi))
+
+		if get_hopp_nz!(Hopping, h, Ri, Rj; kwargs...)
+		
+			setindex!(H, h, iH[i], iH[j]) 
+
+			setindex!(NZ, true, i, j)
+
+		end 
+		
+	end  
+
+	#vcat(SpA.getrowval(NZ)', SpA.expandptr(SpA.getcolptr(NZ))') 
+	
+	return H,NZ 
+
+end  
+
+
+
+function HoppingMatrix(Rs::AbstractMatrix;
+											 Hopping::Function, 
+											 kwargs...
+											 )::SpA.SparseMatrixCSC{ComplexF64}
+
+	H,h,iH = init_HoppingMatrix(Rs; kwargs...)
+
+	for (j,Rj) in enumerate(eachcol(Rs)) 
+		
+		if get_hopp_nz!(Hopping, h, Rj; kwargs...)
+		
+			setindex!(H, h, iH[j], iH[j])
+
+		end 
+
+		
+		for (i,Ri) in Iterators.drop(enumerate(eachcol(Rs)),j)  # i>j
+
+			if get_hopp_nz!(Hopping, h, Ri, Rj; kwargs...)
+			
+				setindex!(H, h, iH[i], iH[j])
+
+				setindex!(H, h', iH[j], iH[i])
+
+			end 
+		
+		end  
+
+	end  
+
+	return H 
+
+end  
+
+
+function HoppingMatrixAndNZ(Rs::AbstractMatrix;
+											 Hopping::Function, 
+											 kwargs...
+											 )::Tuple{SpA.SparseMatrixCSC{ComplexF64},
+																SpA.SparseMatrixCSC{Bool},
+																}
+
+	H,NZ,h,iH = init_HoppingMatrixAndNZ(Rs; kwargs...)
+
+	for (j,Rj) in enumerate(eachcol(Rs)) 
+		
+		if get_hopp_nz!(Hopping, h, Rj; kwargs...)
+		
+			setindex!(H, h, iH[j], iH[j])
+
+			setindex!(NZ, true, j, j)
+
+		end 
+
+		
+		for (i,Ri) in Iterators.drop(enumerate(eachcol(Rs)),j)  # i>j
+
+			if get_hopp_nz!(Hopping, h, Ri, Rj; kwargs...)
+			
+				setindex!(H, h, iH[i], iH[j])
+				setindex!(H, h', iH[j], iH[i])
+				
+				setindex!(NZ, true, i, j)
+				setindex!(NZ, true, j, i)
+
+			end 
+		
+		end  
+
+	end  
+
+	return H,NZ
+
+end  
+
+
+
+
 
 #===========================================================================#
 #
@@ -455,7 +788,7 @@ end
 function Compute_Hopping_Matrices(
 						Lattice::NTuple{3,AbstractArray};
 						dist_tol::Float64=1e-5, parallel::Bool=false,	kwargs...
-						)::Tuple{SpA.SparseMatrixCSC, Any}
+						)::Tuple{SpA.SparseMatrixCSC, <:Any}
 
 
 #  ms, Rms, AtomsUC = Lattice 
@@ -491,7 +824,7 @@ function Compute_Hopping_Matrices(
   end
 
 
-  nonzeroT = findall(SpA.nnz.(Tms) .> 0)
+	nonzeroT = findall(>(0)∘SpA.nnz, Tms)
 		# check which T_𝐦  contain only zeros
 
 
@@ -503,8 +836,11 @@ function Compute_Hopping_Matrices(
 
 	isempty(inter) && return Tms[intra], nothing 
 
-	return Tms[intra], Tuple.(getindex.((ms, Rms, Tms), (inter,)))
-
+	return Tms[intra], (
+											Tuple(ms[i] for i=inter),
+											Tuple(Rms[i] for i=inter),
+											Tuple(Tms[i] for i=inter),
+											)
 
 end
 

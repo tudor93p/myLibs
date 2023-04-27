@@ -1,6 +1,63 @@
 using myLibs: TBmodel, Operators, Lattices, H_Superconductor, ArrayOps
 using LinearAlgebra 
 
+@testset "Hamilt indices" begin 
+
+	for nr_orb=1:5,nr_at=1:10 
+		
+		at=1:nr_at 
+		orb = 1:nr_orb 
+
+		@test all(TBmodel.Hamilt_indices_all(orb,at; iter="atoms",warn=false).==eachcol(LinearIndices((nr_orb,at))))
+	
+	@test all(TBmodel.Hamilt_indices_all(orb,at; iter="orbitals",warn=false).==eachrow(LinearIndices((nr_orb,at))))
+
+		@test TBmodel.Hamilt_indices_all_flat(orb,at; iter="atoms",warn=false)==LinearIndices((nr_orb,at))[:]
+		@test TBmodel.Hamilt_indices_all_flat(orb,at; iter="orbitals",warn=false)==transpose(LinearIndices((nr_orb,at)))[:]
+
+
+		at = sort(unique(rand(1:nr_at,nr_at)))
+		orb = 1:nr_orb 
+
+		lima = LinearIndices((nr_orb,maximum(at)))[:,at]
+
+		@test all(TBmodel.Hamilt_indices_all(orb,at; iter="atoms",warn=false).==eachcol(lima))
+	
+		@test all(TBmodel.Hamilt_indices_all(orb,at; iter="orbitals",warn=false).==eachrow(lima))
+
+		@test TBmodel.Hamilt_indices_all_flat(orb,at; iter="atoms")==lima[:]
+		@test TBmodel.Hamilt_indices_all_flat(orb,at; iter="orbitals",warn=false)==transpose(lima)[:]
+
+
+		at=1:nr_at 
+		orb = sort(unique(rand(1:nr_orb,nr_orb)))
+
+		@test all(TBmodel.Hamilt_indices_all(orb,at,nr_orb; iter="atoms",warn=false).==eachcol(LinearIndices((nr_orb,at))[orb,:]))
+	
+		@test all(TBmodel.Hamilt_indices_all(orb,at,nr_orb; iter="orbitals",warn=false).==eachrow(LinearIndices((nr_orb,at))[orb,:]))
+
+		@test TBmodel.Hamilt_indices_all_flat(orb,at,nr_orb; iter="atoms")==LinearIndices((nr_orb,at))[orb,:][:]
+		@test TBmodel.Hamilt_indices_all_flat(orb,at,nr_orb; iter="orbitals",warn=false)==transpose(LinearIndices((nr_orb,at))[orb,:])[:]
+
+
+		at = sort(unique(rand(1:nr_at,nr_at)))
+		orb = sort(unique(rand(1:nr_orb,nr_orb)))
+
+		lima = LinearIndices((nr_orb,maximum(at)))[orb,at]
+
+		@test all(TBmodel.Hamilt_indices_all(orb,at,nr_orb; iter="atoms",warn=false).==eachcol(lima))
+	
+		@test all(TBmodel.Hamilt_indices_all(orb,at,nr_orb; iter="orbitals",warn=false).==eachrow(lima))
+
+		@test TBmodel.Hamilt_indices_all_flat(orb,at,nr_orb; iter="atoms")==lima[:]
+		@test TBmodel.Hamilt_indices_all_flat(orb,at,nr_orb; iter="orbitals",warn=false)==transpose(lima)[:]
+
+
+	end 
+
+
+end 
+
 
 R = rand(2,3);
 R= hcat(R,R.+[0,1],R.+[1,0])#,R.+[0,-1],R.+[-1,0])

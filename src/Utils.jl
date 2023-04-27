@@ -1652,7 +1652,12 @@ invmap(arg, fs::Vararg{<:Function}; kwargs...) = invmap(arg, fs; kwargs...)
 
 function invmap(args, fs::List; kwargs...)
 
-	[f(args...; kwargs...) for f in fs]
+	map(fs) do f  
+
+		f(args...; kwargs...) 
+		
+
+	end 
 
 end 
 
