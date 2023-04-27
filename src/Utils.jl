@@ -1652,7 +1652,7 @@ invmap(arg, fs::Vararg{<:Function}; kwargs...) = invmap(arg, fs; kwargs...)
 
 function invmap(args, fs::List; kwargs...)
 
-	map(f->f(args...; kwargs...), fs)
+	[f(args...; kwargs...) for f in fs]
 
 end 
 
@@ -2251,7 +2251,8 @@ function Distribute_Work(allparamcombs::AbstractVector,
 								 n==1 ? only(which_) : which_,
 								 ") out of $njobs.",
 								 "\n\t * Timestamp: ",
-								 Dates.format(t0,Dates.dateformat"mm/dd HH:MM:SS")
+								 Dates.format(t0,Dates.dateformat"mm/dd HH:MM:SS"),
+#									"\n\t * Args: ",p,
 								 ))
 
 

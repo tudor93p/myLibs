@@ -485,7 +485,7 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
 																			coupling_toSystem(n,dir)...)
 	
-		return GF(reEnergy, H(n), coupling(n,dir)... ) 
+		return GF(reEnergy, H(n), coupling(n,dir)...) 
 	
 	end
 
