@@ -16,13 +16,15 @@ module LayeredSystem
 #
 #############################################################################
 
-import ..LA 
+import ..LA, ..SpA 
 
+import MetaGraphs
+import MetaGraphs: MetaDiGraph  
+import SharedArrays: SharedMatrix
+import ResumableFunctions: @resumable, @yield 
 
 import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps, ..Algebra
 
-import MetaGraphs
-import MetaGraphs: MetaDiGraph 
 
 
 #===========================================================================#
@@ -1119,6 +1121,160 @@ function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int
 	return g
 
 end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+"""
+Save Hamiltonian & Bonds in two shared dicts 
+insted of attaching them to the directed graph
+"""
+function condStore_sharedHB(nr_layers::Int,
+						 inds_layer::Function,
+						 atoms::AbstractMatrix{<:Real};
+						 hopp...
+						 )::Tuple{Dict{NTuple{2,Int}, SharedMatrix{ComplexF64}},
+											Dict{NTuple{2,Int},SharedMatrix{Int}}}
+
+	data_H = Dict{NTuple{2,Int},SharedMatrix{ComplexF64}}()
+	
+	data_B = Dict{NTuple{2,Int},SharedMatrix{Int}}()
+
+
+	condStore_sharedHB!!(data_H, data_B, atoms, inds_layer, 1; hopp...)
+
+	for i=2:nr_layers
+
+		condStore_sharedHB!!(data_H, data_B, atoms, inds_layer, i; hopp...)
+
+		condStore_sharedHB!!(data_H, data_B, atoms, inds_layer, (i-1,i); hopp...)
+
+	end  
+
+	@assert issubset(keys(data_B),keys(data_H))
+
+	return data_H, data_B
+
+end  
+
+#@resumable function iter_shared_data(
+#												data::Dict{NTuple{2,Int}, SharedMatrix{<:Number}},
+#												)
+#
+#	for (k,v) in data 
+#	
+#		haskey(data, (i,j)) || continue 
+#		(i,j)
+#
+#
+#
+#	(i,i) 
+#	(i-1,i)
+#	end 
+#
+#	return  
+#
+#end 
+
+
+"""
+Intra-layer hopping and bonds
+"""
+function condStore_sharedHB!!(data_H::Dict{NTuple{2,Int},
+																							SharedMatrix{ComplexF64}},
+															data_B::Dict{NTuple{2,Int},SharedMatrix{Int}},
+															atoms::AbstractMatrix{<:Real},
+															inds_layer::Function,
+															i::Int;
+															hopp...
+															)::Nothing 
+
+	I = inds_layer(i)
+
+	H,B = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, I); hopp...) 
+
+	condStore_sharedHamilt!(data_H, (i,i), H) 
+
+	condStore_sharedBonds!(data_B, (i,i), LA.triu!(B,1))#, I) #Relative inds 
+
+	return 
+
+end 
+
+
+"""
+Inter-layer hopping and bonds 
+"""
+function condStore_sharedHB!!(data_H::Dict{NTuple{2,Int},
+																							SharedMatrix{ComplexF64}},
+															data_B::Dict{NTuple{2,Int},SharedMatrix{Int}},
+															atoms::AbstractMatrix{<:Real},
+															inds_layer::Function,
+															(i,j)::NTuple{2,Int};
+															hopp...
+															)::Nothing 
+
+	@assert i!=j  
+
+	I = inds_layer(i)
+	J = inds_layer(j)
+
+	H,B = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, I),
+																	 Lattices.Vecs(atoms, J);
+																	 hopp...) 
+
+
+	condStore_sharedHamilt!(data_H, (i,j), H) 
+
+	condStore_sharedBonds!(data_B, (i,j), B)#, I, J) # Relative inds 
+
+	return 
+
+end 
+
+
+
+
+function condStore_sharedHamilt!(data_H::Dict{NTuple{2,Int},
+																							SharedMatrix{ComplexF64}},
+												 IJ::NTuple{2,Int},
+												 src::SpA.SparseMatrixCSC{ComplexF64},
+												 )::Bool
+
+	SpA.nnz(src)==0 && return false
+
+	@assert !haskey(data_H, IJ)
+
+	data_H[IJ] = SharedMatrix{ComplexF64}(size(src))
+
+	ArrayOps.cpNZ_toDenseZ!(data_H[IJ], src)  
+
+	return true 
+
+end 
+
+function condStore_sharedBonds!(data_B::Dict{NTuple{2,Int},SharedMatrix{Int}},
+												 ij::NTuple{2,Int},
+												 src::SpA.SparseMatrixCSC{Bool},
+												 args...
+												 )::Bool
+
+	SpA.nnz(src)==0 && return false 
+
+	@assert !haskey(data_B, ij)
+
+	data_B[ij] = SharedMatrix{Int}(2, SpA.nnz(src))
+
+	ArrayOps.cpNZinds_toDense!(data_B[ij], src, args...)
+
+	return true 
+
+end  
+
 
 
 #===========================================================================#

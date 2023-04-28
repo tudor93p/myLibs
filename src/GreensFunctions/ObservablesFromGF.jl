@@ -1010,10 +1010,11 @@ end
 #
 #---------------------------------------------------------------------------#
 
+	#	Matrix{Float64},B=NTuple{2,Int},R=Vector{Vector{Float64}},T=Float64
 
 function addSiteTiTj!(siteT::AbstractMatrix{<:Real},
 											dim::Int,
-											inds::NTuple{N,Int} where N,
+											inds::NTuple{N,Int} where N, # (i,j)::NTuple{2,Int}
 											(Ri,Rj),
 											Tij::Float64)::Nothing 
 

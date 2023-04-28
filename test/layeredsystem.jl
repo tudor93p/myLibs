@@ -1,5 +1,5 @@
 using myLibs: Lattices, LayeredSystem, Algebra,GreensFunctions, Graph,ArrayOps,TBmodel
-using LinearAlgebra 
+using LinearAlgebra, SparseArrays 
 import PyPlot
 
 
@@ -36,7 +36,7 @@ isBond = Algebra.EuclDistEquals(d_nn; dim=2)
 
 
 
-@testset "LAR basisc" begin  
+#@testset "LAR basisc" begin  
 	nr_orb = 2 
 	atoms = get_atoms([10,7])
 
@@ -75,35 +75,27 @@ D, = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2)
 
 #	HoppMatr(args...) = TBmodel.HoppingMatrix(D[:AtomsOfLayer].(args)...; hopp...)
 
-	g = LayeredSystem.LayeredSystem_toGraph(nr_layers) 
-
-	data = Dict() 
-
-	ial = D[:IndsAtomsOfLayer]
-
-	for i=1:nr_layers
-
-		Ri = Lattices.Vecs(atoms, ial(i)) 
-		
-		data[(i,i)] = TBmodel.HoppingMatrixAndNZ(Ri; hopp...)
-
-		i==1 && continue 
-
-		data[(i-1,i)] = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, ial(i-1)), Ri; hopp...)
+	g = LayeredSystem.LayeredSystem_toGraph(nr_layers, VirtLeads) # no H
 
 
-	end 
+	data_H,data_B = LayeredSystem.condStore_sharedHB(nr_layers,
+																					 D[:IndsAtomsOfLayer],
+																					 atoms;
+																					 hopp...)
 
-#	@show data 
 
-end 
+	@show keys(data_H)
+	@show keys(data_B)  
+
+#end 
 
 #LayeredSystem.Plot_Graph(("test10",D[:IndsAtomsOfLayer]) ,D[:NrLayers],g)
 
 
 
-
 println()
+error()
+
 println()
 
 @testset "lead basics" begin 

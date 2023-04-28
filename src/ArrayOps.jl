@@ -736,6 +736,80 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function cpNZinds_toDense!(dst::AbstractMatrix{Int},
+													 src::SpA.SparseMatrixCSC{<:Number},
+													 args...
+													 )::AbstractMatrix{Int}
+
+	k::Int = 1 
+
+	rows = SpA.rowvals(src) 
+
+	for j in axes(src,2), i in SpA.nzrange(src, j)
+
+		cpNZinds_toDense!(dst, rows[i], j, k, args...)
+
+		k+=1 
+
+	end 
+
+	return dst 
+
+end 
+
+
+
+function cpNZinds_toDense!(dst::AbstractMatrix{Int},
+													 i::Int,
+													 j::Int,
+													 k::Int,
+													 )::AbstractMatrix{Int}
+
+	setindex!(dst, i, 1, k)
+	setindex!(dst, j, 2, k)
+
+end  
+
+function cpNZinds_toDense!(dst::AbstractMatrix{Int},
+													 i::Int,
+													 j::Int,
+													 k::Int,
+													 I::AbstractVector{Int},
+													 J::AbstractVector{Int}=I,
+													 )::AbstractMatrix{Int}
+
+	cpNZinds_toDense!(dst, I[i], J[j], k)
+
+end 
+
+
+
+
+function cpNZ_toDenseZ!(dst::AbstractMatrix{<:Number},
+								src::SpA.SparseMatrixCSC{<:Number}
+								)::AbstractMatrix{<:Number}
+
+	rows = SpA.rowvals(src) 
+	vals = SpA.nonzeros(src)
+
+	for j in axes(src,2), i in SpA.nzrange(src, j)
+
+		setindex!(dst, vals[i], rows[i], j)
+
+	end 
+
+	return dst
+
+end 
+
+
 
 
 
