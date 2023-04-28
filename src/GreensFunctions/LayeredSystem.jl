@@ -1134,9 +1134,12 @@ end
 		-	hopping matrix :intercell => H::AbstractArray
 		-	the GF :GF => g::function 
 """
-function add_leads_H!(g::MetaDiGraph, 
-										VirtLeads::AbstractDict{Symbol,<:AbstractDict}
-										)::MetaDiGraph
+
+function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int,
+															 VirtLeads::AbstractDict{Symbol,<:AbstractDict},
+															 )::MetaDiGraph
+
+	g = LayeredSystem_toGraph(HoppMatr, NrLayers)
 
 	add_leads!(g, VirtLeads)
 
@@ -1147,14 +1150,6 @@ function add_leads_H!(g::MetaDiGraph,
 	end
 	
 	return g
-
-end
-
-function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int,
-															 VirtLeads::AbstractDict{Symbol,<:AbstractDict},
-															 )::MetaDiGraph
-
-	add_leads_H!(LayeredSystem_toGraph(HoppMatr, NrLayers), VirtLeads)
 
 end 
 
@@ -1403,25 +1398,22 @@ function get_graphH(g::MetaDiGraph,
 end   
 
 
-#function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
-#										T::AbstractString, I::Int64)::AbstractMatrix
-#
-#	get_graphH(g, g[(T,I),:name])
-#
-#end  
-#
-#function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
-#										T1::AbstractString, I1::Int64,
-#										T2::AbstractString, I2::Int64,
-#										)::AbstractMatrix
-#
-#	get_graphH(g, g[(T1,I1),:name], g[(T2,I2),:name])
-#
-#
-#
-#	return zeros(size(get_prop(:H,ns[1]),1),size(get_prop(:H,ns[2]),1))
-#
-#end
+function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
+										T::AbstractString, I::Int64;
+										kwargs...)::AbstractMatrix{<:Number}
+
+	get_graphH(g, get_node(g,T,I); kwargs...)
+
+end  
+
+function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
+										T1::AbstractString, I1::Int64,
+										T2::AbstractString, I2::Int64;
+										kwargs...)::AbstractMatrix{<:Number}
+
+	get_graphH(g, get_node(g,T1,I1), get_node(g,T2,I2); kwargs...)
+
+end
 
 
 

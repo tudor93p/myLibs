@@ -37,25 +37,64 @@ isBond = Algebra.EuclDistEquals(d_nn; dim=2)
 
 
 @testset "LAR basisc" begin  
+	nr_orb = 2 
 	atoms = get_atoms([10,7])
 
 
 
 D, = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2) 
 
-@show D[:NrLayers]
-@show D[:LayerOfAtom](10)
-@show D[:IndsAtomsOfLayer](3)
-@show D[:AtomsOfLayer](3)
+	nr_layers = D[:NrLayers]
+
+	for i=axes(atoms,2)
+
+		@test 1<=D[:LayerOfAtom](i)<=nr_layers
+
+	end  
+
+	for l=1:nr_layers 
+
+		@test all(1 .<= D[:IndsAtomsOfLayer](l) .<= size(atoms,2))
+
+		for j=1:nr_layers
+			
+			@test xor(l==j,isdisjoint(D[:IndsAtomsOfLayer](l),
+																D[:IndsAtomsOfLayer](j)
+																))
+		end 
+
+		D[:AtomsOfLayer](l)
+	end 
 
 
 
+	LayeredSystem.LayeredSystem_toGraph(nr_layers)
 
 
-#LayeredSystem.LayeredSystem_toGraph(D[:NrLayers]; 
-#																		RightLead=Dict(:label=>"A"), 
-#																		LeftLead=Dict(:label=>"B"))
-#
+	hopp = Dict(:Hopping=>get_hopp(nr_orb), :nr_orb=>nr_orb) 
+
+#	HoppMatr(args...) = TBmodel.HoppingMatrix(D[:AtomsOfLayer].(args)...; hopp...)
+
+	g = LayeredSystem.LayeredSystem_toGraph(nr_layers) 
+
+	data = Dict() 
+
+	ial = D[:IndsAtomsOfLayer]
+
+	for i=1:nr_layers
+
+		Ri = Lattices.Vecs(atoms, ial(i)) 
+		
+		data[(i,i)] = TBmodel.HoppingMatrixAndNZ(Ri; hopp...)
+
+		i==1 && continue 
+
+		data[(i-1,i)] = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, ial(i-1)), Ri; hopp...)
+
+
+	end 
+
+#	@show data 
 
 end 
 
@@ -134,8 +173,8 @@ end
 
 #@testset "layered system hopping" begin 
 
-	Nxy = [10,20]
-	nr_orb = 3  
+	Nxy = [9,5]
+	nr_orb = 2  
 
 
 
@@ -165,6 +204,16 @@ end
 
 	g2 = LayeredSystem.LayeredSystem_toGraph(HoppMatr, nr_layers, VirtLeads)
 
+	for layer=1:nr_layers
+
+		@show size(LayeredSystem.get_graphH(g2, "Layer", layer))
+		
+		layer==1 && continue 
+		
+		@show size(LayeredSystem.get_graphH(g2, "Layer", layer-1, "Layer", layer))
+
+
+	end 
 
 
 
