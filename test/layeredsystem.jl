@@ -36,13 +36,15 @@ isBond = Algebra.EuclDistEquals(d_nn; dim=2)
 
 
 
-#@testset "LAR basisc" begin  
+@testset "G(g(data)) vs G(g,data)" begin   
+
 	nr_orb = 2 
 	atoms = get_atoms([10,7])
 
 
 
-D, = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2) 
+	D,Slicer,LeadRels, = LayeredSystem.NewGeometry(
+					atoms, "forced"; isBond=isBond, dim=2, nr_orb=nr_orb)
 
 	nr_layers = D[:NrLayers]
 
@@ -73,21 +75,47 @@ D, = LayeredSystem.LayerAtomRels(atoms, "forced"; isBond=isBond, dim=2)
 
 	hopp = Dict(:Hopping=>get_hopp(nr_orb), :nr_orb=>nr_orb) 
 
-#	HoppMatr(args...) = TBmodel.HoppingMatrix(D[:AtomsOfLayer].(args)...; hopp...)
+	HoppMatr(args...) = TBmodel.HoppingMatrix(D[:AtomsOfLayer].(args)...; hopp...)
 
-	g = LayeredSystem.LayeredSystem_toGraph(nr_layers, VirtLeads) # no H
+	g_noH = LayeredSystem.LayeredSystem_toGraph(nr_layers) # no H
 
-
-	data_H,data_B = LayeredSystem.condStore_sharedHB(nr_layers,
-																					 D[:IndsAtomsOfLayer],
-																					 atoms;
-																					 hopp...)
+	g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, nr_layers)
 
 
-	@show keys(data_H)
+	data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; hopp...)
+
+
 	@show keys(data_B)  
+	
+#-----  	 test GF ---- # 
 
-#end 
+	E1 = rand(ComplexF64)
+
+	G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_withH, Slicer) 
+
+	G_new = GreensFunctions.GF_Decimation_fromGraph(E1, 
+																									g_noH, 
+																									Slicer,
+																									data_H,
+																									data_B,
+																									atoms)
+
+	GF_call_args = vcat( 
+			[("Atom",i) for i in axes(atoms,2)],
+			[("Layer",i) for i in 1:nr_layers]
+		 )
+
+	for a=GF_call_args, b=GF_call_args  
+
+		for ab in [(a,b),(a,b...),(a...,b),(a...,b...)]
+
+			@test G_old(a, b)≈G_old(ab...)≈G_new(ab...)
+
+		end 
+
+	end 
+
+end 
 
 #LayeredSystem.Plot_Graph(("test10",D[:IndsAtomsOfLayer]) ,D[:NrLayers],g)
 

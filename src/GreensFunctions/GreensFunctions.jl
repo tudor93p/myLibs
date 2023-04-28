@@ -421,6 +421,193 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 end
 
 
+function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
+#																 leads_have_imag::Bool=false,
+																 kwargs...
+																 )::Function
+
+
+
+
+
+
+#	setEnergy_LeadGF,
+	LeadGF_atEnergy,
+	islead,
+	meets_layer,
+	lead_extends,
+	H,
+	next,
+	bring_closer,
+	node	= GraphLayeredSystem_Utils(g)
+
+
+	reEnergy = if haskey(kwargs, :leads_have_imag)
+
+				kwargs[:leads_have_imag] ? Energy::Real : real(Energy::Complex)
+
+							else 
+
+								Energy
+
+							end
+	
+
+	SemiInfLeadGF = LeadGF_atEnergy(g, Energy)
+
+
+	# ----- the dictionary where the values are stored -------- #
+	
+	Gd = Dict{Tuple{Int64,Int64,String},Array{Complex{Float64},2}}()
+
+
+
+	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix
+	
+		n==m && islead(n) && !meets_layer(n,dir) && return SemiInfLeadGF(n)
+
+							#	this should not be stored, already stored in the graph!
+
+		n==m && return get!(Gd,(n,m,dir)) do 
+																			Gnn(n,dir) end
+
+		return get!(Gd,(n,m,dir)) do 
+																Gnm(n,m,dir) end
+
+	end
+
+
+	# ----- methods to calculate the GF ------- #	
+
+	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
+	
+		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
+																			coupling_toSystem(n,dir)...)
+	
+		return GF(reEnergy, H(n), coupling(n,dir)...) 
+	
+	end
+
+	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
+
+		isnleft, n1, m1  = bring_closer(n,m)
+	
+		for (d,test) in zip(["left","right"],[isnleft,!isnleft])
+	
+			if dir in ["both",d] 
+	
+				test && return G(n,m1,d)*H(m1,m)*G(m,m,dir)
+	
+				return G(n,n,dir)*H(n,n1)*G(n1,m,d)
+	
+			end
+		end
+
+	end
+
+
+
+	# ---- coupling a layer left or right ----- #
+
+	function coupling(src::Int64,dir::String)
+	
+		filter(!isempty, map(["right","left"]) do d
+	
+										dst = (dir in [d,"both"]) ? next(src,d) : nothing
+	
+										return isnothing(dst) ? () : (H(dst,src), G(dst,dst,d))
+	
+									end)
+	end
+	
+	
+	# ------- coupling for a lead ---------- #
+
+	
+	function coupling_toSystem(src,d)
+	
+		for dir in ["right","left"]
+	
+			meets_layer(src,dir) && return coupling(src,dir)
+	
+		end
+	
+	end
+	
+
+
+
+	if	isnothing(translate)
+	
+		function out1(name1::AbstractString,index1::Int64,
+								 	name2::AbstractString=name1,index2::Int64=index1;
+									dir::AbstractString="both")::AbstractMatrix
+	
+			G(node(name1,index1,name2,index2)...,dir)
+	
+		end
+
+
+		function out1((name1,index1)::Tuple{AbstractString,Int},
+									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
+									kwargs1...)::AbstractMatrix
+
+			out1(name1, index1, name2, index2)
+
+		end 
+
+		function out1(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
+
+			out1(ni1ni2...)
+
+		end
+
+		return out1
+
+	
+	else
+
+
+		function out2(name1::AbstractString, index1::Int64,
+								 	name2::AbstractString=name1, index2::Int64=index1;
+									dir::AbstractString="both")::AbstractMatrix
+
+			n1i1n2i2,slice = translate(name1,index1,name2,index2) 
+
+			@assert length(slice)==2
+
+			return G(node(n1i1n2i2...)...,dir)[slice...]
+
+		end 
+
+		function out2((name1,index1)::Tuple{AbstractString,Int},
+									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
+									kwargs1...)::AbstractMatrix
+
+			out2(name1, index1, name2, index2)
+
+		end 
+
+		function out2(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
+
+			out2(ni1ni2...)
+
+		end
+
+	end
+
+end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 #																 leads_have_imag::Bool=false,
@@ -551,13 +738,13 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 		function out1((name1,index1)::Tuple{AbstractString,Int},
 									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
-									kwargs...)::AbstractMatrix
+									kwargs1...)::AbstractMatrix
 
 			out1(name1, index1, name2, index2)
 
 		end 
 
-		function out1(ni1ni2::Tuple{Tuple,Tuple}; kwargs...)::AbstractMatrix
+		function out1(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
 
 			out1(ni1ni2...)
 
@@ -583,13 +770,13 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 		function out2((name1,index1)::Tuple{AbstractString,Int},
 									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
-									kwargs...)::AbstractMatrix
+									kwargs1...)::AbstractMatrix
 
 			out2(name1, index1, name2, index2)
 
 		end 
 
-		function out2(ni1ni2::Tuple{Tuple,Tuple}; kwargs...)::AbstractMatrix
+		function out2(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
 
 			out2(ni1ni2...)
 

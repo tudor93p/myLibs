@@ -1129,13 +1129,26 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function condStore_sharedHB(LAR::AbstractDict{Symbol, <:Any},
+														args...; kwargs...
+						 )::Tuple{Dict{NTuple{2,Int}, SharedMatrix{ComplexF64}},
+											Dict{NTuple{2,Int},SharedMatrix{Int}}}
+
+	condStore_sharedHB(LAR[:NrLayers], LAR[:IndsAtomsOfLayer],
+										 args...; kwargs...)
+
+end 
+
+
 """
 Save Hamiltonian & Bonds in two shared dicts 
 insted of attaching them to the directed graph
 """
-function condStore_sharedHB(nr_layers::Int,
-						 inds_layer::Function,
-						 atoms::AbstractMatrix{<:Real};
+function condStore_sharedHB(
+														nr_layers::Int, 
+														inds_layer::Function,
+														atoms::AbstractMatrix{<:Real};
+
 						 hopp...
 						 )::Tuple{Dict{NTuple{2,Int}, SharedMatrix{ComplexF64}},
 											Dict{NTuple{2,Int},SharedMatrix{Int}}}
@@ -1369,6 +1382,8 @@ function LayeredSystem_toGraph(NrLayers::Int)::MetaDiGraph
   g = Graph.MetaDiPath(NrLayers)
 
 	MetaGraphs.set_prop!(g, :NrLayers, NrLayers)
+
+	MetaGraphs.set_prop!(g, :LeadLabels, String[]) # backwards compatibility
 
 	for i in 1:NrLayers
 
