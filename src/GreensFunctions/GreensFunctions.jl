@@ -622,7 +622,7 @@ function GF_Surface(latt::Lattices.Lattice,
 										args...
 									)::Function
 
-	first ∘ GF_Surface(latt, [target_arg], args...)
+	only ∘ GF_Surface(latt, [target_arg], args...)
 
 
 end
@@ -641,17 +641,20 @@ function GF_Surface(latt::Lattices.Lattice,
 
 	intra_, inter_ = intra(), only(values(inter))
 		
+	target=join(target_arg)
 
-	return function gf(E::Real)::Vector{Matrix{ComplexF64}}
+	return function gf(E::Real)::Vector{<:Matrix{ComplexF64}}
 		
 		gfs = GreensFunctions.GF_SanchoRubio(E+delta*im, intra_, inter_;
-																				 target=join(target_arg))
+																				 target=target)
 
 		return [gfs[t] for t in target_arg]
 
 	end
 
 end
+
+
 
 function GF_Surface(latt::Lattices.Lattice,
 										target_arg::AbstractVector{<:AbstractString},
@@ -998,7 +1001,7 @@ end
 
 #PrepareLead(tup::Tuple)::Dict{Symbol,Any} = PrepareLead(tup...)
 
-function PrepareLead(atoms::AbstractMatrix{<:Number})::Dict{Symbol,Any}
+function PrepareLead(atoms::AbstractMatrix{<:Real})::Dict{Symbol,Any}
 
 	Dict{Symbol,Any}(:head=>[atoms])
 
@@ -1006,7 +1009,7 @@ end
 
 
 function PrepareLead(label::AbstractString, 
-										 LeadAtoms::AbstractMatrix{<:Number}
+										 LeadAtoms::AbstractMatrix{<:Real}
 										 )::Dict{Symbol,Any}
 
 	merge!(Dict{Symbol,Any}(:label => label), PrepareLead(LeadAtoms))
@@ -1023,8 +1026,8 @@ end
 
 
 function PrepareLead(label::AbstractString, 
-										 Lead::Union{Lattices.Lattice, AbstractMatrix{<:Number}},
-										 BridgeAtoms::AbstractMatrix{<:Number}
+										 Lead::Union{Lattices.Lattice, AbstractMatrix{<:Real}},
+										 BridgeAtoms::AbstractMatrix{<:Real}
 										 )::Dict{Symbol,Any}
 
 	merge!(vcat, PrepareLead(BridgeAtoms), PrepareLead(label, Lead)) 
@@ -1034,7 +1037,7 @@ end
 function PrepareLead(label::AbstractString,
 										 lead_latt::Lattices.Lattice,
 										 lead_hopp::AbstractDict,
-										 delta::Vararg{Float64},
+										 delta::Real...,
 										 )::Dict{Symbol,Any} 
 
 	PrepareLead(label, lead_latt, lead_hopp, lead_hopp, delta...)
@@ -1045,7 +1048,7 @@ function PrepareLead(label::AbstractString,
 										 lead_latt::Lattices.Lattice,
 										 coupl_hopp::AbstractDict,
 										 lead_hopp::AbstractDict,
-										 delta::Vararg{Real},
+										 delta::Real...,
 										 )::Dict{Symbol,Any}
 
 	PrepareLead(label, 
@@ -1068,7 +1071,7 @@ function PrepareLead(label::AbstractString,
 	LeadAtoms0, LeadAtoms1 = [Lattices.Atoms_ManyUCs(Lead; Ns=n) for n=[0,1]]
 
 
-	return merge!(PrepareLead(label, LeadAtoms0), Dict(	
+	return merge!(PrepareLead(label, LeadAtoms0), Dict{Symbol,Any}(	
 
 						:coupling => coupling,
 
@@ -1076,7 +1079,7 @@ function PrepareLead(label::AbstractString,
 
 						:intercell => [LeadHoppMatr(LeadAtoms0, LeadAtoms1)],
 
-						:GF => function GF(E::Number)::Vector{Matrix} 
+						:GF => function GF(E::Number)::Vector{<:Matrix} 
 						
 												[LeadGF(E)] 
 											
@@ -1108,7 +1111,7 @@ function PrepareLead(label::AbstractString,
 							PrepareLead(label, Lead, coupling, LeadHoppMatr, LeadGF))
 				
 				
-	out[:GF] = function gf(E::Number)::Vector{Matrix}
+	out[:GF] = function gf(E::Number)::Vector{<:Matrix}
 	
 				g = LeadGF(E)
 

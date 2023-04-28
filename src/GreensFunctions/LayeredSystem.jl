@@ -1099,107 +1099,64 @@ end
 #---------------------------------------------------------------------------#
 
 
-function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int;
-															 LeftLead=nothing, RightLead=nothing)
-					"""			 
+"""			 
 	HoppMatr(unit_cell_n,unit_cell_m) = Hamiltonian between the two layers
-
 	NrLayers -> upper bound of n,m  (lower bound is 1)
+"""
+function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int 
+															 )::MetaDiGraph
 
+	g = LayeredSystem_toGraph(NrLayers)
+
+	for i in 1:NrLayers 
+
+		MetaGraphs.set_prop!(g, i, :H, HoppMatr(i)) 
+
+		i>1 && set_edgeH!(g, i-1, i, HoppMatr(i-1,i))
+
+	end  
+
+	return g
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+"""
 	If any leads are specified, they must contain
 		-	an identifier :label => label::String
 		-	coupling matrix :coupling => U::AbstractArray
 		-	hopping matrix :intercell => H::AbstractArray
-		-	the GF :GF => g::Function
+		-	the GF :GF => g::function 
+"""
+function add_leads_H!(g::MetaDiGraph, 
+										VirtLeads::AbstractDict{Symbol,<:AbstractDict}
+										)::MetaDiGraph
 
-				"""
+	add_leads!(g, VirtLeads)
 
+	for Lead in values(VirtLeads) 
 
-#	LeftLead  = CheckLead(LeftLead,"LeftLead")
-#	RightLead = CheckLead(RightLead,"RightLead")
+		set_lead_H!(g, Lead) 
 
-	Leads = filter(!isnothing, [LeftLead,RightLead])
-
-
-	NrLeadUCs = if isempty(Leads) 0 else
-
-									maximum([length(L[:intracell]) for L in Leads])+1
-
-							end
-
-#	NrLeadUCs = 5
-
-  g = Graph.MetaDiPath(NrLayers)
-
-	Graph.set_props!(g,Dict(:NrLayers=>NrLayers,
-													:UCsLeads=>NrLeadUCs,
-													:LeadLabels=>[Lead[:label] for Lead in Leads]
-											 ))
-
-	for i in 1:NrLayers
-		Graph.set_props!(g,i,Dict(:type=>"Layer",
-														 	:name=>("Layer",i),
-														 	:H=>HoppMatr(i))
-														)
+	end
 	
-		i>1 && Graph.set_prop!(g, i-1, i, :H, HoppMatr(i-1,i))
-
-
-	end
-
-
-	for Lead in Leads,i in 1:NrLeadUCs
-
-			Graph.add_vertex!(g,Dict(
-							:type=>"VirtualLead",
-							:name=>(Lead[:label],i),
-							:H => Lead[:intracell][min(i,end)],
-							(i>1 ? [] : [:GFf => Lead[:GF],])... 
-					# the GF for all lead unit cells will be stored in the lead head. 
-												 ))
-	end
-
-  node = Graph.node_by_prop!(g,:name)
-
-
-	
-	if !isnothing(RightLead)
-
-		Graph.add_edge!(g,NrLayers,
-											node(RightLead[:label],1),
-											:H, RightLead[:coupling]')
-
-		for i in 1:NrLeadUCs-1
-
-				Graph.add_edge!(g,node(RightLead[:label],i),
-													node(RightLead[:label],i+1),
-													:H, RightLead[:intercell][min(i,end)]
-											)
-			end # intercell is given in the u direction, as here: i -> i+1 
-	end
-
-	if !isnothing(LeftLead)
-
-		Graph.add_edge!(g,node(LeftLead[:label],1),
-											1,
-											:H, LeftLead[:coupling])
-
-		for i in 1:NrLeadUCs-1
-
-				Graph.add_edge!(g,node(LeftLead[:label],i+1),
-													node(LeftLead[:label],i),
-													:H, LeftLead[:intercell][min(i,end)]'
-											)
-		end # intercell is given in the u direction: opposite to i+1->i 
-	end
-
-
 	return g
 
 end
 
+function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int,
+															 VirtLeads::AbstractDict{Symbol,<:AbstractDict},
+															 )::MetaDiGraph
 
+	add_leads_H!(LayeredSystem_toGraph(HoppMatr, NrLayers), VirtLeads)
 
+end 
 
 #===========================================================================#
 #
@@ -1260,11 +1217,11 @@ function LayeredSystem_toGraph(NrLayers::Int)::MetaDiGraph
 
   g = Graph.MetaDiPath(NrLayers)
 
-	Graph.set_prop!(g, :NrLayers, NrLayers)
+	MetaGraphs.set_prop!(g, :NrLayers, NrLayers)
 
 	for i in 1:NrLayers
 
-		Graph.set_props!(g, i, Dict(:type=>"Layer", :name=>("Layer",i)))
+		MetaGraphs.set_props!(g, i, Dict(:type=>"Layer", :name=>("Layer",i)))
 
 	end
 
@@ -1287,24 +1244,41 @@ get_node(g::MetaDiGraph, L::AbstractDict, I::Int)::Int = get_node(g, L[:label], 
 #
 #---------------------------------------------------------------------------#
 
+function get_NrLeadUCs(VirtLeads::AbstractDict{Symbol,<:AbstractDict})::Int 
+
+	isempty(VirtLeads) && return 0
+ 
+	return maximum(values(VirtLeads)) do L 
+
+		haskey(L, :intracell) ? length(L[:intracell])+1 : 1
+
+	end 
+
+end 
 
 
-function add_leads!(g::MetaDiGraph; 
-										LeftLead=nothing, RightLead=nothing, 
+function add_leads!(g::MetaDiGraph, 
+										VirtLeads::AbstractDict{Symbol,<:AbstractDict};
+#										LeftLead=nothing, RightLead=nothing, 
 										)::MetaDiGraph 
 
+	K = [:LeftLead, :RightLead] 
 
-	Graph.set_prop!(g, :UCsLeads, 1)
+	@assert issubset(keys(VirtLeads),K)
 
-	Graph.set_prop!(g, :LeadLabels, 
-									vcat(
-											 isnothing(LeftLead) ? [] : LeftLead[:label],
-											 isnothing(RightLead) ? [] : RightLead[:label],
-											 )
+	MetaGraphs.set_prop!(g, :UCsLeads, get_NrLeadUCs(VirtLeads))
+
+	MetaGraphs.set_prop!(g, :LeadLabels, 
+									[VirtLeads[k][:label] for k=K if haskey(VirtLeads,k)],
 									)
 
-	add_lead!(g, RightLead, :RightLead)
-	add_lead!(g, LeftLead, :LeftLead)
+	for (k,v) in pairs(VirtLeads) 
+
+		add_lead!(g, v, k) 
+
+	end 
+
+	return g
 
 end 
 
@@ -1342,6 +1316,25 @@ function add_lead!(g::MetaDiGraph,
 
 end  
 
+function set_lead_H!(g::MetaDiGraph, Lead::AbstractDict{Symbol,<:Any}
+										 )::MetaDiGraph
+
+	for (i,h) in enumerate(Lead[:intracell])
+
+		MetaGraphs.set_prop!(g, get_node(g, Lead, i), :H, h)  
+
+	end 
+
+	MetaGraphs.set_prop!(g, get_node(g, Lead, 1), :GFf, Lead[:GF]) 
+	# the GF for all lead unit cells will be stored in the lead head. 
+	
+	set_lead_edgeH!(g, Lead)
+
+end 
+
+
+
+
 
 
 function add_lead_edges!(g::MetaDiGraph,
@@ -1355,6 +1348,111 @@ function add_lead_edges!(g::MetaDiGraph,
 		Graph.add_edge!(g, get_node(g, lead, i), get_node(g, lead, j))
 
 	end 
+
+	return g 
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function set_edgeH!(g::MetaDiGraph, n::Int, m::Int,
+										H::AbstractMatrix{<:Number}
+										)::Bool 
+
+	MetaGraphs.has_edge(g, n, m) && return MetaGraphs.set_prop!(g, n, m, :H, H)
+
+	MetaGraphs.has_edge(g, m, n) && return MetaGraphs.set_prop!(g, m, n, :H, H')
+	
+end  
+
+
+function get_graphH(g::MetaDiGraph, n::Int
+										)::AbstractMatrix{<:Number}
+
+	Graph.get_prop(g, n, :H)
+
+end    
+
+function get_graphH(g::MetaDiGraph, 
+										n1::Int, n2::Int;
+										zeros_noedge::Bool=false 
+										)::AbstractMatrix{<:Number}
+
+	n1==n2 && get_graphH(g, n1)  
+
+	Graph.has_prop(g,n1,n2,:H) && return Graph.get_prop(g,n1,n2,:H)   
+
+	Graph.has_prop(g,n2,n1,:H) && return Graph.get_prop(g,n2,n1,:H)' 
+
+	@assert !zeros_noedge "There is no :H between $n1 and $n2"
+
+	h1 = get_graphH(g, n1) 
+
+	h12 = similar(h1, size(h1,1), size(get_graphH(g, n2),1))
+
+	h12 .= 0
+
+	return h12 
+
+end   
+
+
+#function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
+#										T::AbstractString, I::Int64)::AbstractMatrix
+#
+#	get_graphH(g, g[(T,I),:name])
+#
+#end  
+#
+#function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
+#										T1::AbstractString, I1::Int64,
+#										T2::AbstractString, I2::Int64,
+#										)::AbstractMatrix
+#
+#	get_graphH(g, g[(T1,I1),:name], g[(T2,I2),:name])
+#
+#
+#
+#	return zeros(size(get_prop(:H,ns[1]),1),size(get_prop(:H,ns[2]),1))
+#
+#end
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+
+
+
+function set_lead_edgeH!(g::MetaDiGraph, 
+												 lead::AbstractDict{Symbol,Any},
+												 )::MetaDiGraph
+
+	for i in 1:Graph.get_prop(g,:UCsLeads)-1 
+
+		set_edgeH!(g, 
+							 get_node(g, lead, i), get_node(g, lead, i+1),
+							 lead[:intercell][min(i,end)])
+		
+	end 
+
+	@assert 1==count([1,Graph.get_prop(g, :NrLayers)]) do contact 
+
+		set_edgeH!(g, get_node(g, lead, 1), contact, lead[:coupling])
+
+	end "Lead '$(lead[:label])' not connected"
 
 	return g 
 
@@ -1396,6 +1494,13 @@ function attach_lead!(g::MetaDiGraph,
 
 end 
 
+function LayeredSystem_toGraph(NrLayers::Int, 
+															 VirtLeads::AbstractDict{Symbol,<:AbstractDict},
+															)::MetaDiGraph
+
+	add_leads!(LayeredSystem_toGraph(NrLayers), VirtLeads)
+
+end  
 
 #===========================================================================#
 #
