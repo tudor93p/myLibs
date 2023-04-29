@@ -1234,23 +1234,10 @@ function condStore_sharedHB!!(data_H::Dict{NTuple{2,Int},
 
 	@assert i!=j  
 
-	I = inds_layer(i)
-	J = inds_layer(j)
-
-	H,B = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, I),
-																	 Lattices.Vecs(atoms, J);
+	H,B = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, inds_layer(i)),
+																	 Lattices.Vecs(atoms, inds_layer(j));
 																	 hopp...) 
 	
-#	if i==1 
-#
-#		@show I J 
-#
-#		println("Ri: ",eachcol(Lattices.Vecs(atoms, I))...)
-#		println("Rj: ",eachcol(Lattices.Vecs(atoms, J))...)
-#		@show H B SpA.findnz(H) SpA.findnz(B)
-#
-#	end 
-
 	condStore_sharedHamilt!(data_H, (i,j), H) 
 
 	condStore_sharedBonds!(data_B, (i,j), B)#, I, J) # Relative inds 
@@ -1318,17 +1305,7 @@ function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int,
 															 VirtLeads::AbstractDict{Symbol,<:AbstractDict},
 															 )::MetaDiGraph
 
-	g = LayeredSystem_toGraph(HoppMatr, NrLayers)
-
-	add_leads!(g, VirtLeads)
-
-	for Lead in values(VirtLeads) 
-
-		set_lead_H!(g, Lead) 
-
-	end
-	
-	return g
+	add_leads_withH!(LayeredSystem_toGraph(HoppMatr, NrLayers), VirtLeads)
 
 end 
 
@@ -1435,6 +1412,11 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+function get_leadlabels(g::MetaDiGraph)::Vector{String}
+
+	Graph.has_prop(g,:LeadLabels) ? Graph.get_prop(g,:LeadLabels) : String[] 
+
+end 
 
 function get_NrLeadUCs(VirtLeads::AbstractDict{Symbol,<:AbstractDict})::Int 
 
@@ -1519,16 +1501,30 @@ end
 function set_lead_H!(g::MetaDiGraph, Lead::AbstractDict{Symbol,<:Any}
 										 )::MetaDiGraph
 
-	for (i,h) in enumerate(Lead[:intracell])
+
+
+
+
+	for (i,h) in enumerate(get(Lead, :intracell, ()))
+
+		@assert LA.ishermitian(h)
 
 		MetaGraphs.set_prop!(g, get_node(g, Lead, i), :H, h)  
 
 	end 
 
-	MetaGraphs.set_prop!(g, get_node(g, Lead, 1), :GFf, Lead[:GF]) 
+	if haskey(Lead,:GF) 
+		MetaGraphs.set_prop!(g, get_node(g, Lead, 1), :GFf, Lead[:GF]) 
+	end 
 	# the GF for all lead unit cells will be stored in the lead head. 
 	
-	set_lead_edgeH!(g, Lead)
+	if haskey(Lead,:intercell) && haskey(Lead,:coupling)
+
+		set_lead_edgeH!(g, Lead)
+
+	end 
+
+	return g 
 
 end 
 
@@ -1764,7 +1760,23 @@ function LayeredSystem_toGraph(NrLayers::Int,
 															 VirtLeads::AbstractDict{Symbol,<:AbstractDict},
 															)::MetaDiGraph
 
-	add_leads!(LayeredSystem_toGraph(NrLayers), VirtLeads)
+	add_leads_withH!(LayeredSystem_toGraph(NrLayers), VirtLeads)
+
+end   
+
+function add_leads_withH!(g::MetaDiGraph, 
+													VirtLeads::AbstractDict{Symbol,<:AbstractDict},
+													)::MetaDiGraph
+
+	add_leads!(g, VirtLeads)
+
+	for Lead in values(VirtLeads)
+
+		set_lead_H!(g, Lead) 
+
+	end  
+
+	return g
 
 end  
 

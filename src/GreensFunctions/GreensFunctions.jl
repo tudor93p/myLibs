@@ -7,7 +7,7 @@ import MetaGraphs:MetaDiGraph
 import ..Utils, ..TBmodel, ..Lattices
 
 import ..Graph, ..LayeredSystem
-import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_graphH
+import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_graphH, get_leadlabels
 
 #===========================================================================#
 #
@@ -50,7 +50,7 @@ GF(E::Number,args...)::Matrix = GF(E, SelfEn(args...))
 
 GF(g::AbstractMatrix,args...)::Matrix = GF(0.0,-inv(g),SelfEn(args...))
 
-GF(g::AbstractMatrix) = g
+GF(g::AbstractMatrix)::AbstractMatrix = g
 
 
 #===========================================================================#
@@ -206,7 +206,6 @@ function GraphLayeredSystem_Utils(g)
 	
 	
 	
-	
 
 
 	islead_(n) = occursin("Lead",get_prop(:type,n))
@@ -214,8 +213,6 @@ function GraphLayeredSystem_Utils(g)
 #	islayer_(n) = get_prop(:type,n)=="Layer"
 
 
-	
-	
 	function H(args...)::AbstractMatrix
 
 		ns = f(args...)
@@ -233,30 +230,11 @@ function GraphLayeredSystem_Utils(g)
 	end
 	
 	
-#	function setEnergy_LeadGF(g_,Energy)::Function
-#		for ll in get_prop(:LeadLabels)
-#			
-#			gfs = get_prop(:GFf,f(ll,1)[1])(Energy)	
-#		
-#			@show length(gfs)
-#
-#			for uc in 1:get_prop(:UCsLeads)
-#
-#				@show ll uc f(ll,uc)
-#
-#				Graph.set_prop!(g_,f(ll,uc)[1],:GF,gfs[min(uc,end)]) 
-#
-#			end 
-#
-#		end
-	
-	#return n->Graph.get_prop(g_, n, :GF)
-#end
 	
 	function LeadGF_atEnergy(g_,Energy)::Function
 
 		all_lead_gfs = Dict(ll=>get_prop(:GFf,f(ll,1)[1])(Energy) for ll in get_prop(:LeadLabels))
-
+ 
 		return function get_gf(n::Int)::AbstractMatrix 
 
 			@assert !Graph.has_prop(g_, n, :GF) 
@@ -427,8 +405,15 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 																 )::Function
 
 
+for l in get_leadlabels(g)
 
 
+n = get_node(g,l,1) 
+
+h = Graph.get_prop(g,n,:H) 
+@assert LA.ishermitian(h)
+
+end 
 
 
 #	setEnergy_LeadGF,
@@ -442,7 +427,7 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 	node	= GraphLayeredSystem_Utils(g)
 
 
-	reEnergy = if haskey(kwargs, :leads_have_imag)
+	reEnergy = if !isempty(get_leadlabels(g))&&haskey(kwargs, :leads_have_imag)
 
 				kwargs[:leads_have_imag] ? Energy::Real : real(Energy::Complex)
 
@@ -640,6 +625,9 @@ function eval_lead_GF(g::MetaDiGraph, Energy::Number
 
 end
 
+
+
+
 function get_reEnergy(Energy::T, ::Val{false})::T where T<:Number 
 
 	Energy
@@ -659,11 +647,20 @@ function get_reEnergy(Energy::Complex, ::Val{true}, ::Val{false})::Real
 
 end 
 
-function get_reEnergy(Energy::Number; kwargs...)::Number 
 
-	haskey(kwargs, :leads_have_imag) || return get_reEnergy(Energy, Val(false))
+	
+	
+function get_reEnergy(g::MetaDiGraph, Energy::Number; kwargs...)::Number 
 
-	return get_reEnergy(Energy, Val(true), Val(kwargs[:leads_have_imag]))
+	
+	if !isempty(get_leadlabels(g)) && haskey(kwargs, :leads_have_imag)
+
+		return get_reEnergy(Energy, Val(true), Val(kwargs[:leads_have_imag]))
+
+	end 
+
+
+	return get_reEnergy(Energy, Val(false))
 
 end 
 
@@ -814,9 +811,7 @@ function GF_Decimation_fromGraph(Energy::Number,
 																 kwargs...
 																 )::Function
 
-
-	reEnergy = get_reEnergy(Energy; kwargs...)
-
+	reEnergy = get_reEnergy(g, Energy; kwargs...)
 
 	SemiInfLeadGF = eval_lead_GF(g, Energy)
 
@@ -860,7 +855,7 @@ function GF_Decimation_fromGraph(Energy::Number,
 
 		if lead_extends(g,n,dir) 
 
-			dir0 = get_dir_layer(g,src) 
+			dir0 = get_dir_layer(g,n)
 
 		if dir=="both" 
 
@@ -874,6 +869,7 @@ function GF_Decimation_fromGraph(Energy::Number,
 
 			@show coupling_inds(g, n, dir0)
 
+			error() 
 		end  
 
 #			dir=="both" || !meets_layer(g,n,dir) 
@@ -931,7 +927,6 @@ function GF_Decimation_fromGraph(Energy::Number,
 
 	end 
 
-
 end
 
 function GF_Decimation_fromGraph(Energy::Number, 
@@ -983,14 +978,12 @@ function GF_Surface(latt::Lattices.Lattice,
 										delta::Real,
 										)::Function
 
-#	gf_ = GF_Surface(latt, target_arg, hopping)
-
 	intra, inter = TBmodel.BlochHamilt_ParallPerp(latt, Lattices.NearbyUCs, hopping)
 	
 	@assert Lattices.LattDim(latt)==1 
 
 	intra_, inter_ = intra(), only(values(inter))
-		
+
 	target=join(target_arg)
 
 	return function gf(E::Real)::Vector{<:Matrix{ComplexF64}}
@@ -1158,16 +1151,43 @@ function SanchoRubio_inplace(
 
 								kwargs...)::NTuple{3,AbstractMatrix{ComplexF64}}
 
-	@assert LA.ishermitian(H_intracell)  
+	@assert LA.ishermitian(H_intracell)  H_intracell
+	@assert !LA.ishermitian(H_intercell)  H_intercell
 
 	Errors = zeros(max_iter)
 
 
-	alpha = copy(Matrix(H_intercell))
-	beta = copy(alpha')
 
 
-	eps = cat((H_intracell for i in 0:(e2|e3))..., dims=3)
+#	alpha = copy(Matrix(H_intercell))
+#	beta = copy(alpha')
+# eps = cat((H_intracell for i in 0:(e2|e3))..., dims=3)
+
+
+	n = LA.checksquare(H_intercell)
+	@assert n==LA.checksquare(H_intracell)
+
+
+	alpha = Matrix{ComplexF64}(undef, n, n)
+	beta = Matrix{ComplexF64}(undef, n, n)
+	eps = Array{ComplexF64,3}(undef, n, n, 1+(e2|e3))
+	
+	ga = Matrix{ComplexF64}(undef, n, n)
+	gb = Matrix{ComplexF64}(undef, n, n) 
+
+	aux = Matrix{ComplexF64}(undef, n, n)
+
+
+	copy!(alpha, H_intercell)
+	copy!(beta, alpha') 
+
+	for k=axes(eps,3)
+
+		copy!(selectdim(eps,3,k), H_intracell) 
+
+	end 
+
+
 
 	gBulk = GF(Energy, selectdim(eps, 3, 1))
 
@@ -1176,19 +1196,26 @@ function SanchoRubio_inplace(
 
 		SanchoRubio_converged!(Errors, iter, alpha, beta; kwargs...) && break  
 
-		ga = gBulk*alpha  
+		LA.mul!(ga, gBulk, alpha)  
+		LA.mul!(aux, beta, ga)  
 
-		gb = gBulk*beta
-		
-		selectdim(eps, 3, 1) .+= beta*ga 
+		selectdim(eps, 3, 1) .+= aux  #bga 
 
-		eps .+= (alpha * gb)[:,:,:] 
 
-		alpha *= ga  
+		LA.mul!(gb, gBulk, beta)  
+		LA.mul!(aux, alpha, gb)
 
-		beta *= gb 
+		for k=axes(eps,3) 
+			
+			selectdim(eps,3,k) .+= aux # agb 
 
-		gBulk = GF(Energy, selectdim(eps, 3, 1))
+		end  
+
+		copy!(alpha, LA.mul!(aux, alpha, ga))
+
+		copy!(beta, LA.mul!(aux, beta, gb))
+
+		copy!(gBulk, GF(Energy, selectdim(eps, 3, 1)))
 
 	end 
 
@@ -1419,7 +1446,6 @@ function PrepareLead(label::AbstractString,
 										 )::Dict{Symbol,Any}
 
 	LeadAtoms0, LeadAtoms1 = [Lattices.Atoms_ManyUCs(Lead; Ns=n) for n=[0,1]]
-
 
 	return merge!(PrepareLead(label, LeadAtoms0), Dict{Symbol,Any}(	
 

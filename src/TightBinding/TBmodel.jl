@@ -837,26 +837,32 @@ function Compute_Hopping_Matrices(
 #      										)
 #  end
 
-	Tms = [HoppingMatrix(AtomsUC,	Rm .+ AtomsUC; kwargs...) for Rm=Rms]
 
+
+
+	inter = findall(Base.Fix1(any,!iszero), ms)
+
+#	intra = findfirst(m -> m==-m, ms)
+	# m=0 or [0,0] etc. corresponds to the intra-cell hopping
+
+	T0 = HoppingMatrix(AtomsUC; kwargs...) 
+
+	Tms = [HoppingMatrix(AtomsUC,	Rm .+ AtomsUC; kwargs...) for Rm=view(Rms,inter)]
+	
 
 	nonzeroT = findall(>(0)∘SpA.nnz, Tms)
 		# check which T_𝐦  contain only zeros
 
+	isempty(nonzeroT) && return T0, nothing 
 
-	intra = findfirst(m -> m==-m, ms)
-	# m=0 or [0,0] etc. corresponds to the intra-cell hopping
 
-  inter = nonzeroT[nonzeroT .!= intra]
-		# correspond to the non-zero inter-cell hopping
+	inter = inter[nonzeroT]
 
-	isempty(inter) && return Tms[intra], nothing 
+	return T0, (Tuple(ms[i] for i=inter),
+							Tuple(Rms[i] for i=inter),
+							Tuple(Tms[i] for i=nonzeroT),
+							) 
 
-	return Tms[intra], (
-											Tuple(ms[i] for i=inter),
-											Tuple(Rms[i] for i=inter),
-											Tuple(Tms[i] for i=inter),
-											)
 
 end
 

@@ -13,7 +13,8 @@ function get_hopp(nr_orb_)
 		local_pot = ArrayOps.UnitMatrix(nr_orb_)*isapprox(norm(ri-rj),0,atol=1e-8)*2.0  
 	
 		atom_hopp = intercell*isapprox(norm(ri-rj), 1, atol=1e-8) 
-	
+
+
 		return local_pot + atom_hopp 
 	
 	end  
@@ -82,35 +83,54 @@ end
 
 	for nr_orb in 1:3 
 		
+		hopp = Dict(:Hopping=>get_hopp(nr_orb), :nr_orb=>nr_orb)  
+
 		for Nx=10:15:30, Ny=7:17:30 
-		
-			hopp = Dict(:Hopping=>get_hopp(nr_orb), :nr_orb=>nr_orb) 
-	
-			lead_width = max(div(min(Nx,Ny),2),1)
 	
 			atoms = get_atoms([Nx,Ny]) 
+			lead_width = max(div(min(Nx,Ny),2),1)
+	
+			leads_ = [get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"A"),atoms,-1),hopp,0.001), get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"B"),atoms,1),hopp,0.001)]
+
 			
 			all_bonds = mapreduce(hcat,findall(LinearAlgebra.triu!(isBond(atoms,atoms),1))) do C
 	       [C.I[1],C.I[2]]
 	      end
 				
-			for LAR0 in ["forced", default_LayerAtomRels(get_latt([Nx,Ny]))]
+				for LAR0 in ["forced", default_LayerAtomRels(get_latt([Nx,Ny]))],Leads in [[],leads_]
 			
-	
-	
-	
-	#	leadA = get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"A"),atoms,-1),hopp,0.001)
-	
-	#	leadB = get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"B"),atoms,1),hopp,0.001)
+				LAR0=="forced"&&!isempty(Leads)&& continue 	
+
+
+				for L in Leads  
+					for h in L[:intracell]
+						@test ishermitian(h)
+					end 
+					for h in L[:intercell]
+						@test !ishermitian(h)
+					end 
+				end  
+
+				D,Slicer,LeadRels, VirtLeads = LayeredSystem.NewGeometry(
+								atoms, LAR0; isBond=isBond, dim=2, nr_orb=nr_orb,
+								Leads=Leads) 
+
+				for (k,L) in VirtLeads  
+					for h in L[:intracell]
+						@test ishermitian(h)
+					end 
+					for h in L[:intercell]
+						@test !ishermitian(h)
+					end 
+				end 
 		
-				D,Slicer,LeadRels, = LayeredSystem.NewGeometry(
-								atoms, LAR0; isBond=isBond, dim=2, nr_orb=nr_orb)
-			
+
 				nr_layers = D[:NrLayers]
 			
 				println() 
 		
-				@show (nr_orb,Nx,Ny,nr_layers,LAR0 isa String)
+				@show (nr_orb,Nx,Ny,nr_layers,LAR0 isa String,length(VirtLeads))
+
 		
 				for i=axes(atoms,2)
 			
@@ -136,11 +156,33 @@ end
 			
 			
 				HoppMatr(args...) = TBmodel.HoppingMatrix(D[:AtomsOfLayer].(args)...; hopp...)
+
+				g_noH = LayeredSystem.LayeredSystem_toGraph(nr_layers,
+														(isempty(VirtLeads) ? () : (VirtLeads,))...
+																										) 
+					for ll in GreensFunctions.get_leadlabels(g_noH)
+
+						@test !isempty(VirtLeads)
+
+						@test !isempty(LayeredSystem.get_graphH(g_noH, ll,1))
+						
+
+					end 
+
 			
-				g_noH = LayeredSystem.LayeredSystem_toGraph(nr_layers) # no H 
-			
-				g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, nr_layers)
-			
+				g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, nr_layers,
+														(isempty(VirtLeads) ? () : (VirtLeads,))...)
+				
+					for ll in GreensFunctions.get_leadlabels(g_withH)
+
+						@test !isempty(VirtLeads)
+						@test !isempty(LayeredSystem.get_graphH(g_withH, ll,1))
+
+					end 
+
+		
+				leadlabels = Graph.get_prop(g_noH,:LeadLabels)
+				@test leadlabels==Graph.get_prop(g_withH,:LeadLabels)
 			
 				data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; hopp...)
 		
@@ -182,10 +224,18 @@ end
 		
 					end 
 		
-					@test B1_2==B2_2 
+					@test size(B1_2)==size(B2_2)
+
+					for b1 in eachcol(B1_2)
+		
+						@test any(==(b1), eachcol(B2_2))
+		
+					end
+
 		
 					B2 = hcat(B2_1,B2_2)
-		
+
+					@test ishermitian(get(data_H, (l,l), hcat(0)))
 		
 		#			@show size(get(data_H, (l,l), []))
 		#			@show size(get(data_H, (l-1,l), []))
@@ -208,17 +258,23 @@ end
 				
 			#-----  	 test GF ---- # 
 			
-				E1 = rand() -0.5 + 0.02im 
+				E1 = rand() -0.5 
+				
+				if isempty(VirtLeads)
+					E1 += 0.01im 
+				end 
 			
-				G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_withH, Slicer) 
+				G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_withH, Slicer;
+																		leads_have_imag=true)
 			
 				G_new = GreensFunctions.GF_Decimation_fromGraph(E1, 
 																												g_noH, 
 																												data_H,
-																												Slicer,
+																												Slicer;
+																												leads_have_imag=true,
 																												)
 			
-				GF_call_args = vcat( 
+				GF_call_args = vcat( [(l,1) for l in leadlabels],
 						[("Atom",i) for i in axes(atoms,2)],
 						[("Layer",i) for i in 1:nr_layers]
 					 )
