@@ -7,7 +7,7 @@ import MetaGraphs:MetaDiGraph
 import ..Utils, ..TBmodel, ..Lattices
 
 import ..Graph, ..LayeredSystem
-import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_graphH, get_leadlabels
+import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_graphH, get_leadlabels, get_lead_GFf
 
 #===========================================================================#
 #
@@ -254,31 +254,6 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function eval_lead_GF(g::MetaDiGraph, Energy::Number 
-											)::Function
-
-	all_lead_gfs = Dict{String,Vector{Matrix{Complex}}}()
-
-	for label in Graph.get_prop(g, :LeadLabels) 
-
-		GF = Graph.get_prop(g, get_node(g, label, 1), :GFf)
-
-		all_lead_gfs[label] = GF(Energy)
-		
-	end 
-
-	return function get_gf(n::Int)::AbstractMatrix{ComplexF64}
-
-		lead_name, lead_uc = Graph.get_prop(g, n, :name)
-
-		return all_lead_gfs[lead_name][min(lead_uc,end)]
-
-	end  
-
-end
-
-
-
 
 function get_reEnergy(Energy::T, ::Val{false})::T where T<:Number 
 
@@ -353,18 +328,19 @@ function get_dir_layer(g::MetaDiGraph, n::Int)::String
 end 
 
 
-function lead_extends(g::MetaDiGraph, n::Int, dir::AbstractString)::Bool
-
-	islead(g,n) && (dir=="both" || !meets_layer(g,n,dir))
-
-end
+#
+#function lead_extends(g::MetaDiGraph, n::Int, dir::AbstractString)::Bool
+#	islead(g,n) && (dir=="both" || !meets_layer(g,n,dir))
+#
+#end
 
 
 
 # ---- coupling node(s) left or right ----- #
 	
-function coupling_inds(g::MetaDiGraph, src::Int, 
-														 dir::AbstractString
+function coupling_inds(g::MetaDiGraph, 
+											 src::Int, 
+											 dir::AbstractString
 														 )::Vector{Tuple{Int,Int,String}}
 
 	if dir in ("right","left")
@@ -395,25 +371,14 @@ function bring_closer(g::MetaDiGraph, n::Int, m::Int
 
 end  
 
-function baz(g::MetaDiGraph, n::Int, m::Int, dir::AbstractString
+function Gnm_inds(g::MetaDiGraph, n::Int, m::Int, dir::AbstractString
 						 )::NTuple{2,Tuple{Int,Int,String}}
 
 	nisleft, n1, m1  = bring_closer(g, n, m)
 	
-#	for (d,test) in zip(["left","right"],[nisleft,!nisleft])
-#	
-#		if dir in ["both",d] 
-#	
-#			return test ? ((n,m1,d), (m,m,dir)) : ((n,n,dir), (n1,m,d)) 
-#
-#		end 
-#	
-#	end 
-
 	if dir in ("both","left")
 
 		return nisleft ? ((n,m1,"left"), (m,m,dir)) : ((n,n,dir), (n1,m,"left"))  
-
 	elseif dir=="right"
 
 		return nisleft ? ((n,n,dir), (n1,m,dir)) : ((n,m1,dir), (m,m,dir)) 
@@ -468,34 +433,44 @@ end
 
 function GF_Decimation_fromGraph(Energy::Number, 
 																 g::MetaDiGraph,
-																 data_H::Union{MetaDiGraph,Dict}=g,
+																 data::Union{MetaDiGraph,Dict}=g,
 																 ::Nothing=nothing;
 																 kwargs...
 																 )::Function
 
 	reEnergy = get_reEnergy(g, Energy; kwargs...)
 
-	SemiInfLeadGF = eval_lead_GF(g, Energy)
 
-
-	# ----- the dictionary where the values are stored -------- #
+	# ----- the (trapped) dictionary with stored GF matrices -------- #
 	
-	Gd = Dict{Tuple{Int,Int,String},Matrix{ComplexF64}}() # trapped storage 
+	storage_G = Dict{Tuple{Int,Int,String},Matrix{ComplexF64}}() 
+
+	storage_g = Dict{String,Vector{Matrix{ComplexF64}}}()
+
+	# ----- the main functions writing to dicts -------- # 
+
+	function leadG(n::Int)::Matrix{ComplexF64} 
+		
+		lead_label, lead_uc = Graph.get_prop(g, n, :name)
+
+		out = get!(storage_g, lead_label) do 
+
+			get_lead_GFf(g, lead_label)(Energy)
+
+		end  
+
+		return get_lead_GF(out, lead_uc)
+		
+	end  
 
 
-
-	# ----- function returned -------- # 
-
-	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix{ComplexF64}
+	function G(n::Int, m::Int, dir::AbstractString
+						 )::AbstractMatrix{ComplexF64}
 	
-		n==m && islead(g,n) && !meets_layer(g,n,dir) && return SemiInfLeadGF(n)
+		n==m && islead(g,n) && !meets_layer(g,n,dir) && return leadG(n)
+							#	aready stored in gd 
 
-							#	this should not be stored, already stored in the graph!
-
-		n==m && return get!(Gd,(n,m,dir)) do 
-																			Gnn(n,dir) end
-
-		return get!(Gd,(n,m,dir)) do 
+		return get!(storage_G,(n,m,dir)) do 
 																Gnm(n,m,dir) end
 
 	end
@@ -504,51 +479,43 @@ function GF_Decimation_fromGraph(Energy::Number,
 
 	# ----- methods to calculate the GF ------- #	
 
-	function UGpair((src,dst,dir)::Tuple{Int,Int,String},
-									)::Tuple{<:AbstractMatrix{ComplexF64},
-													 <:AbstractMatrix{ComplexF64},
-													 }
+	function coupling(n0::Int, d0::AbstractString)::Base.Generator
 
-		(get_graphH(g,data_H,dst,src), G(dst,dst,dir))
+		((get_graphH(g,data,m,n),G(m,m,d)) for (n,m,d)=coupling_inds(g,n0,d0))
 
-	end  
+	end 
+
 
 	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
 
-		if lead_extends(g,n,dir) 
-
-			dir=="both" || return SemiInfLeadGF(n)
-
-			dir0 = get_dir_layer(g,n) 
-
-			return GF(SemiInfLeadGF(n),
-								(UGpair(lci) for lci=coupling_inds(g, n, dir0))...)
-
-		end 
-																										 
+		if islead(g,n) && dir=="both"
 	
-	
-		return GF(reEnergy, 
-							get_graphH(g, data_H, n),
-							(UGpair(lci) for lci=coupling_inds(g, n, dir))...
-							)
+			return GF(leadG(n), coupling(n, get_dir_layer(g,n))...)
+
+		else # if islead, dir->into the system 
+
+			return GF(reEnergy, get_graphH(g, data, n), coupling(n, dir)...) 
+
+		end  
+
 	end
 
 
 	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
 
-		(a1,b1,d1),(a2,b2,d2) = baz(g, n, m, dir) 
+		n==m && return Gnn(n, dir) 
 
-		return *(G(a1,b1,d1),
-						 get_graphH(g, data_H, b1, a2),
-						 G(a2,b2,d2),
-						)
+		(a1,b1,d1),(a2,b2,d2) = Gnm_inds(g, n, m, dir) 
+
+		return *(G(a1,b1,d1), get_graphH(g, data, b1, a2), G(a2,b2,d2))
 
 	end 
 
 
 	return function out1(args...; kwargs1...)::AbstractMatrix{ComplexF64}
-	
+
+#		println(length(storage_G)+length(storage_g))
+
 		(n1,i1,n2,i2), dir = unpack_argsG(args...; kwargs1...) 
 
 		return G(get_node(g,n1,i1), get_node(g,n2,i2), dir)
@@ -556,6 +523,8 @@ function GF_Decimation_fromGraph(Energy::Number,
 	end 
 
 end
+
+
 
 function GF_Decimation_fromGraph(Energy::Number, 
 																 g::MetaDiGraph,
@@ -1139,9 +1108,13 @@ function PrepareLead(label::AbstractString,
 end
 
 
+function get_lead_GF(gf::AbstractVector{<:AbstractMatrix{ComplexF64}},
+										 uc::Int=1
+										 )::AbstractMatrix{ComplexF64}
 
+	gf[min(uc,end)]
 
-
+end 
 
 
 

@@ -1501,10 +1501,6 @@ end
 function set_lead_H!(g::MetaDiGraph, Lead::AbstractDict{Symbol,<:Any}
 										 )::MetaDiGraph
 
-
-
-
-
 	for (i,h) in enumerate(get(Lead, :intracell, ()))
 
 		@assert LA.ishermitian(h)
@@ -1528,8 +1524,19 @@ function set_lead_H!(g::MetaDiGraph, Lead::AbstractDict{Symbol,<:Any}
 
 end 
 
+function get_lead_GFf(g::MetaDiGraph, 
+											lead_label::AbstractString)::Function 
+		
+	Graph.get_prop(g, get_node(g, lead_label, 1), :GFf)
+	
+end  
+function get_lead_GFf(g::MetaDiGraph, lead_node::Int)::Function 
 
+	@assert islead(g, lead_node)
 
+	get_lead_GFf(g, Graph.get_prop(g, n, :name)[1])
+
+end 
 
 
 

@@ -259,7 +259,9 @@ end
 			#-----  	 test GF ---- # 
 			
 				E1 = rand() -0.5 
-				
+			
+#				E1 = 0.3232 
+
 				if isempty(VirtLeads)
 					E1 += 0.01im 
 				end 
@@ -273,11 +275,13 @@ end
 																												Slicer;
 																												leads_have_imag=true,
 																												)
-			
+		
+
 				GF_call_args = vcat( [(l,1) for l in leadlabels],
 						[("Atom",i) for i in axes(atoms,2)],
 						[("Layer",i) for i in 1:nr_layers]
-					 )
+					 ) 
+
 			
 				for a=GF_call_args, b=GF_call_args  
 				
@@ -287,7 +291,7 @@ end
 				end 
 		
 			end  
-break 
+#break 
 		end 
 #break 
 	end 
