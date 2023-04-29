@@ -803,7 +803,9 @@ function Distribute_Leads(
 							IndsAtomsOfLayer::Function, 
 							nr_orb=nothing, kwargs...)
 
-	isempty(Leads) && return Dict(),Dict{Symbol,Function}()
+	VirtLeads = Dict{Symbol,Dict{Symbol,Any}}() 
+
+	isempty(Leads) && return VirtLeads, Dict{Symbol,Function}()
 
 
 	lead_distrib = Dict(("LeftLead",1)=>[])
@@ -838,7 +840,6 @@ function Distribute_Leads(
 
 
 
-	VirtLeads = Dict{Symbol,Dict{Symbol,Any}}()
 
 	LeadSizes = Dict() 
 
@@ -1108,6 +1109,8 @@ end
 function LayeredSystem_toGraph(HoppMatr::Function, NrLayers::Int 
 															 )::MetaDiGraph
 
+	NrLayers>20 && @warn "Inefficient method" 
+
 	g = LayeredSystem_toGraph(NrLayers)
 
 	for i in 1:NrLayers 
@@ -1198,7 +1201,8 @@ end
 """
 Intra-layer hopping and bonds
 """
-function condStore_sharedHB!!(data_H::Dict{NTuple{2,Int},
+function condStore_sharedHB!!(
+															data_H::Dict{NTuple{2,Int},
 																							SharedMatrix{ComplexF64}},
 															data_B::Dict{NTuple{2,Int},SharedMatrix{Int}},
 															atoms::AbstractMatrix{<:Real},
@@ -1370,7 +1374,7 @@ function LayeredSystem_toGraph(NrLayers::Int)::MetaDiGraph
 
 	MetaGraphs.set_prop!(g, :NrLayers, NrLayers)
 
-	MetaGraphs.set_prop!(g, :LeadLabels, String[]) # backwards compatibility
+	set_leadlabels!(g)  # even if empty, for backwards compatibility
 
 	for i in 1:NrLayers
 
@@ -1430,21 +1434,53 @@ function get_NrLeadUCs(VirtLeads::AbstractDict{Symbol,<:AbstractDict})::Int
 
 end 
 
+function get_leadlabels()::Vector{String}  
+
+	String[]
+
+end  
+
+function get_leadlabels(VirtLeads::AbstractDict{Symbol,<:AbstractDict} 
+												)::Vector{String} 
+
+	K::Vector{Symbol} = [:LeftLead, :RightLead]
+
+	@assert issubset(keys(VirtLeads), K) 
+
+	filter!(in(keys(VirtLeads)), K)
+
+	ll = Vector{String}(undef, length(K))
+
+	for (i,k) in enumerate(K)
+
+		ll[i] = VirtLeads[k][:label]
+
+	end   
+
+	return ll 
+
+end 
+
+function set_leadlabels!(g::MetaDiGraph,
+												 VL::AbstractDict{Symbol,<:AbstractDict}...
+												 )::MetaDiGraph
+
+	@assert isempty(get_leadlabels(g))
+
+	Graph.set_prop!(g, :LeadLabels, get_leadlabels(VL...))
+
+	return g 
+
+end 
+
 
 function add_leads!(g::MetaDiGraph, 
 										VirtLeads::AbstractDict{Symbol,<:AbstractDict};
-#										LeftLead=nothing, RightLead=nothing, 
 										)::MetaDiGraph 
-
-	K = [:LeftLead, :RightLead] 
-
-	@assert issubset(keys(VirtLeads),K)
 
 	MetaGraphs.set_prop!(g, :UCsLeads, get_NrLeadUCs(VirtLeads))
 
-	MetaGraphs.set_prop!(g, :LeadLabels, 
-									[VirtLeads[k][:label] for k=K if haskey(VirtLeads,k)],
-									)
+	set_leadlabels!(g, VirtLeads)
 
 	for (k,v) in pairs(VirtLeads) 
 
@@ -1541,7 +1577,7 @@ end
 
 
 function add_lead_edges!(g::MetaDiGraph,
-										lead::AbstractDict{Symbol,Any},
+										lead::AbstractDict{Symbol,<:Any},
 										I::AbstractVector{Int},
 										J::AbstractVector{Int},
 										)::MetaDiGraph
@@ -1714,7 +1750,7 @@ end
 
 
 function set_lead_edgeH!(g::MetaDiGraph, 
-												 lead::AbstractDict{Symbol,Any},
+												 lead::AbstractDict{Symbol,<:Any},
 												 )::MetaDiGraph
 
 	for i in 1:Graph.get_prop(g,:UCsLeads)-1 
@@ -1740,7 +1776,7 @@ end
 attach_lead!(g::MetaDiGraph, ::Nothing, args...)::MetaDiGraph = g
 
 function attach_lead!(g::MetaDiGraph, 
-											lead::AbstractDict{Symbol,Any}, 
+											lead::AbstractDict{Symbol,<:Any}, 
 											label::Symbol)::MetaDiGraph 
 
 	attach_lead!(g, lead, Val(label))
@@ -1748,7 +1784,7 @@ function attach_lead!(g::MetaDiGraph,
 end 
 
 function attach_lead!(g::MetaDiGraph, 
-											lead::AbstractDict{Symbol,Any}, 
+											lead::AbstractDict{Symbol,<:Any}, 
 											::Val{:RightLead},
 													 )::MetaDiGraph
 
@@ -1761,7 +1797,7 @@ function attach_lead!(g::MetaDiGraph,
 end 
 
 function attach_lead!(g::MetaDiGraph,
-											lead::AbstractDict{Symbol,Any},
+											lead::AbstractDict{Symbol,<:Any},
 											::Val{:LeftLead},
 													 )::MetaDiGraph 
 

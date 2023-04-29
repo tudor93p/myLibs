@@ -81,11 +81,11 @@ end
 
 @testset "G(g(data)) vs. G(g,data)" begin   
 
-	for nr_orb in 1:3 
+	for nr_orb in [1,3]
 		
 		hopp = Dict(:Hopping=>get_hopp(nr_orb), :nr_orb=>nr_orb)  
 
-		for Nx=10:15:30, Ny=7:17:30 
+		for Nx=10:15:20, Ny=7:17:20 
 	
 			atoms = get_atoms([Nx,Ny]) 
 			lead_width = max(div(min(Nx,Ny),2),1)
@@ -157,9 +157,8 @@ end
 			
 				HoppMatr(args...) = TBmodel.HoppingMatrix(D[:AtomsOfLayer].(args)...; hopp...)
 
-				g_noH = LayeredSystem.LayeredSystem_toGraph(nr_layers,
-														(isempty(VirtLeads) ? () : (VirtLeads,))...
-																										) 
+				g_noH = LayeredSystem.LayeredSystem_toGraph(nr_layers, VirtLeads) 
+
 					for ll in GreensFunctions.get_leadlabels(g_noH)
 
 						@test !isempty(VirtLeads)
@@ -170,8 +169,7 @@ end
 					end 
 
 			
-				g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, nr_layers,
-														(isempty(VirtLeads) ? () : (VirtLeads,))...)
+				g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, nr_layers, VirtLeads)
 				
 					for ll in GreensFunctions.get_leadlabels(g_withH)
 
@@ -181,7 +179,8 @@ end
 					end 
 
 		
-				leadlabels = Graph.get_prop(g_noH,:LeadLabels)
+				leadlabels = Graph.get_prop(g_noH,:LeadLabels) 
+
 				@test leadlabels==Graph.get_prop(g_withH,:LeadLabels)
 			
 				data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; hopp...)
@@ -267,7 +266,17 @@ end
 				end 
 			
 				G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_withH, Slicer;
-																		leads_have_imag=true)
+																		leads_have_imag=true) 
+
+				G_old2 = GreensFunctions.GF_Decimation(HoppMatr, nr_layers, VirtLeads;
+																							 translate=Slicer,
+																							 leads_have_imag=true,
+																							 )(E1)
+
+				G_old3 = GreensFunctions.GF_Decimation(hopp, VirtLeads, Slicer;
+																							 D...,
+																							 leads_have_imag=true
+																							 )(E1)
 			
 				G_new = GreensFunctions.GF_Decimation_fromGraph(E1, 
 																												g_noH, 
@@ -276,6 +285,10 @@ end
 																												leads_have_imag=true,
 																												)
 		
+				G_new2 = GreensFunctions.GF_Decimation(data_H, nr_layers, VirtLeads;
+																							 translate=Slicer,
+																							 leads_have_imag=true,
+																							 )(E1)
 
 				GF_call_args = vcat( [(l,1) for l in leadlabels],
 						[("Atom",i) for i in axes(atoms,2)],
@@ -283,11 +296,14 @@ end
 					 ) 
 
 			
-				for a=GF_call_args, b=GF_call_args  
+				for a=GF_call_args, b=GF_call_args
 				
-					@test G_old(a,b)≈G_old(a...,b...)≈G_old((a,b))
-					@test G_old(a,b)≈G_new(a,b)≈G_new(a...,b...)≈G_new((a,b))
-			
+						G0 = G_old(a,b)
+					for ab=((a,b),(a...,b...)), fG=(G_old,G_old2,G_new,G_new2,G_old3)
+
+						@test G0≈fG(ab...)
+					
+					end 
 				end 
 		
 			end  

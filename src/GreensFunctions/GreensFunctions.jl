@@ -182,12 +182,12 @@ end
 #---------------------------------------------------------------------------#
 
 function GF_Decimation(Hopping::AbstractDict, 
-											 VirtLeads::AbstractDict=Dict(),
+											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
 											 LeadLayerSlicer=nothing;
 											 NrLayers::Int, 
 											 AtomsOfLayer::Function, 
 											 IndsAtomsOfLayer=nothing,
-											 graph_fname::AbstractString="",
+#											 graph_fname::AbstractString="",
 											 kwargs...)
 
 	HoppMatr(args...) = TBmodel.HoppingMatrix(AtomsOfLayer.(args)...;
@@ -195,12 +195,9 @@ function GF_Decimation(Hopping::AbstractDict,
 
 	# will be called as 'HoppMatr(layer_n, layer_m)' or just 'HoppMatr(layer_n)'
 
-
-
-	return GF_Decimation(HoppMatr, NrLayers;
-											 VirtLeads..., 
+	return GF_Decimation(HoppMatr, NrLayers, VirtLeads;
 											 translate=LeadLayerSlicer,
-											 plot_graph=(graph_fname,IndsAtomsOfLayer),
+#											 plot_graph=(graph_fname,IndsAtomsOfLayer),
 											 kwargs...)
 	
 
@@ -210,14 +207,12 @@ end
 
 
 
-function GF_Decimation(HoppMatr::Function, NrLayers::Int64; 
-											 LeftLead=nothing, RightLead=nothing, 
-											 translate=nothing, plot_graph=nothing,
+function GF_Decimation(HoppMatr::Function, 
+											 NrLayers::Int64, VL::AbstractDict...;
+											 translate=nothing, #plot_graph=nothing,
 											 kwargs...)
 
-	g = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers; 
-																					LeftLead=LeftLead, 
-																					RightLead=RightLead)
+	g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers, VL...)
 
 
 #	if !isnothing(plot_graph)
@@ -235,11 +230,29 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 #		end
 #	end
 
-	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g)
+#	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g_withH)
 
-	return function gf(Energy::Number)
+	return function gf(Energy::Number)::Function 
 		
-		GF_Decimation_fromGraph(Energy, g, translate; kwargs...)
+		GF_Decimation_fromGraph(Energy, g_withH, translate; kwargs...)
+
+	end 
+
+end
+
+function GF_Decimation(data_H::Dict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}},
+											 NrLayers::Int64, VL::AbstractDict...;
+											 translate=nothing, #plot_graph=nothing,
+											 kwargs...)
+
+	g_noH = LayeredSystem.LayeredSystem_toGraph(NrLayers, VL...)
+
+#	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g_noH)
+
+	return function gf(Energy::Number)::Function 
+		
+		GF_Decimation_fromGraph(Energy, g_noH, data_H, translate; kwargs...)
 
 	end 
 
@@ -513,8 +526,6 @@ function GF_Decimation_fromGraph(Energy::Number,
 
 
 	return function out1(args...; kwargs1...)::AbstractMatrix{ComplexF64}
-
-#		println(length(storage_G)+length(storage_g))
 
 		(n1,i1,n2,i2), dir = unpack_argsG(args...; kwargs1...) 
 
