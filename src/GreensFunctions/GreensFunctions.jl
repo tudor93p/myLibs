@@ -214,7 +214,6 @@ function GF_Decimation(HoppMatr::Function,
 
 	g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers, VL...)
 
-
 #	if !isnothing(plot_graph)
 #
 #		graph_fname,IndsAtomsOfLayer = plot_graph

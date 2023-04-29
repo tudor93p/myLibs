@@ -1,83 +1,9 @@
 using myLibs: Lattices, LayeredSystem, Algebra,GreensFunctions, Graph,ArrayOps,TBmodel,Utils 
 
 using LinearAlgebra, SparseArrays 
-import PyPlot
+#import PyPlot
 
-
-function get_hopp(nr_orb_)
-
-	intercell = rand(ComplexF64,nr_orb_,nr_orb_)
-#(ones(nr_orb_,nr_orb_)-ArrayOps.UnitMatrix(nr_orb_))
-	function hopp(ri,rj)
-
-		local_pot = ArrayOps.UnitMatrix(nr_orb_)*isapprox(norm(ri-rj),0,atol=1e-8)*2.0  
-	
-		atom_hopp = intercell*isapprox(norm(ri-rj), 1, atol=1e-8) 
-
-
-		return local_pot + atom_hopp 
-	
-	end  
-
-end 
-
-function get_latt(Nxy::Vector{Int})
-
-	l1 = Lattices.SquareLattice()
-
-	Lattices.Superlattice!(l1, Nxy, Labels=first) 
-
-end 
-
-function get_atoms(Nxy::Vector{Int})
-
-	l2 = get_latt(Nxy)
-
-	return Lattices.PosAtoms(l2)  
-
-end 
-
-get_leadlatt(n::Int=1, label...) = Lattices.KeepDim!(
-																					Lattices.Superlattice( 
-																					 Lattices.SquareLattice(label...),
-																					 [1,n]
-																					 )
-																					 , 1)
-get_lead(L::Lattices.Lattice, args...) = GreensFunctions.PrepareLead(only(Lattices.sublatt_labels(L)), L, args...)
-
-get_lead(n::Int, label::String, args...) = GreensFunctions.PrepareLead(label,get_leadlatt(n, label), args...)
-
-d_nn = norm(diff(get_atoms([2,1]),dims=2))
-
-
-isBond = Algebra.EuclDistEquals(d_nn; dim=2)
-
-function default_LayerAtomRels(DL::Lattices.Lattice)
-
-	atoms = Lattices.PosAtoms(DL)
-	layers = parse.(Int, Lattices.labelToComponent(DL)) .+ 1
-
-		# layer of each atom [1, 2, ..., nr_at] => [L(1), L(2), ..., L(nr_at)]
-	
-	la,ial = Utils.FindPartners(enumerate(layers), sortfirst=true)
-
-	return Dict(
-
-			:NrLayers=> maximum(layers),
-
-			:LayerOfAtom => la,
-
-			:IndsAtomsOfLayer => ial,
-
-			:AtomsOfLayer => function AtomsOfLayer(L::Int)::AbstractMatrix
-			
-									Lattices.Vecs(atoms, ial(L))
-
-										end
-							)
-end
-
-
+include("mock_DevLeads.jl")
 
 @testset "G(g(data)) vs. G(g,data)" begin   
 
@@ -87,10 +13,9 @@ end
 
 		for Nx=10:15:20, Ny=7:17:20 
 	
-			atoms = get_atoms([Nx,Ny]) 
-			lead_width = max(div(min(Nx,Ny),2),1)
-	
-			leads_ = [get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"A"),atoms,-1),hopp,0.001), get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,"B"),atoms,1),hopp,0.001)]
+			atoms = get_atoms([Nx,Ny])  
+
+			leads_  = get_two_leads(max(div(Ny,2),1), atoms; hopp...)
 
 			
 			all_bonds = mapreduce(hcat,findall(LinearAlgebra.triu!(isBond(atoms,atoms),1))) do C
