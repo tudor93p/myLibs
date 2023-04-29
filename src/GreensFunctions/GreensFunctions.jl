@@ -2,12 +2,12 @@ module GreensFunctions
 #############################################################################
 
 import ..LA, ..ArrayOps
-
+import MetaGraphs:MetaDiGraph
 
 import ..Utils, ..TBmodel, ..Lattices
 
 import ..Graph, ..LayeredSystem
-
+import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_graphH
 
 #===========================================================================#
 #
@@ -209,9 +209,9 @@ function GraphLayeredSystem_Utils(g)
 	
 
 
-	islead(n) = occursin("Lead",get_prop(:type,n))
+	islead_(n) = occursin("Lead",get_prop(:type,n))
 
-	islayer(n) = get_prop(:type,n)=="Layer"
+#	islayer_(n) = get_prop(:type,n)=="Layer"
 
 
 	
@@ -271,28 +271,28 @@ function GraphLayeredSystem_Utils(g)
 	
 	
 	
-	function left(n)
+	function left_(n::Int)::Union{Nothing,Int}
 	
 	  ns = Graph.in_neighbors(g,n)
 	
-		return isempty(ns) ? nothing : ns[1]
+		return isempty(ns) ? nothing : only(ns)
 	
 	end
 	
-	function right(n)
+	function right_(n::Int)::Union{Nothing,Int}
 	
 	  ns = Graph.out_neighbors(g,n)
 	
-		return isempty(ns) ? nothing : ns[1]
+		return isempty(ns) ? nothing : only(ns)
 	
 	end
 	
 	
-	function next(n::Int64,dir::String) 
+	function next(n::Int64, dir::String)::Union{Nothing,Int}
 	
-		dir == "right" && return right(n)
+		dir == "right" && return right_(n)
 	
-		dir == "left" && return left(n)
+		dir == "left" && return left_(n)
 	
 		error("dir should be left or right")
 	
@@ -301,43 +301,43 @@ function GraphLayeredSystem_Utils(g)
 	
 
 
-	function meets_layer(n,dir::String="both")::Bool
+	function meets_layer_(n,dir::String="both")::Bool
 	
 		isnothing(n) && return false
 
-		(dir == "both" || islayer(n)) && return true
+		(dir == "both" || islayer(g,n)) && return true
 	
-		return meets_layer(next(n,dir),dir)
-	
-	end
-	
-	
-	
-	
-	
-	function bring_closer(n,m) 
-	
-		isempty(Graph.FindPath(g,n,m)) &&	return false,left(n),right(m)
-	
-		return true,right(n),left(m)
+		return meets_layer_(next(n,dir), dir)
 	
 	end
 	
-	function lead_extends(n,dir)
 	
-		return islead(n) && (dir == "both" || !meets_layer(n,dir))
+	
+	
+	
+	function bring_closer_(n,m) 
+	
+		isempty(Graph.FindPath(g,n,m)) &&	return false,left_(n),right_(m)
+	
+		return true,right_(n),left_(m)
+	
+	end
+	
+	function lead_extends_(n,dir)
+	
+		return islead(g,n) && (dir == "both" || !meets_layer_(n,dir))
 	
 	end
 
 
 
 	return 	LeadGF_atEnergy,#setEnergy_LeadGF,
-					islead,
-					meets_layer,
-					lead_extends,
+					islead_,
+					meets_layer_,
+					lead_extends_,
 					H,
 					next,
-					bring_closer,
+					bring_closer_,
 					f
 
 
@@ -433,12 +433,12 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 #	setEnergy_LeadGF,
 	LeadGF_atEnergy,
-	islead,
-	meets_layer,
-	lead_extends,
+	islead_,
+	meets_layer_,
+	lead_extends_,
 	H,
 	next,
-	bring_closer,
+	bring_closer_,
 	node	= GraphLayeredSystem_Utils(g)
 
 
@@ -464,7 +464,7 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix
 	
-		n==m && islead(n) && !meets_layer(n,dir) && return SemiInfLeadGF(n)
+		n==m && islead_(n) && !meets_layer_(n,dir) && return SemiInfLeadGF(n)
 
 							#	this should not be stored, already stored in the graph!
 
@@ -481,7 +481,7 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
 	
-		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
+		lead_extends_(n,dir) && return GF(SemiInfLeadGF(n),
 																			coupling_toSystem(n,dir)...)
 	
 		return GF(reEnergy, H(n), coupling(n,dir)...) 
@@ -490,7 +490,7 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 
 	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
 
-		isnleft, n1, m1  = bring_closer(n,m)
+		isnleft, n1, m1  = bring_closer_(n,m)
 	
 		for (d,test) in zip(["left","right"],[isnleft,!isnleft])
 	
@@ -524,11 +524,22 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 	# ------- coupling for a lead ---------- #
 
 	
-	function coupling_toSystem(src,d)
+	function coupling_toSystem(src,d) 
+
+		if d=="both" 
+
+			@info "Function called for d='both'"
+
+		else 
+
+			@warn "potentially wrong result" src d
+
+		end 
+
 	
 		for dir in ["right","left"]
 	
-			meets_layer(src,dir) && return coupling(src,dir)
+			meets_layer_(src,dir) && return coupling(src,dir)
 	
 		end
 	
@@ -606,53 +617,230 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function eval_lead_GF(g::MetaDiGraph, Energy::Number 
+											)::Function
+
+	all_lead_gfs = Dict{String,Vector{Matrix{Complex}}}()
+
+	for label in Graph.get_prop(g, :LeadLabels) 
+
+		GF = Graph.get_prop(g, get_node(g, label, 1), :GFf)
+
+		all_lead_gfs[label] = GF(Energy)
+		
+	end 
+
+	return function get_gf(n::Int)::AbstractMatrix{ComplexF64}
+
+		lead_name, lead_uc = Graph.get_prop(g, n, :name)
+
+		return all_lead_gfs[lead_name][min(lead_uc,end)]
+
+	end  
+
+end
+
+function get_reEnergy(Energy::T, ::Val{false})::T where T<:Number 
+
+	Energy
+
+end 
+
+function get_reEnergy(Energy::T, ::Val{true}, ::Val{true})::T where T<:Real
+
+	Energy 
+
+end 
+
+
+function get_reEnergy(Energy::Complex, ::Val{true}, ::Val{false})::Real 
+
+	real(Energy)
+
+end 
+
+function get_reEnergy(Energy::Number; kwargs...)::Number 
+
+	haskey(kwargs, :leads_have_imag) || return get_reEnergy(Energy, Val(false))
+
+	return get_reEnergy(Energy, Val(true), Val(kwargs[:leads_have_imag]))
+
+end 
+
+function next_node(g::MetaDiGraph, 
+									 n::Int64, 
+									 dir::AbstractString)::Union{Nothing,Int}
+
+	dir=="right" && return node_right(g, n)
+
+	dir=="left" && return node_left(g, n)
+
+	error("dir should be left or right")
+
+end 
+
+meets_layer(::MetaDiGraph, ::Nothing, ::AbstractString="")::Bool = false  
+
+meets_layer(::MetaDiGraph, ::Int)::Bool = true  
+
+function meets_layer(g::MetaDiGraph, n::Int, dir::AbstractString)::Bool
+
+	(dir=="both" || islayer(g,n)) && return true
+
+	return meets_layer(g, next_node(g,n,dir), dir)
+
+end
+
+function get_dir_layer(g::MetaDiGraph, n::Int)::String 
+
+	for dir in ("right","left")
+
+		meets_layer(g,n,dir) && return dir 
+		
+	end 
+	
+	error()
+
+end 
+
+
+function lead_extends(g::MetaDiGraph, n::Int, dir::AbstractString)::Bool
+
+	islead(g,n) && (dir=="both" || !meets_layer(g,n,dir))
+
+end
 
 
 
-function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
-#																 leads_have_imag::Bool=false,
+# ---- coupling node(s) left or right ----- #
+	
+function coupling_inds(g::MetaDiGraph, src::Int, 
+														 dir::AbstractString
+														 )::Vector{Tuple{Int,Int,String}}
+
+	if dir in ("right","left")
+
+		 dst = next_node(g, src, dir) 
+
+		 return isnothing(dst) ? Tuple{Int,Int,String}[] : [(src,dst,dir)]
+
+	end 
+
+	return vcat((coupling_inds(g, src, d) for d=("right","left"))...)
+
+end  
+
+
+function bring_closer(g::MetaDiGraph, n::Int, m::Int
+											)::Tuple{Bool,Int,Int}
+
+	if isempty(Graph.FindPath(g,n,m))  #means m<n
+		
+		return (false, node_left(g,n), node_right(g,m))
+
+	else 
+
+		return (true, node_right(g,n), node_left(g,m))
+
+	end
+
+end  
+
+function baz(g::MetaDiGraph, n::Int, m::Int, dir::AbstractString
+						 )::NTuple{2,Tuple{Int,Int,String}}
+
+	nisleft, n1, m1  = bring_closer(g, n, m)
+	
+#	for (d,test) in zip(["left","right"],[nisleft,!nisleft])
+#	
+#		if dir in ["both",d] 
+#	
+#			return test ? ((n,m1,d), (m,m,dir)) : ((n,n,dir), (n1,m,d)) 
+#
+#		end 
+#	
+#	end 
+
+	if dir in ("both","left")
+
+		return nisleft ? ((n,m1,"left"), (m,m,dir)) : ((n,n,dir), (n1,m,"left"))  
+
+	elseif dir=="right"
+
+		return nisleft ? ((n,n,dir), (n1,m,dir)) : ((n,m1,dir), (m,m,dir)) 
+
+	end 
+
+end 
+
+
+function unpack_argsG(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...
+							)::Tuple{Tuple{String,Int,String,Int},String}
+
+	unpack_argsG(ni1ni2...; kwargs1...)
+
+end 
+function unpack_argsG(n1i1::Tuple{<:AbstractString,Int},
+											n2i2::Tuple{<:AbstractString,Int}=n1i1;
+											kwargs1...
+							)::Tuple{Tuple{String,Int,String,Int},String}
+
+	unpack_argsG(n1i1..., n2i2...; kwargs1...)
+
+end 
+
+
+function unpack_argsG(name1::AbstractString, index1::Int64,
+						 	name2::AbstractString=name1, index2::Int64=index1;
+							dir::AbstractString="both"
+							)::Tuple{Tuple{String,Int,String,Int},String}
+
+	(name1,index1,name2,index2), dir 
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function GF_Decimation_fromGraph(Energy::Number, 
+																 g::MetaDiGraph,
+																 data_H::Dict;
 																 kwargs...
 																 )::Function
 
 
+	reEnergy = get_reEnergy(Energy; kwargs...)
 
 
-
-
-#	setEnergy_LeadGF,
-	LeadGF_atEnergy,
-	islead,
-	meets_layer,
-	lead_extends,
-	H,
-	next,
-	bring_closer,
-	node	= GraphLayeredSystem_Utils(g)
-
-
-	reEnergy = if haskey(kwargs, :leads_have_imag)
-
-				kwargs[:leads_have_imag] ? Energy::Real : real(Energy::Complex)
-
-							else 
-
-								Energy
-
-							end
-	
-
-	SemiInfLeadGF = LeadGF_atEnergy(g, Energy)
+	SemiInfLeadGF = eval_lead_GF(g, Energy)
 
 
 	# ----- the dictionary where the values are stored -------- #
 	
-	Gd = Dict{Tuple{Int64,Int64,String},Array{Complex{Float64},2}}()
+	Gd = Dict{Tuple{Int,Int,String},Matrix{ComplexF64}}() # trapped storage 
 
 
+	function UGpair((src,dst,dir)::Tuple{Int,Int,String},
+									)::Tuple{<:AbstractMatrix{ComplexF64},
+													 <:AbstractMatrix{ComplexF64},
+													 }
 
-	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix
+		(get_graphH(g,data_H,dst,src; zeros_missing=true), G(dst,dst,dir))
+
+	end  
+
+
+	# ----- function returned -------- # 
+
+	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix{ComplexF64}
 	
-		n==m && islead(n) && !meets_layer(n,dir) && return SemiInfLeadGF(n)
+		n==m && islead(g,n) && !meets_layer(g,n,dir) && return SemiInfLeadGF(n)
 
 							#	this should not be stored, already stored in the graph!
 
@@ -665,130 +853,105 @@ function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
 	end
 
 
+
 	# ----- methods to calculate the GF ------- #	
 
 	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
+
+		if lead_extends(g,n,dir) 
+
+			dir0 = get_dir_layer(g,src) 
+
+		if dir=="both" 
+
+			@info "Function called for dir='both'"
+
+		else 
+
+			@warn "potentially wrong result" n dir  dir0
+
+			@show coupling_inds(g, n, dir) 
+
+			@show coupling_inds(g, n, dir0)
+
+		end  
+
+#			dir=="both" || !meets_layer(g,n,dir) 
+
+# n is lead 
+#
+# 1) Gnn(n, dir=="both"): GF(g_n, (U_coupling,G_system))  regardless of dir 
+#
+# 2) Gnn(n,dir=="right") 
+#	lead semi-infinite in dir=="right". !meets_layer(g,n,"right")
+#
+#	G^R_{N+1,N+1} from Lewenkopf 
+#
+#	(30): G^R_{N,N} = (E - h_N - U_{N,N+1}g_R U_{N+1,N}
+#
+#	G^R_{Lead R, uc 1} = (E - intracell - inter*g*inter') # no layer etc
+#
+#	lci = coupling_inds(g, n, dir=get_dir_layer(g,n)="left")
+#	lci = (n,n_left,"left"), n_left either lead_uc-1 or layer N
+#
+#	UGpair(right_lead, layer_n, "left") 
+# lci=coupling_inds(g, n, dir)
+#
+			return GF(SemiInfLeadGF(n),
+								(UGpair(lci) for lci=coupling_inds(g, n, dir0))...)
+
+		end 
+																										 
 	
-		lead_extends(n,dir) && return GF(SemiInfLeadGF(n),
-																			coupling_toSystem(n,dir)...)
 	
-		return GF(reEnergy, H(n), coupling(n,dir)...) 
-	
+		return GF(reEnergy, 
+							get_graphH(g, data_H, n; zeros_missing=true),
+							(UGpair(lci) for lci=coupling_inds(g, n, dir))...
+							)
 	end
+
 
 	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
 
-		isnleft, n1, m1  = bring_closer(n,m)
+		(a1,b1,d1),(a2,b2,d2) = baz(g, n, m, dir) 
+
+		return *(G(a1,b1,d1),
+						 get_graphH(g, data_H, b1, a2; zeros_missing=true),
+						 G(a2,b2,d2),
+						)
+
+	end 
+
+
+	return function out1(args...; kwargs1...)::AbstractMatrix{ComplexF64}
 	
-		for (d,test) in zip(["left","right"],[isnleft,!isnleft])
-	
-			if dir in ["both",d] 
-	
-				test && return G(n,m1,d)*H(m1,m)*G(m,m,dir)
-	
-				return G(n,n,dir)*H(n,n1)*G(n1,m,d)
-	
-			end
-		end
+		(n1,i1,n2,i2), dir = unpack_argsG(args...; kwargs1...) 
 
-	end
+		return G(get_node(g,n1,i1), get_node(g,n2,i2), dir)
 
+	end 
 
-
-	# ---- coupling a layer left or right ----- #
-
-	function coupling(src::Int64,dir::String)
-	
-		filter(!isempty, map(["right","left"]) do d
-	
-										dst = (dir in [d,"both"]) ? next(src,d) : nothing
-	
-										return isnothing(dst) ? () : (H(dst,src), G(dst,dst,d))
-	
-									end)
-	end
-	
-	
-	# ------- coupling for a lead ---------- #
-
-	
-	function coupling_toSystem(src,d)
-	
-		for dir in ["right","left"]
-	
-			meets_layer(src,dir) && return coupling(src,dir)
-	
-		end
-	
-	end
-	
-
-
-
-	if	isnothing(translate)
-	
-		function out1(name1::AbstractString,index1::Int64,
-								 	name2::AbstractString=name1,index2::Int64=index1;
-									dir::AbstractString="both")::AbstractMatrix
-	
-			G(node(name1,index1,name2,index2)...,dir)
-	
-		end
-
-
-		function out1((name1,index1)::Tuple{AbstractString,Int},
-									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
-									kwargs1...)::AbstractMatrix
-
-			out1(name1, index1, name2, index2)
-
-		end 
-
-		function out1(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
-
-			out1(ni1ni2...)
-
-		end
-
-		return out1
-
-	
-	else
-
-
-		function out2(name1::AbstractString, index1::Int64,
-								 	name2::AbstractString=name1, index2::Int64=index1;
-									dir::AbstractString="both")::AbstractMatrix
-
-			n1i1n2i2,slice = translate(name1,index1,name2,index2) 
-
-			@assert length(slice)==2
-
-			return G(node(n1i1n2i2...)...,dir)[slice...]
-
-		end 
-
-		function out2((name1,index1)::Tuple{AbstractString,Int},
-									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
-									kwargs1...)::AbstractMatrix
-
-			out2(name1, index1, name2, index2)
-
-		end 
-
-		function out2(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
-
-			out2(ni1ni2...)
-
-		end
-
-	end
 
 end
 
+function GF_Decimation_fromGraph(Energy::Number, 
+																 g::MetaDiGraph,
+																 data_H::Dict,
+																 translate::Function;
+																 kwargs...
+																 )::Function
 
+	out1 = GF_Decimation_fromGraph(Energy, g, data_H; kwargs...)
 
+	return function out2(args...; kwargs1...)::AbstractMatrix{ComplexF64}
 
+		ni1ni2,slice = translate(unpack_argsG(args...)[1]...) 
+
+		return view(out1(ni1ni2...; kwargs1...), slice...)
+
+	end 
+
+end 
 
 
 #===========================================================================#

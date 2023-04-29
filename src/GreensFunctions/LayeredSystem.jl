@@ -1402,6 +1402,22 @@ get_node(g::MetaDiGraph, T::String, I::Int)::Int = get_node(g, (T,I))
 
 get_node(g::MetaDiGraph, L::AbstractDict, I::Int)::Int = get_node(g, L[:label], I)
 
+function node_left(g::MetaDiGraph, n::Int)::Union{Nothing,Int}
+
+  ns = Graph.in_neighbors(g,n)
+
+	return isempty(ns) ? nothing : only(ns)
+
+end
+
+function node_right(g::MetaDiGraph, n::Int)::Union{Nothing,Int}
+
+  ns = Graph.out_neighbors(g,n)
+
+	return isempty(ns) ? nothing : only(ns)
+
+end
+
 
 
 #===========================================================================#
@@ -1451,6 +1467,14 @@ end
 
 
 add_lead!(g::MetaDiGraph, ::Nothing, ::Any)::MetaDiGraph = g 
+
+function islead(g::MetaDiGraph, n::Int)::Bool 
+	
+	occursin("Lead", Graph.get_prop(g, n, :type))
+
+end 
+
+islayer(g::MetaDiGraph, n::Int)::Bool = Graph.get_prop(g, n, :type)=="Layer"
 
 
 function add_lead!(g::MetaDiGraph,
@@ -1532,42 +1556,34 @@ function set_edgeH!(g::MetaDiGraph, n::Int, m::Int,
 										)::Bool 
 
 	MetaGraphs.has_edge(g, n, m) && return MetaGraphs.set_prop!(g, n, m, :H, H)
-
 	MetaGraphs.has_edge(g, m, n) && return MetaGraphs.set_prop!(g, m, n, :H, H')
 	
 end  
 
 
-function get_graphH(g::MetaDiGraph, n::Int
-										)::AbstractMatrix{<:Number}
 
-	Graph.get_prop(g, n, :H)
-
-end    
-
-function get_graphH(g::MetaDiGraph, 
-										n1::Int, n2::Int;
-										zeros_noedge::Bool=false 
-										)::AbstractMatrix{<:Number}
+function get_graphH(g::MetaDiGraph, n1::Int, n2::Int;
+										zeros_missing::Bool=false 
+										)::AbstractMatrix{ComplexF64}
 
 	n1==n2 && get_graphH(g, n1)  
 
 	Graph.has_prop(g,n1,n2,:H) && return Graph.get_prop(g,n1,n2,:H)   
-
 	Graph.has_prop(g,n2,n1,:H) && return Graph.get_prop(g,n2,n1,:H)' 
 
-	@assert !zeros_noedge "There is no :H between $n1 and $n2"
+	@assert zeros_missing "There is no :H between $n1 and $n2"
 
-	h1 = get_graphH(g, n1) 
-
-	h12 = similar(h1, size(h1,1), size(get_graphH(g, n2),1))
-
-	h12 .= 0
-
-	return h12 
+	return SpA.spzeros(ComplexF64, get_Hsize(g, n1, n2))
 
 end   
 
+
+function get_graphH(g::MetaDiGraph, n::Int
+										)::AbstractMatrix{<:Number}
+
+	Graph.get_prop(g, n, :H) # must have the prop, no backup 
+
+end     
 
 function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
 										T::AbstractString, I::Int64;
@@ -1585,6 +1601,83 @@ function get_graphH(g::MetaGraphs.AbstractMetaGraph,
 	get_graphH(g, get_node(g,T1,I1), get_node(g,T2,I2); kwargs...)
 
 end
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function get_Hsize(data_H::Dict{NTuple{2,Int},<:AbstractMatrix{ComplexF64}},
+									 n::Int 
+									 )::Int 
+
+	for (k,v) in data_H, (i,s) in zip(k,size(v))
+
+		i==n && return s 
+
+	end 
+
+	error("Layer $n does not appear in the data")
+
+end 
+
+function get_Hsize(g::MetaDiGraph, n::Int)::Int 
+
+	size(get_graphH(g, n),1)
+
+end 
+ 
+function get_Hsize(g_or_d::Union{MetaDiGraph,Dict},
+									 n1::Int, n2::Int)::NTuple{2,Int} 
+
+	s1 = get_Hsize(g_or_d, n1) 
+
+	return (s1, n1==n2 ? s1 : get_Hsize(g_or_d, n2))
+
+end 
+
+
+
+function get_graphH(g::MetaDiGraph, 
+										data_H::Dict{NTuple{2,Int},<:AbstractMatrix{ComplexF64}},
+										n::Int;
+										zeros_missing::Bool=true,
+										)::AbstractMatrix{ComplexF64} 
+
+	islead(g,n) && return get_graphH(g, n)
+
+	haskey(data_H, (n,n)) && return data_H[(n,n)]
+
+	return SpA.spzeros(ComplexF64, get_Hsize(data_H, n, n))
+
+end    
+
+
+function get_graphH(g::MetaDiGraph, 
+										data_H::Dict{NTuple{2,Int},<:AbstractMatrix{ComplexF64}},
+										n1::Int, n2::Int;
+										kwargs...
+										)::AbstractMatrix{ComplexF64}
+
+	n1==n2 && get_graphH(g, data_H, n1; kwargs...)
+
+	(islead(g,n1)||islead(g,n2)) && return get_graphH(g, n1, n2; kwargs...)
+
+
+	haskey(data_H, (n1,n2)) && return data_H[(n1,n2)]
+	haskey(data_H, (n2,n1)) && return data_H[(n2,n1)]'
+
+	@assert get(kwargs, :zeros_missing, true) "There is no :H between $n1 and $n2" 
+
+
+	return SpA.spzeros(ComplexF64, get_Hsize(data_H, n1, n2))
+
+
+end   
+
+
 
 
 

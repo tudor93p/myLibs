@@ -95,10 +95,9 @@ isBond = Algebra.EuclDistEquals(d_nn; dim=2)
 
 	G_new = GreensFunctions.GF_Decimation_fromGraph(E1, 
 																									g_noH, 
-																									Slicer,
 																									data_H,
-																									data_B,
-																									atoms)
+																									Slicer,
+																									)
 
 	GF_call_args = vcat( 
 			[("Atom",i) for i in axes(atoms,2)],
@@ -106,12 +105,9 @@ isBond = Algebra.EuclDistEquals(d_nn; dim=2)
 		 )
 
 	for a=GF_call_args, b=GF_call_args  
-
-		for ab in [(a,b),(a,b...),(a...,b),(a...,b...)]
-
-			@test G_old(a, b)≈G_old(ab...)≈G_new(ab...)
-
-		end 
+	
+		@test G_old(a,b)≈G_old(a...,b...)≈G_old((a,b))
+		@test G_old(a,b)≈G_new(a,b)≈G_new(a...,b...)≈G_new((a,b))
 
 	end 
 
