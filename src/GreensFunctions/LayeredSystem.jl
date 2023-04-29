@@ -1165,8 +1165,9 @@ function condStore_sharedHB(
 		condStore_sharedHB!!(data_H, data_B, atoms, inds_layer, i; hopp...)
 
 		condStore_sharedHB!!(data_H, data_B, atoms, inds_layer, (i-1,i); hopp...)
-
+		
 	end  
+
 
 	@assert issubset(keys(data_B),keys(data_H))
 
@@ -1239,7 +1240,16 @@ function condStore_sharedHB!!(data_H::Dict{NTuple{2,Int},
 	H,B = TBmodel.HoppingMatrixAndNZ(Lattices.Vecs(atoms, I),
 																	 Lattices.Vecs(atoms, J);
 																	 hopp...) 
-
+	
+#	if i==1 
+#
+#		@show I J 
+#
+#		println("Ri: ",eachcol(Lattices.Vecs(atoms, I))...)
+#		println("Rj: ",eachcol(Lattices.Vecs(atoms, J))...)
+#		@show H B SpA.findnz(H) SpA.findnz(B)
+#
+#	end 
 
 	condStore_sharedHamilt!(data_H, (i,j), H) 
 
