@@ -167,159 +167,6 @@ function DecayWidth(U::AbstractMatrix{<:Number}, g::AbstractMatrix{<:Number}
 end
 
 
-#===========================================================================#
-#
-#	Helper functions for dealing with the physical system stored in the graph
-#
-#---------------------------------------------------------------------------#
-
-
-function GraphLayeredSystem_Utils(g)
-
-	get_prop(p) = Graph.get_prop(g,p)
-
-	get_prop(p,ns...) = Graph.get_prop(g,ns...,p)
-
-
-	node0 = Graph.node_by_prop!(g,:name)
-
-
-
-	function node(T::String,I::Int64)
-
-		occursin("Lead",T) && return node0(T,min(get_prop(:UCsLeads),I))
-
-		return node0(T,I) 
-	end
-
-	node((T,I)) = node(T,I)
-
-
-	f() = ()
-	
-	f(n::Int64,args...) = (n,f(args...)...)
-	
-	f(T::String,I::Int64,args...) = (node(T,I),f(args...)...)
-		
-
-		
-	
-	
-	
-
-
-	islead_(n) = occursin("Lead",get_prop(:type,n))
-
-#	islayer_(n) = get_prop(:type,n)=="Layer"
-
-
-	function H(args...)::AbstractMatrix
-
-		ns = f(args...)
-		
-		(length(ns) == 1 || ns[1]==ns[2]) && return get_prop(:H,ns[1])
-	
-		Graph.has_prop(g,ns...,:H) && return get_prop(:H,ns...)
-	
-		rns = reverse(ns)
-	
-		Graph.has_prop(g,rns...,:H) && return get_prop(:H,rns...)'
-
-		return zeros(size(get_prop(:H,ns[1]),1),size(get_prop(:H,ns[2]),1))
-
-	end
-	
-	
-	
-	function LeadGF_atEnergy(g_,Energy)::Function
-
-		all_lead_gfs = Dict(ll=>get_prop(:GFf,f(ll,1)[1])(Energy) for ll in get_prop(:LeadLabels))
- 
-		return function get_gf(n::Int)::AbstractMatrix 
-
-			@assert !Graph.has_prop(g_, n, :GF) 
-
-			lead_name, lead_uc = Graph.get_prop(g_, n, :name)
-
-			return all_lead_gfs[lead_name][min(lead_uc,end)]
-
-		end  
-
-	end
-	
-	
-	
-	function left_(n::Int)::Union{Nothing,Int}
-	
-	  ns = Graph.in_neighbors(g,n)
-	
-		return isempty(ns) ? nothing : only(ns)
-	
-	end
-	
-	function right_(n::Int)::Union{Nothing,Int}
-	
-	  ns = Graph.out_neighbors(g,n)
-	
-		return isempty(ns) ? nothing : only(ns)
-	
-	end
-	
-	
-	function next(n::Int64, dir::String)::Union{Nothing,Int}
-	
-		dir == "right" && return right_(n)
-	
-		dir == "left" && return left_(n)
-	
-		error("dir should be left or right")
-	
-	
-	end
-	
-
-
-	function meets_layer_(n,dir::String="both")::Bool
-	
-		isnothing(n) && return false
-
-		(dir == "both" || islayer(g,n)) && return true
-	
-		return meets_layer_(next(n,dir), dir)
-	
-	end
-	
-	
-	
-	
-	
-	function bring_closer_(n,m) 
-	
-		isempty(Graph.FindPath(g,n,m)) &&	return false,left_(n),right_(m)
-	
-		return true,right_(n),left_(m)
-	
-	end
-	
-	function lead_extends_(n,dir)
-	
-		return islead(g,n) && (dir == "both" || !meets_layer_(n,dir))
-	
-	end
-
-
-
-	return 	LeadGF_atEnergy,#setEnergy_LeadGF,
-					islead_,
-					meets_layer_,
-					lead_extends_,
-					H,
-					next,
-					bring_closer_,
-					f
-
-
-end	
 
 
 #===========================================================================#
@@ -399,46 +246,13 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 end
 
 
-function GF_Decimation_fromGraph(Energy::Number, g, translate=nothing;
-#																 leads_have_imag::Bool=false,
+function GF_Decimation_fromGraph(Energy::Number, g, ::Nothing=nothing;
 																 kwargs...
 																 )::Function
 
 
-for l in get_leadlabels(g)
-
-
-n = get_node(g,l,1) 
-
-h = Graph.get_prop(g,n,:H) 
-@assert LA.ishermitian(h)
-
-end 
-
-
-#	setEnergy_LeadGF,
-	LeadGF_atEnergy,
-	islead_,
-	meets_layer_,
-	lead_extends_,
-	H,
-	next,
-	bring_closer_,
-	node	= GraphLayeredSystem_Utils(g)
-
-
-	reEnergy = if !isempty(get_leadlabels(g))&&haskey(kwargs, :leads_have_imag)
-
-				kwargs[:leads_have_imag] ? Energy::Real : real(Energy::Complex)
-
-							else 
-
-								Energy
-
-							end
-	
-
-	SemiInfLeadGF = LeadGF_atEnergy(g, Energy)
+	reEnergy = get_reEnergy(g, Energy; kwargs...)
+	SemiInfLeadGF = eval_lead_GF(g, Energy) 
 
 
 	# ----- the dictionary where the values are stored -------- #
@@ -449,7 +263,7 @@ end
 
 	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix
 	
-		n==m && islead_(n) && !meets_layer_(n,dir) && return SemiInfLeadGF(n)
+		n==m && islead(g,n) && !meets_layer(g,n,dir) && return SemiInfLeadGF(n)
 
 							#	this should not be stored, already stored in the graph!
 
@@ -466,24 +280,24 @@ end
 
 	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
 	
-		lead_extends_(n,dir) && return GF(SemiInfLeadGF(n),
+		lead_extends(g,n,dir) && return GF(SemiInfLeadGF(n),
 																			coupling_toSystem(n,dir)...)
 	
-		return GF(reEnergy, H(n), coupling(n,dir)...) 
+		return GF(reEnergy, get_graphH(g,n), coupling(n,dir)...) 
 	
 	end
 
 	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
 
-		isnleft, n1, m1  = bring_closer_(n,m)
+		isnleft, n1, m1  = bring_closer(g,n,m)
 	
 		for (d,test) in zip(["left","right"],[isnleft,!isnleft])
 	
 			if dir in ["both",d] 
 	
-				test && return G(n,m1,d)*H(m1,m)*G(m,m,dir)
+				test && return G(n,m1,d)*get_graphH(g,m1,m)*G(m,m,dir)
 	
-				return G(n,n,dir)*H(n,n1)*G(n1,m,d)
+				return G(n,n,dir)*get_graphH(g,n,n1)*G(n1,m,d)
 	
 			end
 		end
@@ -498,9 +312,9 @@ end
 	
 		filter(!isempty, map(["right","left"]) do d
 	
-										dst = (dir in [d,"both"]) ? next(src,d) : nothing
+										dst = (dir in [d,"both"]) ? next_node(g,src,d) : nothing
 	
-										return isnothing(dst) ? () : (H(dst,src), G(dst,dst,d))
+										return isnothing(dst) ? () : (get_graphH(g,dst,src), G(dst,dst,d))
 	
 									end)
 	end
@@ -524,7 +338,7 @@ end
 	
 		for dir in ["right","left"]
 	
-			meets_layer_(src,dir) && return coupling(src,dir)
+			meets_layer(g,src,dir) && return coupling(src,dir)
 	
 		end
 	
@@ -533,72 +347,38 @@ end
 
 
 
-	if	isnothing(translate)
+	return function out1(args...; kwargs1...)::AbstractMatrix{ComplexF64}
 	
-		function out1(name1::AbstractString,index1::Int64,
-								 	name2::AbstractString=name1,index2::Int64=index1;
-									dir::AbstractString="both")::AbstractMatrix
-	
-			G(node(name1,index1,name2,index2)...,dir)
-	
-		end
+		(n1,i1,n2,i2), dir = unpack_argsG(args...; kwargs1...) 
+
+		return G(get_node(g,n1,i1), get_node(g,n2,i2), dir)
+
+	end 
+
+end 
+
+function GF_Decimation_fromGraph(Energy::Number, g, translate::Function;
+																 kwargs...
+																 )::Function
 
 
-		function out1((name1,index1)::Tuple{AbstractString,Int},
-									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
-									kwargs1...)::AbstractMatrix
+	out1 = GF_Decimation_fromGraph(Energy, g; kwargs...)
 
-			out1(name1, index1, name2, index2)
+	return function out2(args...; kwargs1...)::AbstractMatrix{ComplexF64}
 
-		end 
+		ni1ni2,slice = translate(unpack_argsG(args...)[1]...) 
 
-		function out1(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
+		return view(out1(ni1ni2...; kwargs1...), slice...)
 
-			out1(ni1ni2...)
+	end 
 
-		end
-
-		return out1
-
-	
-	else
-
-
-		function out2(name1::AbstractString, index1::Int64,
-								 	name2::AbstractString=name1, index2::Int64=index1;
-									dir::AbstractString="both")::AbstractMatrix
-
-			n1i1n2i2,slice = translate(name1,index1,name2,index2) 
-
-			@assert length(slice)==2
-
-			return G(node(n1i1n2i2...)...,dir)[slice...]
-
-		end 
-
-		function out2((name1,index1)::Tuple{AbstractString,Int},
-									(name2,index2)::Tuple{AbstractString,Int}=(name1,index1);
-									kwargs1...)::AbstractMatrix
-
-			out2(name1, index1, name2, index2)
-
-		end 
-
-		function out2(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...)::AbstractMatrix
-
-			out2(ni1ni2...)
-
-		end
-
-	end
 
 end
 
 
-
 #===========================================================================#
 #
-#
+#	Helper functions for dealing with the physical system stored in the graph
 #
 #---------------------------------------------------------------------------#
 
@@ -826,7 +606,7 @@ function GF_Decimation_fromGraph(Energy::Number,
 													 <:AbstractMatrix{ComplexF64},
 													 }
 
-		(get_graphH(g,data_H,dst,src; zeros_missing=true), G(dst,dst,dir))
+		(get_graphH(g,data_H,dst,src), G(dst,dst,dir))
 
 	end  
 
@@ -901,7 +681,7 @@ function GF_Decimation_fromGraph(Energy::Number,
 	
 	
 		return GF(reEnergy, 
-							get_graphH(g, data_H, n; zeros_missing=true),
+							get_graphH(g, data_H, n),
 							(UGpair(lci) for lci=coupling_inds(g, n, dir))...
 							)
 	end
@@ -912,7 +692,7 @@ function GF_Decimation_fromGraph(Energy::Number,
 		(a1,b1,d1),(a2,b2,d2) = baz(g, n, m, dir) 
 
 		return *(G(a1,b1,d1),
-						 get_graphH(g, data_H, b1, a2; zeros_missing=true),
+						 get_graphH(g, data_H, b1, a2),
 						 G(a2,b2,d2),
 						)
 
