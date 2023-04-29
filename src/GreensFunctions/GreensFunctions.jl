@@ -246,134 +246,6 @@ function GF_Decimation(HoppMatr::Function, NrLayers::Int64;
 end
 
 
-function GF_Decimation_fromGraph(Energy::Number, g, ::Nothing=nothing;
-																 kwargs...
-																 )::Function
-
-
-	reEnergy = get_reEnergy(g, Energy; kwargs...)
-	SemiInfLeadGF = eval_lead_GF(g, Energy) 
-
-
-	# ----- the dictionary where the values are stored -------- #
-	
-	Gd = Dict{Tuple{Int64,Int64,String},Array{Complex{Float64},2}}()
-
-
-
-	function G(n::Int,m::Int,dir::AbstractString)::AbstractMatrix
-	
-		n==m && islead(g,n) && !meets_layer(g,n,dir) && return SemiInfLeadGF(n)
-
-							#	this should not be stored, already stored in the graph!
-
-		n==m && return get!(Gd,(n,m,dir)) do 
-																			Gnn(n,dir) end
-
-		return get!(Gd,(n,m,dir)) do 
-																Gnm(n,m,dir) end
-
-	end
-
-
-	# ----- methods to calculate the GF ------- #	
-
-	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
-	
-		lead_extends(g,n,dir) && return GF(SemiInfLeadGF(n),
-																			coupling_toSystem(n,dir)...)
-	
-		return GF(reEnergy, get_graphH(g,n), coupling(n,dir)...) 
-	
-	end
-
-	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
-
-		isnleft, n1, m1  = bring_closer(g,n,m)
-	
-		for (d,test) in zip(["left","right"],[isnleft,!isnleft])
-	
-			if dir in ["both",d] 
-	
-				test && return G(n,m1,d)*get_graphH(g,m1,m)*G(m,m,dir)
-	
-				return G(n,n,dir)*get_graphH(g,n,n1)*G(n1,m,d)
-	
-			end
-		end
-
-	end
-
-
-
-	# ---- coupling a layer left or right ----- #
-
-	function coupling(src::Int64,dir::String)
-	
-		filter(!isempty, map(["right","left"]) do d
-	
-										dst = (dir in [d,"both"]) ? next_node(g,src,d) : nothing
-	
-										return isnothing(dst) ? () : (get_graphH(g,dst,src), G(dst,dst,d))
-	
-									end)
-	end
-	
-	
-	# ------- coupling for a lead ---------- #
-
-	
-	function coupling_toSystem(src,d) 
-
-		if d=="both" 
-
-			@info "Function called for d='both'"
-
-		else 
-
-			@warn "potentially wrong result" src d
-
-		end 
-
-	
-		for dir in ["right","left"]
-	
-			meets_layer(g,src,dir) && return coupling(src,dir)
-	
-		end
-	
-	end
-	
-
-
-
-	return function out1(args...; kwargs1...)::AbstractMatrix{ComplexF64}
-	
-		(n1,i1,n2,i2), dir = unpack_argsG(args...; kwargs1...) 
-
-		return G(get_node(g,n1,i1), get_node(g,n2,i2), dir)
-
-	end 
-
-end 
-
-function GF_Decimation_fromGraph(Energy::Number, g, translate::Function;
-																 kwargs...
-																 )::Function
-
-
-	out1 = GF_Decimation_fromGraph(Energy, g; kwargs...)
-
-	return function out2(args...; kwargs1...)::AbstractMatrix{ComplexF64}
-
-		ni1ni2,slice = translate(unpack_argsG(args...)[1]...) 
-
-		return view(out1(ni1ni2...; kwargs1...), slice...)
-
-	end 
-
-
-end
 
 
 #===========================================================================#
@@ -584,10 +456,20 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function GF_Decimation_fromGraph(Energy::Number, 
+																 g::MetaDiGraph,
+																 ::Nothing;
+																 kwargs...
+																 )::Function 
+
+	GF_Decimation_fromGraph(Energy, g; kwargs...)
+
+end 
 
 function GF_Decimation_fromGraph(Energy::Number, 
 																 g::MetaDiGraph,
-																 data_H::Dict;
+																 data_H::Union{MetaDiGraph,Dict}=g,
+																 ::Nothing=nothing;
 																 kwargs...
 																 )::Function
 
@@ -600,15 +482,6 @@ function GF_Decimation_fromGraph(Energy::Number,
 	
 	Gd = Dict{Tuple{Int,Int,String},Matrix{ComplexF64}}() # trapped storage 
 
-
-	function UGpair((src,dst,dir)::Tuple{Int,Int,String},
-									)::Tuple{<:AbstractMatrix{ComplexF64},
-													 <:AbstractMatrix{ComplexF64},
-													 }
-
-		(get_graphH(g,data_H,dst,src), G(dst,dst,dir))
-
-	end  
 
 
 	# ----- function returned -------- # 
@@ -631,48 +504,23 @@ function GF_Decimation_fromGraph(Energy::Number,
 
 	# ----- methods to calculate the GF ------- #	
 
+	function UGpair((src,dst,dir)::Tuple{Int,Int,String},
+									)::Tuple{<:AbstractMatrix{ComplexF64},
+													 <:AbstractMatrix{ComplexF64},
+													 }
+
+		(get_graphH(g,data_H,dst,src), G(dst,dst,dir))
+
+	end  
+
 	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
 
 		if lead_extends(g,n,dir) 
 
-			dir0 = get_dir_layer(g,n)
+			dir=="both" || return SemiInfLeadGF(n)
 
-		if dir=="both" 
+			dir0 = get_dir_layer(g,n) 
 
-			@info "Function called for dir='both'"
-
-		else 
-
-			@warn "potentially wrong result" n dir  dir0
-
-			@show coupling_inds(g, n, dir) 
-
-			@show coupling_inds(g, n, dir0)
-
-			error() 
-		end  
-
-#			dir=="both" || !meets_layer(g,n,dir) 
-
-# n is lead 
-#
-# 1) Gnn(n, dir=="both"): GF(g_n, (U_coupling,G_system))  regardless of dir 
-#
-# 2) Gnn(n,dir=="right") 
-#	lead semi-infinite in dir=="right". !meets_layer(g,n,"right")
-#
-#	G^R_{N+1,N+1} from Lewenkopf 
-#
-#	(30): G^R_{N,N} = (E - h_N - U_{N,N+1}g_R U_{N+1,N}
-#
-#	G^R_{Lead R, uc 1} = (E - intracell - inter*g*inter') # no layer etc
-#
-#	lci = coupling_inds(g, n, dir=get_dir_layer(g,n)="left")
-#	lci = (n,n_left,"left"), n_left either lead_uc-1 or layer N
-#
-#	UGpair(right_lead, layer_n, "left") 
-# lci=coupling_inds(g, n, dir)
-#
 			return GF(SemiInfLeadGF(n),
 								(UGpair(lci) for lci=coupling_inds(g, n, dir0))...)
 
@@ -711,7 +559,7 @@ end
 
 function GF_Decimation_fromGraph(Energy::Number, 
 																 g::MetaDiGraph,
-																 data_H::Dict,
+																 data_H::Union{Dict,MetaDiGraph},
 																 translate::Function;
 																 kwargs...
 																 )::Function
@@ -727,6 +575,17 @@ function GF_Decimation_fromGraph(Energy::Number,
 	end 
 
 end 
+
+
+function GF_Decimation_fromGraph(Energy::Number, 
+																 g::MetaDiGraph, 
+																 translate::Function;
+																 kwargs...
+																 )::Function
+
+	GF_Decimation_fromGraph(Energy, g, g, translate; kwargs...)
+
+end
 
 
 #===========================================================================#

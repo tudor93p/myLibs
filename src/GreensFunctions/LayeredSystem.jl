@@ -1646,6 +1646,14 @@ end
 
 
 
+function get_graphH(g::MetaDiGraph, ::MetaDiGraph,
+										args...; kwargs...)::AbstractMatrix{ComplexF64} 
+
+	get_graphH(g, args...; kwargs...)
+
+end 
+
+
 function get_graphH(g::MetaDiGraph, 
 										data_H::Dict{NTuple{2,Int},<:AbstractMatrix{ComplexF64}},
 										n::Int;
