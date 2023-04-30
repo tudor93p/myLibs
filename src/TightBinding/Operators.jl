@@ -1156,7 +1156,7 @@ function repeatOperator_manyAtoms(Op::AbstractVector{T},
 
 	for a in 1:nr_at 
 
-		FullOp[TBmodel.Hamilt_indices(1:nr_orb, a, nr_orb)] = Op 
+		FullOp[TBmodel.Hamilt_indices(nr_orb, a)] = Op 
 
 	end 
 
@@ -1178,7 +1178,7 @@ function repeatOperator_manyAtoms(Op::AbstractMatrix{T},
 
 	for a in 1:nr_at 
 
-		i = TBmodel.Hamilt_indices(1:nr_orb, a, nr_orb) 
+		i = TBmodel.Hamilt_indices(nr_orb, a) 
 
 		FullOp[i,i] = Op 
 

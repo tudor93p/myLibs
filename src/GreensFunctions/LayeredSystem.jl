@@ -1457,7 +1457,7 @@ function get_NrLeadUCs(VirtLeads::AbstractDict{Symbol,<:AbstractDict})::Int
  
 	return maximum(values(VirtLeads)) do L 
 
-		haskey(L, :intracell) ? length(L[:intracell])+1 : 1
+		length(get(L, :intracell, ())) + 2
 
 	end 
 
@@ -1566,11 +1566,15 @@ end
 function set_lead_H!(g::MetaDiGraph, Lead::AbstractDict{Symbol,<:Any}
 										 )::MetaDiGraph
 
-	for (i,h) in enumerate(get(Lead, :intracell, ()))
+	if haskey(Lead, :intracell)
 
-		@assert LA.ishermitian(h)
+		for (i,h) in enumerate(Lead[:intracell])
 
-		MetaGraphs.set_prop!(g, get_node(g, Lead, i), :H, h)  
+			@assert LA.ishermitian(h)
+
+			MetaGraphs.set_prop!(g, get_node(g, Lead, i), :H, h)   
+
+		end 
 
 	end 
 
@@ -1638,7 +1642,32 @@ function set_edgeH!(g::MetaDiGraph, n::Int, m::Int,
 	
 end  
 
+function _get_graphH1(g::MetaDiGraph, ns::Int...
+										 )::Union{Nothing,AbstractMatrix{ComplexF64}}
+	
+	Graph.has_prop(g,ns...,:H) ? Graph.get_prop(g,ns...,:H) : nothing 
 
+end 
+
+function _get_graphH2(g::MetaDiGraph, ns::Int...,
+										 )::Union{Nothing,AbstractMatrix{ComplexF64}}
+	
+
+	h = _get_graphH1(g,reverse(ns)...) 
+
+	return h isa AbstractMatrix ? h' : _get_graphH1(g,ns...)
+
+end 
+
+function rest_lead_UCs(g::MetaDiGraph, n::Int,
+											)::Vector{Int} 
+
+	lead_label, lead_uc = Graph.get_prop(g, n, :name)
+	
+	return Int[get_node(g, lead_label, uc) for uc in lead_uc-1:-1:1]
+
+end 
+			
 
 function get_graphH(g::MetaDiGraph, n1::Int, n2::Int;
 										zeros_missing::Bool=false 
@@ -1646,9 +1675,23 @@ function get_graphH(g::MetaDiGraph, n1::Int, n2::Int;
 
 	n1==n2 && get_graphH(g, n1)  
 
-	Graph.has_prop(g,n1,n2,:H) && return Graph.get_prop(g,n1,n2,:H)   
-	Graph.has_prop(g,n2,n1,:H) && return Graph.get_prop(g,n2,n1,:H)' 
+	h = _get_graphH2(g,n1,n2)
 
+	h isa AbstractMatrix && return h  
+
+
+	if islead(g,n1) && islead(g,n2) 
+
+		for ns in zip(rest_lead_UCs(g,n1), rest_lead_UCs(g,n2))
+
+			h = _get_graphH2(g,ns...)
+
+			h isa AbstractMatrix && return h
+
+		end 
+
+	end 
+	
 	@assert zeros_missing "There is no :H between $n1 and $n2"
 
 	return SpA.spzeros(ComplexF64, get_Hsize(g, n1, n2))
@@ -1659,9 +1702,27 @@ end
 function get_graphH(g::MetaDiGraph, n::Int
 										)::AbstractMatrix{<:Number}
 
-	Graph.get_prop(g, n, :H) # must have the prop, no backup 
+	h = _get_graphH1(g, n) 
+
+	h isa AbstractMatrix && return h
+	
+	@assert islead(g,n) "No fallback value"
+
+	for n_ in rest_lead_UCs(g,n) 
+
+		h_ = _get_graphH1(g, n_)
+
+		h_ isa AbstractMatrix && return h_
+
+	end  
+	
+	@show Graph.get_prop(g, n, :name)
+
+	error("Node $n has no Hamiltonian")
 
 end     
+
+
 
 function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
 										T::AbstractString, I::Int64;
@@ -1782,11 +1843,11 @@ function set_lead_edgeH!(g::MetaDiGraph,
 												 lead::AbstractDict{Symbol,<:Any},
 												 )::MetaDiGraph
 
-	for i in 1:Graph.get_prop(g,:UCsLeads)-1 
+#	for i in 1:Graph.get_prop(g,:UCsLeads)-1 
 
-		set_edgeH!(g, 
-							 get_node(g, lead, i), get_node(g, lead, i+1),
-							 lead[:intercell][min(i,end)])
+	for (i,h) in enumerate(lead[:intercell])
+
+		set_edgeH!(g, get_node(g, lead, i), get_node(g, lead, i+1), h)
 		
 	end 
 

@@ -1,5 +1,5 @@
-import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure, ArrayOps
-import PyPlot, JLD ,SparseArrays 
+import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure, ArrayOps, Graph
+import PyPlot, JLD ,SparseArrays , Combinatorics 
 using LinearAlgebra, SharedArrays
 
 include("mock_DevLeads.jl") 
@@ -33,12 +33,16 @@ end
 #
 #
 #BondHoppings = [hoppings(iR...)' for iR in zip(inds_DevBonds, Rs_DevBonds)]
-
+println()
 
 NR_ORB = rand(1:10)
 	LENGTH = rand(1:30)
 	WIDTH = rand(1:30)
 
+#	NR_ORB = 1 
+#	WIDTH=2
+#	LENGTH=3 
+#
 	@show NR_ORB LENGTH WIDTH
 	
 	
@@ -69,10 +73,8 @@ NR_ORB = rand(1:10)
 	println()
 	
 	
-	
-#	default_LAR = "forced"
-	
-	default_LAR = default_LayerAtomRels(DevLatt) 
+for default_LAR in ["forced",
+										default_LayerAtomRels(DevLatt)]
 	
 	NewGeom = LayeredSystem.NewGeometry(
 									DevAtoms, default_LAR; 
@@ -91,19 +93,25 @@ NR_ORB = rand(1:10)
 	data_A = LayeredSystem.prep_sharedA(LayerAtom, DevAtoms)
 
 
-#	PH = vcat(ones(div(NR_ORB,2)),zeros(NR_ORB-div(NR_ORB,2)))
-#	el_proj = Operators.Projector(PH, :atoms; nr_orb=NR_ORB, dim=2)
-#	ho_proj = Operators.Projector(1 .- PH, :atoms; nr_orb=NR_ORB, dim=2)
+	PH = vcat(ones(div(NR_ORB,2)),zeros(NR_ORB-div(NR_ORB,2))) 
+	
+	projectors = [
+		Operators.Projector(PH, :atoms; nr_orb=NR_ORB, dim=2),
+		Operators.Projector(1 .- PH, :atoms; nr_orb=NR_ORB, dim=2),
+		Operators.Projector(ones(NR_ORB), :atoms; nr_orb=NR_ORB, dim=2),
+		]
 
 
 println()
 @testset "same bonds" begin 
 	@test nr_bonds==LayeredSystem.nr_bonds(data_B)
 
-
 	for ((l1,l2),B_new) in data_B, (i,j) in eachcol(B_new) 
 
-		@test (ial(l1)[i],ial(l2)[j]) in inds_bonds_old 
+		I = ial(l1)[i]
+		J = ial(l2)[j]
+		
+		@test xor((I,J) in inds_bonds_old,(J,I) in inds_bonds_old)
 	
 	end 
 end 
@@ -124,17 +132,21 @@ println()
 
 		@test 1==count(zip(inds_bonds_old,BondHoppings_old)) do (b,h) 
 
+			@test size(h)==(NR_ORB,NR_ORB)  
+
 			@test LinearAlgebra.checksquare(h)==NR_ORB 
 
-			b==(I,J) || return false  
+			if b==(I,J) #|| b==(J,I) || return false  
 
-			h12 = TBmodel.slice_atoms(data_H[(l1,l2)],NR_ORB,i,j)'
-			
-			@test size(h12)==size(h)==(NR_ORB,NR_ORB) 
-		
-#			@show norm(h12-h) h12  h 
+				return h≈TBmodel.slice_atoms(data_H[(l1,l2)],NR_ORB,i,j)'
 
-			return (h12≈h)# | (h12'≈h)
+			elseif b==(J,I)
+
+				return h≈TBmodel.slice_atoms(data_H[(l1,l2)],NR_ORB,i,j)
+
+			else 
+				return false 
+			end 
 
 		end 
 
@@ -143,7 +155,9 @@ end
 
 	
 	g_noH = LayeredSystem.LayeredSystem_toGraph(LayerAtom[:NrLayers], VirtLeads) 
-	
+
+	@show Graph.get_prop(g_noH,:UCsLeads)
+
 	leadlabels = LayeredSystem.get_leadlabels(g_noH)
 				
 	
@@ -210,8 +224,31 @@ println()
 #	@test siteT_new≈siteT_old 
 
 end 
-println()
+println() 
 
+
+
+@testset "net T old==new" begin  
+
+	for ps_=Combinatorics.powerset(projectors,0,2), ps=[ps_, reverse(ps_)]
+
+
+tAB_new = ObservablesFromGF.CaroliConductance(G_new, se, leadlabels..., 1)
+tAB_old = ObservablesFromGF.CaroliConductance(G_old, se, leadlabels..., 1)
+
+@test tAB_new≈tAB_old   
+
+
+end 
+end 
+
+for uc=1:Graph.get_prop(g_noH,:UCsLeads)-1
+
+	ObservablesFromGF.CaroliConductance(G_new, se, leadlabels..., uc)
+
+end 
+
+end 
 
 
 
