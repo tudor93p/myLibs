@@ -770,7 +770,6 @@ function SanchoRubio_inplace(
 								kwargs...)::NTuple{3,AbstractMatrix{ComplexF64}}
 
 	@assert LA.ishermitian(H_intracell)  H_intracell
-	@assert !LA.ishermitian(H_intercell)  H_intercell
 
 	Errors = zeros(max_iter)
 

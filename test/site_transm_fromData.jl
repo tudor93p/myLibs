@@ -1,5 +1,6 @@
 import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure, ArrayOps
-import PyPlot, JLD ,SparseArrays , LinearAlgebra
+import PyPlot, JLD ,SparseArrays 
+using LinearAlgebra
 
 include("mock_DevLeads.jl") 
 
@@ -13,23 +14,55 @@ observables = [#"QP-Caroli", #"QP-BondVectorTransmission",
 PyPlot.close.(1:10)
 
 
+function get_hoppings(Bonds, Hopping::AbstractDict, 
+											Slicer::Function, VirtLeads::AbstractDict=Dict(),
+											)::Vector{Matrix{ComplexF64}}
 
 
-@testset "" begin 
-	NR_ORB = 3 
-	LENGTH = 20 
-	WIDTH = 10 
+	h = LayeredSystem.get_hoppings(Hopping[:Hopping], Slicer, VirtLeads)
+
+	return Matrix{ComplexF64}[h(iR...)' for iR in zip(Bonds...)]
+
+#											[Hopping[:Hopping](Rj,Ri) for (Ri,Rj) in Bonds[2]]
+
+end 
+ 	
+#hoppings = LayeredSystem.get_hoppings(dev_Hopping[:Hopping], 
+#																			Slicer, 
+#																			VirtLeads)
+#
+#
+#BondHoppings = [hoppings(iR...)' for iR in zip(inds_DevBonds, Rs_DevBonds)]
+
+
+NR_ORB = rand(1:10)
+	LENGTH = rand(1:30)
+	WIDTH = rand(1:30)
+
+	@show NR_ORB LENGTH WIDTH
 	
 	
-	
+	hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 	
 	
 	DevLatt = get_latt([LENGTH, WIDTH])
 	
 	DevAtoms = Lattices.PosAtoms(DevLatt)
-	
-	
-	hopp = (Hopping=get_hopp(NR_ORB), nr_orb=NR_ORB)
+
+
+	inds_bonds_old = [C.I for C=findall(LinearAlgebra.triu!(isBond(DevAtoms,DevAtoms),1))]
+
+
+	nr_bonds = length(inds_bonds_old) 
+
+
+	Rs_bonds_old = Algebra.bondRs_fromInds(inds_bonds_old, DevAtoms; dim=2)
+
+	Bonds_old = (inds_bonds_old,Rs_bonds_old) 
+
+
+
+
 	
 	leads = get_two_leads(max(1,div(WIDTH,2)), DevAtoms; hopp...)
 	
@@ -48,54 +81,151 @@ PyPlot.close.(1:10)
 	
 	LayerAtom,Slicer,LeadRels,VirtLeads=NewGeom 
 	
+	BondHoppings_old = get_hoppings(Bonds_old, hopp, Slicer, VirtLeads) 
+
+
+	ial = LayerAtom[:IndsAtomsOfLayer]
+
 	data_H,data_B = LayeredSystem.condStore_sharedHB(LayerAtom, DevAtoms; hopp...)
 	
-	PH = vcat(ones(div(NR_ORB,2)),zeros(NR_ORB-div(NR_ORB,2)))
-	el_proj = Operators.Projector(PH, :atoms; nr_orb=NR_ORB, dim=2)
-	ho_proj = Operators.Projector(1 .- PH, :atoms; nr_orb=NR_ORB, dim=2)
+#	PH = vcat(ones(div(NR_ORB,2)),zeros(NR_ORB-div(NR_ORB,2)))
+#	el_proj = Operators.Projector(PH, :atoms; nr_orb=NR_ORB, dim=2)
+#	ho_proj = Operators.Projector(1 .- PH, :atoms; nr_orb=NR_ORB, dim=2)
+
+
+println()
+@testset "same bonds" begin 
+	@test nr_bonds== sum(size(v,2) for v=values(data_B))
+
+
+	for ((l1,l2),B_new) in data_B, (i,j) in eachcol(B_new) 
+
+		@test (ial(l1)[i],ial(l2)[j]) in inds_bonds_old 
 	
+	end 
+end 
+println() 
+
+
+println()
+@testset "same Hamilt" begin 
+
+	for ((l1,l2),B_new) in data_B, (i,j) in eachcol(B_new) 
+
+		I = ial(l1)[i]
+		J = ial(l2)[j] 
+
+		@test I!=J
+
+		@test size(data_H[(l1,l2)])==(NR_ORB*length(ial(l1)),NR_ORB*length(ial(l2)))
+
+		@test 1==count(zip(inds_bonds_old,BondHoppings_old)) do (b,h) 
+
+			@test LinearAlgebra.checksquare(h)==NR_ORB 
+
+			b==(I,J) || return false  
+
+			h12 = TBmodel.slice_atoms(data_H[(l1,l2)],NR_ORB,j,i) 
+			
+			@test size(h12)==size(h)==(NR_ORB,NR_ORB) 
+		
+#			@show norm(h12-h) h12  h 
+
+			return (h12≈h)# | (h12'≈h)
+
+		end 
+
+	end 
+end 
 
 	
 	g_noH = LayeredSystem.LayeredSystem_toGraph(LayerAtom[:NrLayers], VirtLeads) 
 	
 	leadlabels = LayeredSystem.get_leadlabels(g_noH)
+				
 	
 	
 	E1 = rand() 
+	
+	
+	
+	G_old = GreensFunctions.GF_Decimation(hopp, VirtLeads, Slicer;
+																							 LayerAtom...,
+																							 leads_have_imag=true
+																							 )(E1)
 					
 	G_new = GreensFunctions.GF_Decimation_fromGraph(E1, g_noH, data_H, Slicer;
 																													leads_have_imag=true,
 																													)
 
-	G_new("Layer",1,"Layer",1)
+println()
+@testset "G_new==G_old" begin 
 
-	
+	for i=1:LayerAtom[:NrLayers]
+
+	@test G_new("Layer",1,"Layer",i)≈G_old("Layer",1,"Layer",i)
+
+end 
+
+end 
+println()
+
 	se = GreensFunctions.SelfEn_fromGDecim(G_new, VirtLeads, Slicer) 
+	
 
 	se(leadlabels[1],1)
-	
-	
-	#function get_hoppings(Bonds, Hopping::AbstractDict, 
-	#											Slicer::Function, VirtLeads::AbstractDict=Dict(),
-	#											)::Vector{Matrix{ComplexF64}}
-	#
-	#
-	#	h = LayeredSystem.get_hoppings(Hopping[:Hopping], Slicer, VirtLeads)
-	#
-	#	return [h(iR...)' for iR in zip(Bonds...)]
-	#
-	##											[Hopping[:Hopping](Rj,Ri) for (Ri,Rj) in Bonds[2]]
-	#
-	#end 
-			
-	#hoppings = LayeredSystem.get_hoppings(dev_Hopping[:Hopping], 
-	#																			Slicer, 
-	#																			VirtLeads)
-	#
-	#
-	#BondHoppings = [hoppings(iR...)' for iR in zip(inds_DevBonds, Rs_DevBonds)]
-	
-		
+
+	lead_ID = (leadlabels[1], 1)
+									
+
+	# data_H[(I,J)]: hopping from layer I to J  -- corresponding h(ri,rj)
+	# SiteTransmission expects h(rj,ri)
+
+	siteT_old = ObservablesFromGF.SiteTransmission(
+										G_old,													# 1 arg 
+										BondHoppings_old, Bonds_old..., # 3 args 
+										se,															# 1 arg 
+										lead_ID...;											# pos 6+7
+										dim=1,
+										)
+
+	@show size(siteT_old)
+
+	siteT_new = ObservablesFromGF.SiteTransmission(
+										G_new,													# 1 arg 
+										data_H, data_B, DevAtoms, ial,	# 4 args 
+										se,															# 1 arg 
+										lead_ID...;											# pos 7+8
+										dim=1,
+										nr_orb=NR_ORB,
+										) 
+println()
+@testset "site_new == site_old" begin 
+	@test size(siteT_new)==size(siteT_old) 
+
+	@test LinearAlgebra.norm(siteT_new-siteT_old)<1e-8
+#	@test siteT_new≈siteT_old 
+
+end 
+println()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	#	for i in 1:nr_at, j in i+1:nr_at
 	#	
 	#		I = TBmodel.Hamilt_indices(1:nr_orb, i, nr_orb)  
@@ -317,7 +447,6 @@ PyPlot.close.(1:10)
 	
 	
 	
-end 
 
 
 

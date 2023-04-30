@@ -6,11 +6,15 @@ function get_hopp(nr_orb_)
 
 	intercell = rand(ComplexF64,nr_orb_,nr_orb_)  # h(ri,rj) != h(rj,ri)'
 
+	intercell .+= intercell'
+
+
 	function hopp(ri,rj)
 
 		local_pot = ArrayOps.UnitMatrix(nr_orb_)*isapprox(LinearAlgebra.norm(ri-rj),0,atol=1e-8)*2.0  
 	
 		atom_hopp = intercell*isapprox(LinearAlgebra.norm(ri-rj), 1, atol=1e-8) 
+
 
 		return local_pot + atom_hopp 
 	

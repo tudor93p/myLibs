@@ -1290,6 +1290,12 @@ function condStore_sharedBonds!(data_B::Dict{NTuple{2,Int},SharedMatrix{Int}},
 end  
 
 
+function nr_bonds(data_B::Dict{NTuple{2,Int},<:AbstractMatrix{Int}})::Int 
+	
+	sum(size(v,2) for v=values(data_B); init=0)
+
+end 
+
 
 #===========================================================================#
 #

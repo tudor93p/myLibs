@@ -5,7 +5,7 @@ import QuadGK
 
 import ..LA
 
-import ..Utils, ..Algebra, ..ArrayOps
+import ..Utils, ..Algebra, ..ArrayOps, ..Lattices, ..TBmodel
 import ..Operators, ..GreensFunctions, ..LayeredSystem
 
 
@@ -1010,15 +1010,13 @@ end
 #
 #---------------------------------------------------------------------------#
 
-	#	Matrix{Float64},B=NTuple{2,Int},R=Vector{Vector{Float64}},T=Float64
-
-function addSiteTiTj!(siteT::AbstractMatrix{<:Real},
+function addSiteTiTj!(siteT::AbstractMatrix{Float64},
 											dim::Int,
-											inds::NTuple{N,Int} where N, # (i,j)::NTuple{2,Int}
-											(Ri,Rj),
+											inds::NTuple{2,Int},
+											(Ri,Rj)::AbstractVector{<:AbstractVecOrMat{<:Real}},
 											Tij::Float64)::Nothing 
 
-	t = Tij .* (Rj-Ri)
+	t = LA.axpy!(-Tij, Ri, LA.axpy!(Tij, Rj, zeros(2)))
 
 	for i in inds 
 
@@ -1031,11 +1029,44 @@ function addSiteTiTj!(siteT::AbstractMatrix{<:Real},
 end 
 
 
+function addSiteTiTj!(siteT::AbstractMatrix{Float64},
+											Atoms::AbstractMatrix{Float64},
+											ij::NTuple{2,Int},
+											args...; 
+											dim::Int,
+											kwargs...)::Nothing
+
+	addSiteTiTj!(siteT, dim, ij, [Lattices.Vecs(Atoms,q) for q=ij], 
+							 BondTij(ij, args...; kwargs...))
+
+end 
+
+
+
+
 #===========================================================================#
 #
 #
 #
 #---------------------------------------------------------------------------#
+
+function BondTij(
+								 (i,j)::NTuple{2,Int}, 
+								 Hji::AbstractMatrix{ComplexF64},
+								 W_L::AbstractMatrix{ComplexF64},
+								 lead::Tuple,
+								 Gs::Function...;
+								 kwargs...
+								)::Float64
+
+	Gr_iL,Ga_Lj = eval_GaGr((("Atom",i),lead), (lead,("Atom",j)), Gs...)
+
+	return BondTij(Gr_iL, W_L, Ga_Lj, Hji; kwargs...)
+
+end 
+
+
+
 
 
 function BondTij(Gr_iL::AbstractMatrix{ComplexF64},
@@ -1049,7 +1080,7 @@ function BondTij(Gr_iL::AbstractMatrix{ComplexF64},
 # 
 # "im" comes already from the difference (i->j) - (j->i)! 
 
-	BondTij(Gr_iL * W_L * Ga_Lj, Hji; kwargs...)
+	BondTij(*(Gr_iL, W_L, Ga_Lj, Hji); kwargs...)
 
 end 
 
@@ -1065,10 +1096,15 @@ end
 
 function BondTij(Gri_W_Gaj::AbstractMatrix{ComplexF64},
 								 Hji::AbstractMatrix{ComplexF64};
-#								 f::Function=LA.tr, 
 								 kwargs...)::Float64
 
-	-2.0*imag(LA.tr(Gri_W_Gaj * Hji))
+	BondTij(Gri_W_Gaj*Hji; kwargs...)
+
+end  
+
+function BondTij(GWGH::AbstractMatrix{ComplexF64}; kwargs...)::Float64
+
+	-2.0*imag(LA.tr(GWGH))
 
 end 
 
@@ -1193,6 +1229,41 @@ function BondTiJ!(bondT::AbstractVector{Float64},
 end  
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function eval_GaGr(arg_ret::Tuple{Tuple,Tuple},
+									 arg_adv::Tuple{Tuple,Tuple},
+									 Gr::Function 
+									 )::Tuple{
+														<:AbstractMatrix{ComplexF64},
+														<:AbstractMatrix{ComplexF64},
+														}
+
+	
+	(Gr(arg_ret),  Gr(reverse(arg_adv))')
+
+end 
+
+
+
+function eval_GaGr(arg_ret::Tuple{Tuple,Tuple},
+									 arg_adv::Tuple{Tuple,Tuple},
+									 Gr::Function, Ga::Function,
+									 )::Tuple{
+														<:AbstractMatrix{ComplexF64},
+														<:AbstractMatrix{ComplexF64},
+														}
+	
+	(Gr(arg_ret),  Ga(arg_adv))
+					
+end 
+
+
 
 #===========================================================================#
 #
@@ -1280,13 +1351,13 @@ end
 
 
 function SiteTransmission(Gr::Function, Ga::Function,
-													Hoppings::AbstractVector{<:AbstractMatrix},
+													arg1::Union{AbstractVector,Tuple,AbstractDict},
 													args...; 
 													GaGr_check::AbstractString="return",
 													kwargs...
 													)::Matrix{Float64}
 
-	siteT,errmsg = SiteTransmission_(Hoppings, args..., Gr, Ga; 
+	siteT,errmsg = SiteTransmission_(arg1, args..., Gr, Ga; 
 																	 GaGr_check="return", kwargs...)
 
 	summarize_warn_messages(GaGr_check, errmsg)
@@ -1296,26 +1367,13 @@ function SiteTransmission(Gr::Function, Ga::Function,
 end  
 
 
-#
-#function LDOS_Decimation_dueToLead(Gr::Function, Ga::Function,
-#													args...; 
-#													kwargs...
-#													)::Vector{Float64}
-#
-#	LDOS_Decimation_dueToLead_(args..., Gr, Ga; kwargs...)
-#
-#end  
-
-
-
-
 function SiteTransmission(G::Function, 
-													Hoppings::AbstractVector{<:AbstractMatrix},
+													arg1::Union{AbstractVector,Tuple,AbstractDict},
 													args...; 
 													GaGr_check::AbstractString="return",
 													kwargs...)::Matrix{Float64}
 
-	siteT,errmsg = SiteTransmission_(Hoppings, args..., G; 
+	siteT,errmsg = SiteTransmission_(arg1, args..., G; 
 																	 GaGr_check="return", kwargs...)
 
 	summarize_warn_messages(GaGr_check, errmsg) 
@@ -1324,35 +1382,11 @@ function SiteTransmission(G::Function,
 
 end
  
-#function LDOS_Decimation_dueToLead(G::Function, 
-#													args...; 
-#													kwargs...)::Vector{Float64}
+#===========================================================================#
 #
-#	LDOS_Decimation_dueToLead_(args..., G; kwargs...)
 #
-#end
 #
-
-
-
-function addSiteTiTJ!(sector::AbstractVector{Int},
-											siteT::AbstractMatrix{Float64},
-											Hoppings::AbstractVector{<:AbstractMatrix},
-											Bonds::AbstractVector{NTuple{2,Int}},
-											RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
-											args...; kwargs...)::String
-
-	bondT,errmsg = BondTiJ(sector, Hoppings, Bonds, args...; kwargs...)
-
-	errmsg::String 
-
-	SiteTransmission_fromBondT!(siteT,
-															view(Bonds,sector), view(RBonds, sector), 
-															bondT; kwargs...)
-
-	return errmsg
-
-end  
+#---------------------------------------------------------------------------#
 
 
 
@@ -1390,37 +1424,52 @@ function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 end
 
 
-#function LDOS_Decimation_dueToLead_(
-##																		Hoppings::AbstractVector{<:AbstractMatrix},
-##													 Bonds::AbstractVector{NTuple{2,Int}},
-##													 RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
-#													 SE_lead::Function, 
-#													 lead::AbstractString,
-#													 lead_uc::Int,
-#													 Gs::Vararg{Function}
-#													 ; kwargs... 
-#													 )::Vector{Float64}
-#
-##nr_at, NrLayers not defined
-#
-#	ldos = zeros(nr_at) 
-#
-#	Gamma = GreensFunctions.DecayWidth(SE_lead(lead, lead_uc)) 
-#
-##	sectors = Utils.IdentifySectors(first, Bonds)
-#
-##	errmsg = Vector{String}(undef, length(sectors))
-#
-#	for layer in 1:NrLayers 
-#
-#		addLDOSlead!(layer, ldos, Gs..., Gamma, lead, lead_uc; kwargs...)
-#
-#	end 
-#
-#
-#	return ldos 
-#
-#end
+
+function SiteTransmission_(Hamilt::AbstractDict,
+													 Bonds::AbstractDict,
+													 Atoms::AbstractMatrix{Float64},
+													 get_inds_atoms::Function,
+
+													 SE_lead::Function, 
+													 lead::AbstractString,
+													 lead_uc::Int,
+													 Gs::Vararg{Function}
+													 ;
+													 dim::Int,
+													 #nr_orb::Int,
+													 kwargs...
+													 )#::Tuple{Matrix{Float64},Vector{String}}
+
+
+	siteT = ArrayOps.init_zeros(dim => Lattices.NrVecs(Atoms),
+															[2,1][dim] => Lattices.VecLen(Atoms))
+
+	W = GreensFunctions.DecayWidth(SE_lead(lead, lead_uc))
+
+	for ((Li,Lj),Bij) in Bonds 
+		
+		addSiteTITJ!(siteT, Atoms,
+								 Hamilt[(Li,Lj)], Bij,
+								 (get_inds_atoms(Li),get_inds_atoms(Lj)),
+								 W,  (lead, lead_uc), Gs...;
+								 dim=dim, kwargs...)
+	end 
+
+
+	return (siteT,String[])
+
+end
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1429,6 +1478,62 @@ end
 #
 #
 #---------------------------------------------------------------------------#
+
+
+function addSiteTiTJ!(sector::AbstractVector{Int},
+											siteT::AbstractMatrix{Float64},
+											Hoppings::AbstractVector{<:AbstractMatrix},
+											Bonds::AbstractVector{NTuple{2,Int}},
+											RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
+											args...; kwargs...)::String
+
+	bondT,errmsg = BondTiJ(sector, Hoppings, Bonds, args...; kwargs...)
+
+	errmsg::String 
+
+	SiteTransmission_fromBondT!(siteT,
+															view(Bonds,sector), view(RBonds, sector), 
+															bondT; kwargs...)
+
+	return errmsg
+
+end   
+
+
+
+function addSiteTITJ!(siteT::AbstractMatrix{Float64},
+											Atoms::AbstractMatrix{Float64},
+
+											Hamilt_IJ::AbstractMatrix{ComplexF64},
+											Bonds_IJ::AbstractMatrix{Int}, 
+											(I,J)::Tuple{<:AbstractVector{Int},
+																	 <:AbstractVector{Int}},
+
+											args...; 
+
+											nr_orb::Int,
+											kwargs...)#::String
+
+	for (i,j) in eachcol(Bonds_IJ)
+
+		addSiteTiTj!(siteT, Atoms, (I[i],J[j]),
+								 TBmodel.slice_atoms(Hamilt_IJ, nr_orb, j, i), args...;
+								 kwargs...)
+	end  
+
+end   
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
 
 function BondTij0(G::Function,
 									(i,j)::NTuple{2,Int},

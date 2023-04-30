@@ -261,6 +261,15 @@ function orbat_indices(nr_orbitals::Int, iH::Int)::NTuple{2,Int}
 
 end  
 
+function slice_atoms(h::AbstractMatrix{T},
+										 nr_orb::Int,
+										 i::Int,
+										 j::Int,
+										)::AbstractMatrix{T} where T<:Number  
+
+	view(h, Hamilt_indices(nr_orb, i), Hamilt_indices(nr_orb, j))
+
+end 
 
 #function Hamilt_indices(orbital::Int, atom::Int, nr_orbitals::Int)::Int
 #
