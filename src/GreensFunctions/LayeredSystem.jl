@@ -1132,9 +1132,17 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function prep_sharedA(LAR::AbstractDict{Symbol, <:Any}, 
+								 atoms::AbstractMatrix{<:Real};
+								 )::Tuple{SharedMatrix{Float64},Function}
+
+	(SharedMatrix{Float64}(atoms), LAR[:IndsAtomsOfLayer])
+
+end  
+
 function condStore_sharedHB(LAR::AbstractDict{Symbol, <:Any},
 														args...; kwargs...
-						 )::Tuple{Dict{NTuple{2,Int}, SharedMatrix{ComplexF64}},
+						 )::Tuple{Dict{NTuple{2,Int},SharedMatrix{ComplexF64}},
 											Dict{NTuple{2,Int},SharedMatrix{Int}}}
 
 	condStore_sharedHB(LAR[:NrLayers], LAR[:IndsAtomsOfLayer],

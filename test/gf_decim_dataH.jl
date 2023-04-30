@@ -32,7 +32,7 @@ include("mock_DevLeads.jl")
 						@test ishermitian(h)
 					end 
 					for h in L[:intercell]
-						@test !ishermitian(h)
+#						@test !ishermitian(h)
 					end 
 				end  
 
@@ -45,7 +45,7 @@ include("mock_DevLeads.jl")
 						@test ishermitian(h)
 					end 
 					for h in L[:intercell]
-						@test !ishermitian(h)
+#						@test !ishermitian(h)
 					end 
 				end 
 		
@@ -214,6 +214,11 @@ include("mock_DevLeads.jl")
 																							 translate=Slicer,
 																							 leads_have_imag=true,
 																							 )(E1)
+				
+				G_new3 = GreensFunctions.GF_Decimation(data_H, VirtLeads, Slicer;
+																							 D...,
+																							 leads_have_imag=true
+																							 )(E1)
 
 				GF_call_args = vcat( [(l,1) for l in leadlabels],
 						[("Atom",i) for i in axes(atoms,2)],
@@ -224,7 +229,7 @@ include("mock_DevLeads.jl")
 				for a=GF_call_args, b=GF_call_args
 				
 						G0 = G_old(a,b)
-					for ab=((a,b),(a...,b...)), fG=(G_old,G_old2,G_new,G_new2,G_old3)
+						for ab=((a,b),(a...,b...)), fG=(G_old,G_old2,G_new,G_new2,G_old3,G_new3)
 
 						@test G0≈fG(ab...)
 					

@@ -1425,20 +1425,17 @@ end
 
 
 
-function SiteTransmission_(Hamilt::AbstractDict,
-													 Bonds::AbstractDict,
+function SiteTransmission_(Hamilt::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{ComplexF64}},
+													 Bonds::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{Int}},
 													 Atoms::AbstractMatrix{Float64},
 													 get_inds_atoms::Function,
-
 													 SE_lead::Function, 
 													 lead::AbstractString,
 													 lead_uc::Int,
-													 Gs::Vararg{Function}
-													 ;
+													 Gs::Function...;
 													 dim::Int,
-													 #nr_orb::Int,
 													 kwargs...
-													 )#::Tuple{Matrix{Float64},Vector{String}}
+													 )::Tuple{Matrix{Float64},Vector{String}}
 
 
 	siteT = ArrayOps.init_zeros(dim => Lattices.NrVecs(Atoms),

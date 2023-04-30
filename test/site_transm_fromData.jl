@@ -1,6 +1,6 @@
 import myLibs: GreensFunctions, LayeredSystem, Lattices, Algebra, Utils, H_Superconductor,TBmodel, Operators, ObservablesFromGF, BandStructure, ArrayOps
 import PyPlot, JLD ,SparseArrays 
-using LinearAlgebra
+using LinearAlgebra, SharedArrays
 
 include("mock_DevLeads.jl") 
 
@@ -86,8 +86,11 @@ NR_ORB = rand(1:10)
 
 	ial = LayerAtom[:IndsAtomsOfLayer]
 
-	data_H,data_B = LayeredSystem.condStore_sharedHB(LayerAtom, DevAtoms; hopp...)
-	
+	data_H,data_B= LayeredSystem.condStore_sharedHB(LayerAtom, DevAtoms; hopp...)
+
+	data_A = LayeredSystem.prep_sharedA(LayerAtom, DevAtoms)
+
+
 #	PH = vcat(ones(div(NR_ORB,2)),zeros(NR_ORB-div(NR_ORB,2)))
 #	el_proj = Operators.Projector(PH, :atoms; nr_orb=NR_ORB, dim=2)
 #	ho_proj = Operators.Projector(1 .- PH, :atoms; nr_orb=NR_ORB, dim=2)
@@ -193,9 +196,9 @@ println()
 
 	siteT_new = ObservablesFromGF.SiteTransmission(
 										G_new,													# 1 arg 
-										data_H, data_B, DevAtoms, ial,	# 4 args 
+										data_H, data_B, data_A..., # 4 args 
 										se,															# 1 arg 
-										lead_ID...;											# pos 7+8
+										lead_ID...;											# pos 7-8
 										dim=1,
 										nr_orb=NR_ORB,
 										) 

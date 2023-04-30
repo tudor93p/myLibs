@@ -181,14 +181,14 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function GF_Decimation(Hopping::AbstractDict, 
+function GF_Decimation(Hopping::AbstractDict{Symbol,<:Any},
 											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
 											 LeadLayerSlicer=nothing;
 											 NrLayers::Int, 
 											 AtomsOfLayer::Function, 
 											 IndsAtomsOfLayer=nothing,
 #											 graph_fname::AbstractString="",
-											 kwargs...)
+											 kwargs...)::Function
 
 	HoppMatr(args...) = TBmodel.HoppingMatrix(AtomsOfLayer.(args)...;
 																						Hopping...)
@@ -201,7 +201,6 @@ function GF_Decimation(Hopping::AbstractDict,
 											 kwargs...)
 	
 
-
 end
 
 
@@ -210,7 +209,7 @@ end
 function GF_Decimation(HoppMatr::Function, 
 											 NrLayers::Int64, VL::AbstractDict...;
 											 translate=nothing, #plot_graph=nothing,
-											 kwargs...)
+											 kwargs...)::Function
 
 	g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers, VL...)
 
@@ -239,11 +238,25 @@ function GF_Decimation(HoppMatr::Function,
 
 end
 
-function GF_Decimation(data_H::Dict{NTuple{2,Int}, 
+function GF_Decimation(data_H::AbstractDict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}},
+											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
+											 Slicer=nothing;
+											 NrLayers::Int, 
+											 AtomsOfLayer=nothing, 		# not used 
+											 IndsAtomsOfLayer=nothing,# not used 
+											 kwargs...)::Function 
+
+	GF_Decimation(data_H, NrLayers, VirtLeads; translate=Slicer, kwargs...)
+	
+
+end
+
+function GF_Decimation(data_H::AbstractDict{NTuple{2,Int}, 
 																		<:AbstractMatrix{ComplexF64}},
 											 NrLayers::Int64, VL::AbstractDict...;
 											 translate=nothing, #plot_graph=nothing,
-											 kwargs...)
+											 kwargs...)::Function 
 
 	g_noH = LayeredSystem.LayeredSystem_toGraph(NrLayers, VL...)
 
