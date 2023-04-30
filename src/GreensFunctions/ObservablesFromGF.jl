@@ -1514,7 +1514,7 @@ function addSiteTITJ!(siteT::AbstractMatrix{Float64},
 	for (i,j) in eachcol(Bonds_IJ)
 
 		addSiteTiTj!(siteT, Atoms, (I[i],J[j]),
-								 TBmodel.slice_atoms(Hamilt_IJ, nr_orb, j, i), args...;
+								 TBmodel.slice_atoms(Hamilt_IJ, nr_orb, i, j)', args...;
 								 kwargs...)
 	end  
 

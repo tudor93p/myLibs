@@ -103,6 +103,9 @@ include("mock_DevLeads.jl")
 
 					end 
 
+
+					Graph.has_prop(g_noH,:UCsLeads) && @show Graph.get_prop(g_noH, :UCsLeads)
+					Graph.has_prop(g_withH,:UCsLeads) && @show Graph.get_prop(g_withH, :UCsLeads)
 		
 				leadlabels = Graph.get_prop(g_noH,:LeadLabels) 
 
@@ -220,7 +223,7 @@ include("mock_DevLeads.jl")
 																							 leads_have_imag=true
 																							 )(E1)
 
-				GF_call_args = vcat( [(l,1) for l in leadlabels],
+				GF_call_args = vcat( [(l,uc) for l in leadlabels for uc=1:2],
 						[("Atom",i) for i in axes(atoms,2)],
 						[("Layer",i) for i in 1:nr_layers]
 					 ) 

@@ -12,11 +12,23 @@ function get_hopp(nr_orb_)
 	function hopp(ri,rj)
 
 		local_pot = ArrayOps.UnitMatrix(nr_orb_)*isapprox(LinearAlgebra.norm(ri-rj),0,atol=1e-8)*2.0  
+		
+		
+		d1 = isapprox(LinearAlgebra.norm(ri-rj), 1, atol=1e-8) 
 	
-		atom_hopp = intercell*isapprox(LinearAlgebra.norm(ri-rj), 1, atol=1e-8) 
+		atom_hopp = intercell*d1  
 
+		A = ArrayOps.UnitMatrix(nr_orb_, ComplexF64)
 
-		return local_pot + atom_hopp 
+		for i=1:nr_orb_ 
+			
+			A[i,i] *= (-1)^i * im * (sum(ri)-sum(rj))
+
+		end 
+
+		A.*=d1 
+
+		return local_pot + atom_hopp + A 
 	
 	end  
 
@@ -97,5 +109,31 @@ function get_two_leads(
 		
 	[get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,lab),atoms,d),hopp,0.001) for (d,lab)=zip([-1,1],labels)]
 
+
+end  
+
+
+@testset "valid hopping" begin 
+
+	Rs = rand(2,10) 
+	for n=1:4 
+
+		h = get_hopp(n)
+	
+		for ri=eachcol(Rs) 
+	
+			@test LinearAlgebra.ishermitian(h(ri,ri)) 
+
+			for rj=eachcol(Rs)
+
+				@test h(ri,rj)≈h(rj,ri)' 
+
+				LinearAlgebra.norm(ri-rj)>1.1 && @test LinearAlgebra.norm(h(ri,rj))<1e-10
+
+			end 
+	
+		end 
+
+	end 
 
 end 

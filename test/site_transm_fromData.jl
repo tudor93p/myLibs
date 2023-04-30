@@ -98,7 +98,7 @@ NR_ORB = rand(1:10)
 
 println()
 @testset "same bonds" begin 
-	@test nr_bonds== sum(size(v,2) for v=values(data_B))
+	@test nr_bonds==LayeredSystem.nr_bonds(data_B)
 
 
 	for ((l1,l2),B_new) in data_B, (i,j) in eachcol(B_new) 
@@ -128,7 +128,7 @@ println()
 
 			b==(I,J) || return false  
 
-			h12 = TBmodel.slice_atoms(data_H[(l1,l2)],NR_ORB,j,i) 
+			h12 = TBmodel.slice_atoms(data_H[(l1,l2)],NR_ORB,i,j)'
 			
 			@test size(h12)==size(h)==(NR_ORB,NR_ORB) 
 		

@@ -181,7 +181,7 @@ end
 #
 #---------------------------------------------------------------------------#
 
-function GF_Decimation(Hopping::AbstractDict{Symbol,<:Any},
+function GF_Decimation(Hopping::AbstractDict{Symbol},
 											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
 											 LeadLayerSlicer=nothing;
 											 NrLayers::Int, 

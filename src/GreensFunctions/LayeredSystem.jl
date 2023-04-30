@@ -1304,6 +1304,21 @@ function nr_bonds(data_B::Dict{NTuple{2,Int},<:AbstractMatrix{Int}})::Int
 
 end 
 
+#function get_Hij(H::AbstractMatrix{ComplexF64},
+#								 nr_orb::Int, i::Int, j::Int,
+#								 )::AbstractMatrix{ComplexF64}
+#
+#	TBmodel.slice_atoms(Hamilt_IJ, nr_orb, i, j) 
+#
+#end 
+#function get_Hji(H::AbstractMatrix{ComplexF64},
+#								 nr_orb::Int, i::Int, j::Int,
+#								 )::AbstractMatrix{ComplexF64}
+#
+#	get_Hij(H, nr_orb, i, j)' # (j,i) WRONG! 
+#
+#end 
+#
 
 #===========================================================================#
 #
