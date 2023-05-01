@@ -264,32 +264,48 @@ for (a,b) in zip(eachcol(Lattices.ReciprocalVectors(L)), eachcol(Lattices.LattVe
 
 
 
-N=100
+	isBonds = Algebra.EuclDistEquals(1; dim=2)
+for N in 10:30:200 
 
-atoms =  hcat(Algebra.OuterBinary(Vector{Float64}(1:N),1:div(N,2),vcat,flat=true)...)  
+	atoms =  hcat(Algebra.OuterBinary(Vector{Float64}(1:N),1:div(N,2),vcat,flat=true)...)  
 
-@show size(atoms)
+	println() 
 
+	@show size(atoms)
+	
+	
+	
+	
+	nrb = Lattices.NrBonds(atoms, isBonds);
+	@showtime Lattices.NrBonds(atoms, isBonds);
+	nrb2 = Lattices.NrBonds(atoms, 1);
+	@showtime Lattices.NrBonds(atoms, 1); 
 
-isBonds = Algebra.EuclDistEquals(1; dim=2)
-
-
-nrb = Lattices.NrBonds(atoms, isBonds);
-@time nrb = Lattices.NrBonds(atoms, isBonds);
-nrb2 = Lattices.NrBonds(atoms, 1);
-@time nrb2 = Lattices.NrBonds(atoms, 1);
-
-@testset "nr bonds" begin 
-
-@test nrb2==nrb 
-
-end 
-
-CAs = Lattices.filterAtoms_byNrBonds(2, atoms, 1.0)
-@time CAs = Lattices.filterAtoms_byNrBonds(2, atoms, 1.0)
-#@show CAs 
+	B = Lattices.BondSpMatrix(atoms, 1)
+	
+	@showtime Lattices.BondSpMatrix(atoms, 1)
 
 
+	
+	@testset "nr bonds" begin 
+	
+		@test nrb2==nrb 
+	
+		@test nrb==view(count(B, dims=1),:)==view(count(B, dims=2),:)
+	end 
+	
+	CAs1 = Lattices.filterAtoms_byNrBonds(2, transpose(atoms), 1.0; dim=1)
+	CAs2 = Lattices.filterAtoms_byNrBonds(2, atoms, 1.0; dim=2)
+
+	@testset "corner atoms" begin 
+
+		@test CAs1≈CAs2 
+
+	end 
+	
+	#@show CAs 
+end 	
+	
 
 
 

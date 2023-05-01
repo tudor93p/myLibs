@@ -748,6 +748,8 @@ function HoppingMatrix(Rs::AbstractMatrix;
 end  
 
 
+
+#NZ same format as Lattices.BondSpMatrix(atoms::AbstractMatrix{<:Real}, d::Real)
 function HoppingMatrixAndNZ(Rs::AbstractMatrix;
 											 Hopping::Function, 
 											 kwargs...

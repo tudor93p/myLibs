@@ -158,7 +158,7 @@ end
 
 function VecsOnDim(args...; dim::Int)::AbstractMatrix
 
-	vecs = Vecs(args...)::AbstractMatrix
+	vecs::AbstractMatrix = Vecs(args...) 
 
 	return dim==VECTOR_STORE_DIM ? vecs : transpose(vecs)
 

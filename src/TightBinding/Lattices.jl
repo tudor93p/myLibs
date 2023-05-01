@@ -3,7 +3,7 @@ module Lattices
 
 using OrderedCollections:OrderedDict
 
-import ..LA
+import ..LA,..SpA 
 
 import ..Utils, ..Algebra, ..ArrayOps, ..Geometry
 
@@ -2453,10 +2453,14 @@ end
 
 function filterAtoms_byNrBonds(nr_or_f,
 															 atoms::AbstractMatrix{<:Real},
-															 len_or_f...,
+															 len_or_f...;
+															 kwargs...
 															 )::Matrix{Float64} 
 
-	Vecs(atoms, indsAtoms_byNrBonds(nr_or_f, atoms, len_or_f...))
+
+	A = VecsOnDim(atoms; kwargs...) 
+
+	return Vecs(A, indsAtoms_byNrBonds(nr_or_f, A, len_or_f...))
 
 end 
 
@@ -2476,8 +2480,6 @@ function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 end 
 
 function NrBonds(atoms::AbstractMatrix{<:Real}, d::Real)::Vector{Int} 
-
-#	check_nr_atoms(atoms) 
 
 	n::Int = NrVecs(atoms) 
 
@@ -2534,6 +2536,61 @@ function NrBonds(atoms::AbstractMatrix{<:Real}, d::Real)::Vector{Int}
 	return out 
 
 end  
+
+
+# output same format as TBmodel.HoppingMatrixAndNZ
+function BondSpMatrix(atoms::AbstractMatrix{<:Real}, d::Real
+											)::SpA.SparseMatrixCSC{Bool} 
+
+	
+	n::Int = NrVecs(atoms) 
+	 
+	B::SpA.SparseMatrixCSC = SpA.spzeros(Bool, n, n) 
+
+	n>1 || return B 
+
+	A::Matrix{Float64} = ZeroVecs(VecLen(atoms), n-1)
+
+	r::Matrix{Float64} = ZeroVecs(1, n-1) 
+
+	d2::Float64 = abs2(d) 
+
+	for (i,ri) in enumerate(eachvec(atoms)) 
+
+		selectdim(A, VECTOR_STORE_DIM, 1:n-i) .= ri 
+
+		LA.axpy!(-1,
+						 selectdim(atoms, VECTOR_STORE_DIM, i+1:n),
+						 selectdim(A, VECTOR_STORE_DIM, 1:n-i))
+
+		sum!(abs2, 
+				 selectdim(r, VECTOR_STORE_DIM, 1:n-i),
+				 selectdim(A, VECTOR_STORE_DIM, 1:n-i),
+				 )
+
+		for j in 1:n-i
+			
+			if isapprox(r[j], d2, atol=TOLERANCE)
+
+				setindex!(B, true, i, i+j)
+				setindex!(B, true, i+j, i)
+
+			end 
+
+		end 
+
+	end 
+
+	return B
+
+end 
+
+
+
+
+
+
+
 
 
 function NrBonds(atoms::AbstractMatrix{<:Real}, isBond::Function
