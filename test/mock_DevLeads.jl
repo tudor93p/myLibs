@@ -1,4 +1,5 @@
 using myLibs: Lattices, GreensFunctions, ArrayOps,Algebra,Utils 
+using Test 
 
 import LinearAlgebra
 
@@ -79,8 +80,8 @@ function default_LayerAtomRels(DL::Lattices.Lattice)
 	layers = parse.(Int, Lattices.labelToComponent(DL)) .+ 1
 
 		# layer of each atom [1, 2, ..., nr_at] => [L(1), L(2), ..., L(nr_at)]
-	
-	la,ial = Utils.FindPartners(enumerate(layers), sortfirst=true)
+
+		la,ial = Utils.FindPartners(enumerate(layers), sortfirst=true)
 
 	return Dict(
 
@@ -104,10 +105,13 @@ function get_two_leads(
 											 lead_width::Int,
 											 atoms::AbstractMatrix,
 											 labels::AbstractVector{String}=["A","B"];
+											 delta::Bool=true,
 											 hopp...
 											 )
-		
-	[get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,lab),atoms,d),hopp,0.001) for (d,lab)=zip([-1,1],labels)]
+	
+	a1 = delta ? (0.001,) : () 
+
+	[get_lead(Lattices.Align_toAtoms!(get_leadlatt(lead_width,lab),atoms,d),hopp,a1...) for (d,lab)=zip([-1,1],labels)]
 
 
 end  

@@ -6,7 +6,7 @@ module Utils
 import ..LA 
 
 
-import Dates, Combinatorics,Optim, Random#, IterTools 
+import Dates, Combinatorics,Optim, Random, IterTools 
 
 
 using Distributed 
@@ -1994,10 +1994,42 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function baz(v::Int, V::AbstractVector{Int}
+						 )::Bool 
+
+	v in V
+
+end 
+
+function baz(v1::T, v2::T)::Bool where T<:Union{String,Int}
+
+	v1==v2
+
+end 
+
+function foo(args::Union{String,Int}...)::IterTools.Distinct 
+
+	IterTools.distinct(args)
+
+end 
+
+function foo(d::AbstractDict)::IterTools.Distinct 
+
+	foo(values(d)...)
+
+end 
+
+function foo(args::AbstractVector{Int}...)::IterTools.Distinct 
+
+	IterTools.distinct(Iterators.flatten((Iterators.Stateful(a) for a=args)))
+
+end 
+
 
 function FindPartners(pairs12;sortfirst=nothing
 											)::Union{NTuple{2,Nothing},
 															 NTuple{2,Function}}
+
 
 	pairs12 = Dict(pairs12)
 
@@ -2009,14 +2041,11 @@ function FindPartners(pairs12;sortfirst=nothing
 					
 							isa(sortfirst,Bool) && sortfirst && sort!(K)
 
-							isa(sortfirst,Function) && sort!(K, by=sortfirst)
+							isa(sortfirst,Function) && sort!(K, by=sortfirst) 
 
-							local V = unique(collect(values(pairs12)))
-
-							Dict(v=>filter(k->in(v,vcat(pairs12[k])),K) for v in V)
+							Dict(v=>[k for k=K if baz(v,pairs12[k])] for v=foo(pairs12))
 
 						end
-
 
 	get1(key1) = get(pairs12, key1, nothing)
 	get2(key2) = get(pairs21, key2, nothing)

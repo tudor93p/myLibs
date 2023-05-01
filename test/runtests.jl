@@ -45,13 +45,13 @@ for f in [
 
 #"rgf_B" |> pr_in 
 
-#"gf_decim_dataH",
+"gf_decim_dataH",
 #"layeredsystem",
 #"gf_err",
 #"gf",
 
-#"site_transm_fromData",
-"site_transm_fromData_mem",
+"site_transm_fromData",
+#"site_transm_fromData_mem",
 
 #"transm_ZHXS", 
 

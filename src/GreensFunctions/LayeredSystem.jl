@@ -159,7 +159,7 @@ LeadContacts
 	
 	# -------- sanity check and return -------------------- #
 	
-	
+
 	LayerOfAtom, IndsAtomsOfLayer = Utils.FindPartners(D, sortfirst=true)
 	
 	
@@ -602,12 +602,19 @@ end
 
 
 
-function LayerSlicer(;LayerOfAtom::Function, 
+function LayerSlicer(;#NrLayers::Int,
+										 LayerOfAtom::Function, 
 										 IndsAtomsOfLayer::Function, 
 										 nr_orb::Int, kwargs...)
 
-	T = Tuple{Tuple{AbstractString,Int},
-						Tuple{Union{Colon, Vector{Int}}}}
+	T = Tuple{Tuple{String,Int}, Tuple{Union{Colon, Vector{Int}}}}
+
+	#layer_out = [("Layer",i) for i=1:NrLayers]
+
+	colon = (Colon(),)
+
+	#slicer(::Val{:Layer}, i::Int)::Tuple{String,Int} = layer_out[i]
+
 
 	function slicer(name::Symbol, index::Int64)::Union{T,Nothing}
 
@@ -616,10 +623,9 @@ function LayerSlicer(;LayerOfAtom::Function,
 	end 
 
 
-	function slicer(name::String, index::Int64)::Union{T, Nothing}
+	function slicer(name::String, index::Int64)::Union{T, Nothing} #3.7M
 
-
-		name == "Layer" && return (name,index),(Colon(),)
+		name == "Layer" && return (name,index),colon #2.5M 
 
 		name == "Atom" || return nothing #error("Type '$name' not understood")
 
@@ -631,15 +637,18 @@ function LayerSlicer(;LayerOfAtom::Function,
 
 		isnothing(atoms) && return nothing
 
-		length(atoms) == 1 && return ("Layer",layer),(Colon(),)
+		length(atoms) == 1 && return ("Layer",layer),colon 
 		
-		return ("Layer",layer), (TBmodel.Hamilt_indices(collect(1:nr_orb),
-															indexin(index,atoms)[1], nr_orb)
-														,)
+		hi =  TBmodel.Hamilt_indices(nr_orb, indexin(index,atoms)[1])
+
+		return ("Layer",layer), (hi, )  #1.2M 
+
 	end
 
 
-	function slicer(name::Union{String,Symbol}, index::Int64, args...)#::Union{Nothing,Tuple{Tuple{String,Int,String,Int}, Tuple{Union{Colon, Vector{Int}}, Union{Colon, Vector{Int}}} 
+	function slicer(name::Union{String,Symbol}, 
+									index::Int64, 
+									args...)
 
 
 		out1 = slicer(name, index)
@@ -655,11 +664,7 @@ function LayerSlicer(;LayerOfAtom::Function,
 
 		@assert out2 isa T 
 
-		(ni1,slice1),(ni2,slice2) = out1,out2
-
-		
-
-		return (ni1...,ni2...), (slice1...,slice2...)
+		return Utils.tuplejoin(out1[1],out2[1]), Utils.tuplejoin(out1[2],out2[2])
 	
 	end 
 
@@ -875,16 +880,19 @@ function Distribute_Leads(
 
 	nr_at = sum(length∘IndsAtomsOfLayer, 1:NrLayers)
 
-	AtomsInLead,LeadOfAtom = Utils.FindPartners(LeadAtomOrder(nr_at; kwargs..., VirtLeads...))
 
+	AtomsInLead,LeadOfAtom = Utils.FindPartners(LeadAtomOrder(nr_at; kwargs..., VirtLeads...))
 
 
 	slicer(name::Symbol,index::Int64) = slicer(string(name),index)
 
-	function slicer(name::String,index::Int64)
+	colon = (Colon(),)  
 
+	LRnames = ["LeftLead","RightLead"] 
 
-		name in ["LeftLead","RightLead"] && return (name,index),(Colon(),)
+	function slicer(name::String, index::Int64)
+
+		name in LRnames && return (name,index),colon  #2.5M
 
 		if name=="Atom"
 
@@ -893,10 +901,10 @@ function Distribute_Leads(
 			isnothing(lead) && return nothing
 
 
-			out1, (slice1, ) = slicer(lead[1]...)
+			out1, (slice1, ) = slicer(only(lead)...)
 
 
-			i_at = indexin(index, AtomsInLead(lead[1]))[1]
+			i_at = indexin(index, AtomsInLead(only(lead)))[1]
 
 			slice2 = TBmodel.Hamilt_indices(1:nr_orb, i_at, nr_orb)
 
@@ -914,7 +922,7 @@ function Distribute_Leads(
 		allleads = LeadsOfSide(side)
 
 
-		length(allleads)==1 && return (side,index),(Colon(),)
+		length(allleads)==1 && return (side,index),colon
 
 	 	lead = findfirst(isequal(name),allleads)
 
@@ -949,40 +957,53 @@ end
 
 function LeadLayerSlicer(;NrLayers, IndsAtomsOfLayer, LeadSlicer=nothing, nr_orb=nothing, kwargs...)
 
-	layer_slicer = LayerSlicer(;IndsAtomsOfLayer=IndsAtomsOfLayer, nr_orb=nr_orb, kwargs...)
+	layer_slicer = LayerSlicer(;
+#														 NrLayers=NrLayers,
+														 IndsAtomsOfLayer=IndsAtomsOfLayer, 
+														 nr_orb=nr_orb, 
+														 kwargs...)
 														
 #kwargs: NrLayers, LayerOfAtom, IndsAtomsOfLayer, AtomsOfLayer, nr_orb, SideOfLead, LeadsOfSide, LeadSlicer
 
 
-	function slicer(name::Union{String,Symbol}, index::Int64, args...)
+	function slicer(name1, index1, name2, index2)
 
-		out1 = slicer(string(name), index)
-
+		out1 = slicer(name1, index1)
 
 		isnothing(out1) && return nothing 
 
-		out2 = slicer(args...)
-
-
+		out2 = slicer(name2, index2)
 
 		isnothing(out2) && return nothing 
 
-		(ni1,slice1),(ni2,slice2) = out1,out2
-
-
-
-
-		return (ni1...,ni2...),(slice1...,slice2...)
+		return Utils.tuplejoin(out1[1],out2[1]), Utils.tuplejoin(out1[2],out2[2]) 
+#7.4M
 	
 	end
 
+#	function slicer(G::Function, args::Vararg{<:Any} 
+#									)::Union{AbstractMatrix, Nothing}
+#
+#		out_layer = layer_slicer(A, args...)
+#
+#		isnothing(out_layer) || return out_layer 
+#
+#		out_lead = LeadSlicer(A, args...)
+#
+#		isnothing(out_lead) || return out_lead 
+#
+#
+#		slicer(args...)
+#
+#		return Utils.tuplejoin(out1[1],out2[1]), Utils.tuplejoin(out1[2],out2[2]) 
+##7.4M
+#	
+#	end
 
 
 
 
-	function slicer(name_::Union{String,Symbol}, index::Int64)
-
-		name = string(name_)
+	function slicer(name, index)
 
 		out = layer_slicer(name, index)
 		

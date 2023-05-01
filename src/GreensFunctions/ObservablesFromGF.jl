@@ -1022,7 +1022,7 @@ function addSiteTiTj!(siteT::AbstractMatrix{Float64},
 
 	for i in inds 
 
-		selectdim(siteT, dim, i) .+= t 
+		LA.axpy!(1, t, selectdim(siteT, dim, i))
 
 	end 
 
@@ -1066,10 +1066,6 @@ function BondTij(
 	return BondTij(Gr_iL, W_L, Ga_Lj, Hji; kwargs...)
 
 end 
-
-
-
-
 
 function BondTij(Gr_iL::AbstractMatrix{ComplexF64},
 								 W_L::AbstractMatrix{ComplexF64},
@@ -1246,8 +1242,11 @@ function eval_GaGr(arg_ret::Tuple{Tuple,Tuple},
 														<:AbstractMatrix{ComplexF64},
 														}
 
-	
-	(Gr(arg_ret),  Gr(reverse(arg_adv))')
+	gr = Gr(arg_ret)
+
+	aa = reverse(arg_adv)
+
+	return (gr, adjoint(arg_ret==aa ? gr : Gr(aa)))
 
 end 
 

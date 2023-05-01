@@ -19,8 +19,19 @@ import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_gr
 
 """ gives the GF at energy E of an isolated system S with Hamiltonian H """
 
-GF(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
+GF2(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
 
+#function GF(E::Number,H::AbstractMatrix)::Matrix{ComplexF64}
+#
+#	inv(LA.axpy!(-1,H,Matrix{ComplexF64}(E*LA.I,size(H)))) 
+#
+#end 
+
+function GF(E::Number,H::AbstractMatrix)::Matrix{ComplexF64}
+
+	LA.inv!(LA.lu!(LA.axpy!(-1,H,Matrix{ComplexF64}(E*LA.I,size(H)))))
+
+end 
 
 
 """ the system S is now coupled to another system S'
@@ -68,13 +79,24 @@ GF(g::AbstractMatrix)::AbstractMatrix = g
 
 	"""
 
-SelfEn(U::AbstractMatrix,g::AbstractMatrix)::Matrix =  U'*g*U
+SelfEn(U::AbstractMatrix,g::AbstractMatrix)::Matrix = *(U',g,U)
 
 SelfEn((U,g)::Tuple{AbstractMatrix,AbstractMatrix})::Matrix = SelfEn(U,g)
 			# if one tuple is given
 			
-SelfEn(args...)::Matrix = sum(SelfEn.(args))
-			#	if more than one tuple is give
+function SelfEn(arg1, args...)::Matrix 
+	#	if more than one tuple is give
+
+	out = SelfEn(arg1)
+
+	for arg in args 
+		out += SelfEn(arg)
+	end  
+
+	return out 
+
+end 
+
 
 
 
@@ -563,6 +585,8 @@ function GF_Decimation_fromGraph(Energy::Number,
 		ni1ni2,slice = translate(unpack_argsG(args...)[1]...) 
 
 		return view(out1(ni1ni2...; kwargs1...), slice...)
+
+#		return translate(out1(ni1ni2...; kwargs1...), q...)
 
 	end 
 

@@ -1,24 +1,19 @@
 import myLibs: GreensFunctions, LayeredSystem, Lattices, Operators, ObservablesFromGF
-using LinearAlgebra 
+using LinearAlgebra , BenchmarkTools
 
-#include("mock_DevLeads.jl") 
+import Profile 
+include("mock_DevLeads.jl") 
 
 
 println()
 
-@testset "mem" begin 
 
-	NR_ORB = rand(1:10)
-	LENGTH = rand(2:30)
-	WIDTH = rand(2:30)
-
-	NR_ORB = 2 
-	LENGTH = 100##200
-	WIDTH = div(LENGTH,2)
-
-	@show NR_ORB LENGTH WIDTH
 	
-	
+function 	f(LENGTH)	 
+
+	WIDTH =max(1,div(LENGTH,2))
+	NR_ORB= 2
+
 	hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 	
 	
@@ -27,7 +22,7 @@ println()
 	DevAtoms = Lattices.PosAtoms(DevLatt)
 
 	
-	leads = get_two_leads(max(1,div(WIDTH,2)), DevAtoms; hopp...)
+	leads = get_two_leads(max(1,div(WIDTH,2)), DevAtoms; delta=false, hopp...)
 	
 	println()
 	
@@ -36,9 +31,10 @@ println()
 	projectors = [ Operators.Projector(q, :atoms; nr_orb=NR_ORB, dim=2, sum_orbitals=false, sum_atoms=false) for q in [PH, 1 .- PH, 1 ] 
 		]
 	
-for default_LAR in ["forced",
-										default_LayerAtomRels(DevLatt)]
-	
+#for default_LAR in ["forced", default_LayerAtomRels(DevLatt)]
+
+default_LAR = default_LayerAtomRels(DevLatt)
+
 	NewGeom = LayeredSystem.NewGeometry(
 									DevAtoms, default_LAR; 
 									isBond=isBond, dim=2, nr_orb=NR_ORB,
@@ -52,6 +48,8 @@ for default_LAR in ["forced",
 	data_A = LayeredSystem.prep_sharedA(LayerAtom, DevAtoms)
 
 
+#	@show Base.summarysize(data_H)
+#	@show Base.summarysize(data_B)
 
 	
 	g_noH = LayeredSystem.LayeredSystem_toGraph(LayerAtom[:NrLayers], VirtLeads) 
@@ -61,60 +59,49 @@ for default_LAR in ["forced",
 				
 	
 	
-	E1 = rand() 
+	E1 = rand() -0.5 + 0.002im 
 	
+
+#	@show E1 
+
 	
-	
-	G_new = GreensFunctions.GF_Decimation_fromGraph(E1, g_noH, data_H, Slicer;
-																													leads_have_imag=true,
-																													)
+	G_ret = GreensFunctions.GF_Decimation_fromGraph(E1, g_noH, data_H, Slicer; leads_have_imag=false)
+	G_adv = GreensFunctions.GF_Decimation_fromGraph(conj(E1), g_noH, data_H, Slicer; leads_have_imag=false)
 
 println()
 
-	for i=1:LayerAtom[:NrLayers]
-
-	@test G_new("Layer",1,"Layer",i) isa AbstractMatrix
-
-
-
-end 
 println()
 
-	se = GreensFunctions.SelfEn_fromGDecim(G_new, VirtLeads, Slicer) 
-	
+	se = GreensFunctions.SelfEn_fromGDecim(G_ret, VirtLeads, Slicer) 
 
-	se(leadlabels[1],1)
 
 	lead_ID = (leadlabels[1], 1)
-									
+#BenchmarkTools.DEFAULT_PARAMETERS.samples = 3 
+#BenchmarkTools.DEFAULT_PARAMETERS.seconds = 60 
+	args = (G_ret,data_H, data_B, data_A..., se, lead_ID...) 
+	kwargs = (dim=1, nr_orb=NR_ORB)
 
-	siteT_new = ObservablesFromGF.SiteTransmission(
-										G_new,													# 1 arg 
-										data_H, data_B, data_A..., # 4 args 
-										se,															# 1 arg 
-										lead_ID...;											# pos 7-8
-										dim=1,
-										nr_orb=NR_ORB,
-										)  
+#	@benchmark ObservablesFromGF.SiteTransmission($(args)...; $(kwargs)...)
+	ObservablesFromGF.SiteTransmission(args...; kwargs...)
+	
 
-	@show size(siteT_new)
+
 	
-	println() 
-	
-	
-	for proj in projectors 
-	
-		for dos=(true,false),ldos=(true,false)
-	
-			data = ObservablesFromGF.ComputeDOSLDOS_Decimation(G_new, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer], proj,  VirtLeads; dos=dos, ldos=ldos, dim=2)
-	
-	#		dos && @show data[1]
-	#		ldos && @show extrema(data[2])
-	
-		end 
-	
-	
-		end 
-	end 
-	nothing 
-end 	
+#	
+#	for proj in projectors 
+#
+#		@time "DOS"	ObservablesFromGF.ComputeDOSLDOS_Decimation(G_new, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer], proj,  VirtLeads; dos=true, ldos=true, dim=2)
+#	
+#	
+#		end  
+#
+#
+end 
+
+#@time f(5)
+#@time f(6)
+#@time f(7) 
+#
+#Profile.clear_malloc_data()
+f(140)
+

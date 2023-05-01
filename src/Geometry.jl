@@ -25,32 +25,22 @@ function is_left(P0, P1, P2)::Real
 
 	(P1[1] - P0[1]) * (P2[2] - P0[2]) - (P2[1] - P0[1]) * (P1[2] - P0[2])
 
-end 
+end  
 
-function PointInPolygon_wn(P::Utils.List, V::AbstractMatrix; 
-													 dim, prepare_vertices=true, kwargs...)::Bool
+function _PointInPolygon_wn(P::Union{AbstractVector{<:Real},
+																		 Tuple{Vararg{<:Real}}},
+														V::AbstractMatrix{<:Real},
+														)::Bool
 
-
-	prepare_vertices && return PointInPolygon_wn(P, prepare_polygon_vertices(V; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
-
-  wn = 0   # the winding number counter
-
-  						# repeat the first vertex at the end
-
-
-	v(i) = selectdim(V, dim, i)
-
-	v(i,j) = v(i)[j]
-
-
+  wn::Int = 0   # the winding number counter
 
   # loop through all edges of the polygon
 
-	for i in 1:size(V, dim)-1  # edge from v(i) to v(i+1) 
+	for i in 1:size(V, 2)-1  # edge from v(i) to v(i+1) 
 
-		if v(i,2) <= P[2] # start y <= P[1]
+		if V[2,i]<=P[2] # start y <= P[1]
 
-			if v(i+1,2)>P[2] && is_left(v(i), v(i+1),P)>0 
+			if V[2,i+1]>P[2] && is_left(selectdim(V,2,i), selectdim(V,2,i+1), P)>0 
 									# an upward crossing & P left of edge
 			
 				wn += 1           # have a valid up intersect
@@ -60,9 +50,8 @@ function PointInPolygon_wn(P::Utils.List, V::AbstractMatrix;
 			 
 		else # start y > P[2] (no test needed)
 			 
-			if v(i+1,2)<=P[2] && is_left(v(i), v(i+1), P)<0
+			if V[2,i+1]<=P[2] && is_left(selectdim(V,2,i), selectdim(V,2,i+1), P)<0
 
-						
 						# a downward crossing &  P right of edge
 
 				wn -= 1           # have a valid down intersect
@@ -76,9 +65,75 @@ function PointInPolygon_wn(P::Utils.List, V::AbstractMatrix;
 
   return wn != 0
 
+end 
+
+
+function PointInPolygon_wn(P::Utils.List, V::AbstractMatrix; 
+													 dim::Int, 
+													 prepare_vertices::Bool=true, 
+													 kwargs...)::Bool
+
+
+	prepare_vertices && return PointInPolygon_wn(P, prepare_polygon_vertices(V; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
+
+
+	return dim==2 ? _PointInPolygon_wn(P,V) : _PointInPolygon_wn(P,transpose(V))
 
 end 
 
+#
+#function PointInPolygon_wn(P::Utils.List, V::AbstractMatrix; 
+#													 dim, prepare_vertices=true, kwargs...)::Bool
+#
+#
+#	prepare_vertices && return PointInPolygon_wn(P, prepare_polygon_vertices(V; dim=dim, kwargs...); dim=dim, prepare_vertices=false, kwargs...)
+#
+#  wn = 0   # the winding number counter
+#
+#  						# repeat the first vertex at the end
+#
+#
+#	v(i) = selectdim(V, dim, i)
+#
+#	v(i,j) = v(i)[j]  # INEFFICIENT !! 
+#
+#
+#
+#  # loop through all edges of the polygon
+#
+#	for i in 1:size(V, dim)-1  # edge from v(i) to v(i+1) 
+#
+#		if v(i,2) <= P[2] # start y <= P[1]
+#
+#			if v(i+1,2)>P[2] && is_left(v(i), v(i+1),P)>0 
+#									# an upward crossing & P left of edge
+#			
+#				wn += 1           # have a valid up intersect
+#
+#			end 
+#
+#			 
+#		else # start y > P[2] (no test needed)
+#			 
+#			if v(i+1,2)<=P[2] && is_left(v(i), v(i+1), P)<0
+#
+#						
+#						# a downward crossing &  P right of edge
+#
+#				wn -= 1           # have a valid down intersect
+#
+#
+#			end
+#
+#		end 
+#
+#	end 
+#
+#  return wn != 0
+#
+#
+#end 
+#
 
 
 

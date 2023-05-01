@@ -1622,11 +1622,16 @@ end
 
 
 
-
-
 function Labels_ManyUCs(atom_labels::AbstractVector,
 												uc_labels::AbstractVector;
-#												kwargs...
+												)::Vector{String} 
+
+	Labels_ManyUCs(string.(atom_labels),  uc_labels)
+
+end 
+
+function Labels_ManyUCs(atom_labels::AbstractVector{<:AbstractString},
+												uc_labels::AbstractVector;
 												)::Vector{String}
 
 	Algebra.OuterBinary(string.(atom_labels), 

@@ -60,11 +60,11 @@ sortvecs(A::AbstractMatrix{<:Number}; kwargs...) = sortslices(A; dims=VECTOR_STO
 
 NrVecs(A::AbstractMatrix{<:Number}, x::Nothing=nothing)::Int = size(A, VECTOR_STORE_DIM)   
 
-IndsVecs(A::AbstractMatrix{<:Number})::Vector{Int} = axes(A, VECTOR_STORE_DIM)
+IndsVecs(A::AbstractMatrix{<:Number})::AbstractVector{Int} = axes(A, VECTOR_STORE_DIM)
 
 
 function IndsVecs(I::AbstractVector{Int}, d::AbstractArray{Int, N}
-									)::Array{Int, N} where N 
+									)::AbstractArray{Int, N} where N 
 
 	@assert issubset(d, I) "Index $d not possible"
 	
@@ -73,7 +73,7 @@ function IndsVecs(I::AbstractVector{Int}, d::AbstractArray{Int, N}
 end 
 
 function IndsVecs(L::Int,
-									d::AbstractVector{Bool})::Vector{Bool}
+									d::AbstractVector{Bool})::AbstractVector{Bool}
 
 	@assert L==length(d) "Index $d not possible"
 	
@@ -90,14 +90,14 @@ end
 
 
 function IndsVecs(A::AbstractMatrix{<:Number}, 
-									d::Union{Int, AbstractArray{Int}})::Array{Int}
+									d::Union{Int, AbstractArray{Int}})::AbstractArray{Int}
 	
 	IndsVecs(IndsVecs(A), d)
 
 end  
 
 function IndsVecs(A::AbstractMatrix{<:Number}, 
-									d::AbstractVector{Bool})::Vector{Bool}
+									d::AbstractVector{Bool})::AbstractVector{Bool}
 	
 	IndsVecs(NrVecs(A), d)
 
