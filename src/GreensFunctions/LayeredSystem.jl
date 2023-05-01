@@ -21,7 +21,7 @@ import ..LA, ..SpA
 import MetaGraphs
 import MetaGraphs: MetaDiGraph  
 import SharedArrays: SharedMatrix
-import ResumableFunctions: @resumable, @yield 
+#import ResumableFunctions: @resumable, @yield 
 
 import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps, ..Algebra
 

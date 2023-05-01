@@ -7,12 +7,12 @@ using Test, BenchmarkTools
 for f in [
 
 #"mydistrib",
-#"algebra" ,
+"algebra" ,
  
-#"signal",
+"signal",
 #
 #
-#"identify_sectors", 
+"identify_sectors", 
 #
 #
 #"caroli_cond_methods"
@@ -24,11 +24,11 @@ for f in [
 
 "lattices",
 
-#"geometry",
+"geometry",
 
 #"lattices_attachleads",
 
-#"sancho-rubio" |> pr_in 
+"sancho-rubio",
 
 
 #"lattices_relabsdim" |> pr_in
