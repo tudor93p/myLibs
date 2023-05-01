@@ -31,7 +31,9 @@ function LDOS(Gr::AbstractMatrix{ComplexF64};
 
 	trace = Operators.Trace(:orbitals; sum_up=false, kwargs...)
 
-	return trace(proj(-1/pi*imag(LA.diag(Gr))))
+	ldos = trace(proj(imag(LA.diag(Gr))))
+
+	ldos ./= -pi 
 
 end
 
@@ -39,7 +41,7 @@ end
 function DOS(Gr::AbstractMatrix{ComplexF64}; 
 						 proj::Function=identity, kwargs...)::Float64
 
-	sum(proj(-1/pi*imag(LA.diag(Gr))))
+	-1/pi* sum(proj(imag(LA.diag(Gr))))
 
 #	length(Op)==1 && return only(Op)*sum(D) 
 
@@ -72,7 +74,7 @@ function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 
 	lead_atoms = LayeredSystem.LeadAtomOrder(nr_at; dim=dim, VirtLeads...)
 
-	ldos = zeros(Float64, mapreduce(length, +, values(lead_atoms), init=nr_at))
+	ldos = zeros(sum(length, values(lead_atoms); init=nr_at))
 
 
 	for d in (dev_atoms,lead_atoms), (key,inds) in pairs(d)

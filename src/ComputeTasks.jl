@@ -4,7 +4,7 @@ module ComputeTasks
 using Distributed
 
 
-import ..Random, PyCall, ..OrderedDict 
+import ..Random, ..OrderedDict
 
 import ..Utils, ..Parameters
 

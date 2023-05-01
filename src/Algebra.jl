@@ -1685,7 +1685,7 @@ end
 function Dist(a::AbstractVector{<:Real},
 							B::AbstractMatrix{<:Real}; dim, kwargs...)::Vector{Float64}
 
-	LA.norm.(eachslice(B.-reshape(A, insert!(Any[Colon()], dim, 1)...); 
+	LA.norm.(eachslice(B.-reshape(a, insert!(Any[Colon()], dim, 1)...); 
 										 dims=dim))
 
 end 
@@ -1701,7 +1701,7 @@ end
 
 
 function Dist(A::AbstractMatrix{<:Real},
-							B::AbstractMatrix{<:Real}; dim, kwargs...)::Matrix{Float64}
+							B::AbstractMatrix{<:Real}; dim::Int, kwargs...)::Matrix{Float64}
 
 	OuterDist(A, B; dim=dim)
 
@@ -1861,7 +1861,7 @@ end
 
 function split_in_bathces(n::Int, N::Int)::Vector{OrdinalRange{Int,Int}}
 
-	Utils.EqualDistributeBallsToBoxes_cumulRanges(n, Int(ceil(n/N)))
+	Utils.EqualDistributeBallsToBoxes_cumulRanges(n, cld(n,N))
 
 end 
 

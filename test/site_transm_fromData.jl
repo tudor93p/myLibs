@@ -36,17 +36,9 @@ end
 println()
 
 NR_ORB = rand(1:10)
-	LENGTH = rand(1:30)
-	WIDTH = rand(1:30)
+	LENGTH = rand(2:30)
+	WIDTH = rand(2:30)
 
-NR_ORB = 7
-LENGTH = 28
-WIDTH = 23
-
-#	NR_ORB = 1 
-#	WIDTH=2
-#	LENGTH=3 
-#
 	@show NR_ORB LENGTH WIDTH
 	
 	
@@ -171,7 +163,6 @@ end
 	
 	g_noH = LayeredSystem.LayeredSystem_toGraph(LayerAtom[:NrLayers], VirtLeads) 
 
-	@show Graph.get_prop(g_noH,:UCsLeads)
 
 	leadlabels = LayeredSystem.get_leadlabels(g_noH)
 				

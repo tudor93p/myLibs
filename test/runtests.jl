@@ -22,7 +22,7 @@ for f in [
 
 #"lattices_vecs" |> pr_in
 
-#"lattices",
+"lattices",
 
 #"geometry",
 
@@ -50,7 +50,7 @@ for f in [
 #"gf_err",
 #"gf",
 
-"site_transm_fromData",
+#"site_transm_fromData",
 
 #"transm_ZHXS", 
 

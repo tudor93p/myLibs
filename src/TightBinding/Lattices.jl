@@ -2354,9 +2354,8 @@ function get_Bonds(latt::Lattice;
 	ud,ui = Unique(FlatOuterDist(AtomsUC, FlatOuterSum(AtomsUC,UCs)),
 								 sorted=true, inds=:all)
 
-#	@show approx(dists[:],FlatOuterDist(AtomsUC, FlatOuterSum(AtomsUC,UCs)))
 
-	n = ui[neighbor_index + count(ud.<TOLERANCE)]
+	n = ui[neighbor_index + count(<(TOLERANCE), ud)]
 
 
 	iA,iUC = axes.((AtomsUC,UCs), VECTOR_STORE_DIM)
@@ -2476,31 +2475,96 @@ function NrBonds(latt::Lattice, args...; kwargs...)::Vector{Int}
 
 end 
 
-function NrBonds(atoms::AbstractMatrix{<:Real}, len_or_f...)::Vector{Int} 
+function NrBonds(atoms::AbstractMatrix{<:Real}, d::Real)::Vector{Int} 
 
-	check_nr_atoms(atoms) 
+#	check_nr_atoms(atoms) 
 
+	n::Int = NrVecs(atoms) 
 
-	out = zeros(Int, NrVecs(atoms))
+	out::Vector{Int} = zeros(Int, n)
 	
-	NrVecs(atoms) > 1 || return out 
+	n>1 || return out 
 
-	allpairs = Algebra.get_Bonds_asMatrix(atoms, len_or_f...; 
-																				dim=VECTOR_STORE_DIM, inds=true) 
+	A::Matrix{Float64} = ZeroVecs(VecLen(atoms), n-1)
 
-	isempty(allpairs) && return out
+	r::Matrix{Float64} = ZeroVecs(1, n-1) 
+
+	d2::Float64 = abs2(d) 
+
+#	Vecs(A,1:n-1) MUCH more expensive  
+
+	for (i,ri) in enumerate(eachvec(atoms)) 
+
+		selectdim(A, VECTOR_STORE_DIM, 1:n-i) .= ri 
+
+		LA.axpy!(-1,
+						 selectdim(atoms, VECTOR_STORE_DIM, i+1:n),
+						 selectdim(A, VECTOR_STORE_DIM, 1:n-i))
+
+		sum!(abs2, 
+				 selectdim(r, VECTOR_STORE_DIM, 1:n-i),
+				 selectdim(A, VECTOR_STORE_DIM, 1:n-i),
+				 )
+
+		for j in 1:n-i
+			
+			if isapprox(r[j], d2, atol=TOLERANCE)
+
+				out[i]+=1 
+				out[i+j]+=1
+
+			end 
+
+		end 
+
+	end 
+#	allpairs = Algebra.get_Bonds_asMatrix(atoms, len_or_f...; 
+#																				dim=VECTOR_STORE_DIM, inds=true) 
+#
+#	# MEMORY EXPENSIVE
+#	isempty(allpairs) && return out
+#
+#
+#	for (i,bonds) in Utils.EnumUnique(allpairs[:]) 
+#		
+#		out[i] = length(bonds)
+#
+#	end 
+
+	return out 
+
+end  
 
 
-	for (i,bonds) in Utils.EnumUnique(allpairs[:])
-		
-		out[i] = length(bonds)
+function NrBonds(atoms::AbstractMatrix{<:Real}, isBond::Function
+								)::Vector{Int} 
+
+#	check_nr_atoms(atoms) 
+
+	n::Int = NrVecs(atoms) 
+
+	out::Vector{Int} = zeros(Int, n)
+	
+	n>1 || return out 
+
+	for (i,ri) in enumerate(eachvec(atoms)) 
+
+		for (j,b) = enumerate(isBond(ri, selectdim(atoms, VECTOR_STORE_DIM, i+1:n)))
+
+			if b
+
+				out[i]+=1 
+				out[i+j]+=1
+
+			end 
+
+		end 
 
 	end 
 
 	return out 
 
 end 
-
 
 #function NrBonds(atoms1::AbstractMatrix{Float64}, 
 #								 atoms2::AbstractMatrix{Float64},
@@ -2696,7 +2760,7 @@ function Align_toAtoms!(latt::Lattice,
 												kwargs...)::Lattice 
 
 
-	shift_dir_v = sign(shift_dir)*vec(LattVec(latt, abs(shift_dir)))
+	shift_dir_v = sign(shift_dir)*view(LattVec(latt, abs(shift_dir)),:)
 
 	LA.normalize!(shift_dir_v) 
 

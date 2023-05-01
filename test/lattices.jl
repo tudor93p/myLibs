@@ -260,6 +260,34 @@ for (a,b) in zip(eachcol(Lattices.ReciprocalVectors(L)), eachcol(Lattices.LattVe
 
 
 
+		 println("\n")
+
+
+
+N=100
+
+atoms =  hcat(Algebra.OuterBinary(Vector{Float64}(1:N),1:div(N,2),vcat,flat=true)...)  
+
+@show size(atoms)
+
+
+isBonds = Algebra.EuclDistEquals(1; dim=2)
+
+
+nrb = Lattices.NrBonds(atoms, isBonds);
+@time nrb = Lattices.NrBonds(atoms, isBonds);
+nrb2 = Lattices.NrBonds(atoms, 1);
+@time nrb2 = Lattices.NrBonds(atoms, 1);
+
+@testset "nr bonds" begin 
+
+@test nrb2==nrb 
+
+end 
+
+CAs = Lattices.filterAtoms_byNrBonds(2, atoms, 1.0)
+@time CAs = Lattices.filterAtoms_byNrBonds(2, atoms, 1.0)
+#@show CAs 
 
 
 
