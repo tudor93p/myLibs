@@ -30,7 +30,7 @@ function LDOS(Gr::AbstractMatrix{ComplexF64};
 							proj::Function=identity, kwargs...)::Vector{Float64}
 
 	trace = Operators.Trace(:orbitals; sum_up=false, kwargs...)
-	
+
 	return trace(proj(-1/pi*imag(LA.diag(Gr))))
 
 end

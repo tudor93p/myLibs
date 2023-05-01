@@ -1404,7 +1404,6 @@ function Trace(what::Symbol,
 	data_ = get_diag(data)
 
 
-
 	if !enough_data 
 		
 		@assert !haskey(kwargs, :size_H) 
@@ -1428,10 +1427,9 @@ function Trace(what::Symbol,
 
 		Op = Operator(data_; dim=dim, kwargs..., trace=sum_up ? :all : what)  
 
-
 		return function tr(A::AbstractVecOrMat{T}
 											 )::Union{T,Vector{T}} where T<:Number 
-	
+
 			Trace(get_diag(A), Op.data, Op.inds)
 
 		end 

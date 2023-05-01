@@ -354,13 +354,18 @@ function Hamilt_indices_all(orbs::AbstractVector{Int},
 														kw...
 														)::Vector{<:AbstractVector{Int}}
 
-	if nr_orb==length(orbs) && all(Base.splat(==), enumerate(orbs)) 
-
-		warn && @warn "Use instead Hamilt_indices_all(nr_orb, atoms; kwargs...)"  
-
-		return Hamilt_indices_all(nr_orb, atoms; kw...)
-
-	end 
+#3	if nr_orb==length(orbs) && all(Base.splat(==), enumerate(orbs)) 
+#3
+#3		warn && @warn "Use instead Hamilt_indices_all(nr_orb, atoms; kwargs...)"  
+#3
+#3		out1 = Hamilt_indices_all(nr_orb, atoms; kw...)
+#3		ou2 = atorb_iter(_Hamilt_indices(nr_orb,maximum(atoms),orbs,atoms); kw...)
+#3
+#3		@assert  out1==ou2 
+#3
+#3		return Hamilt_indices_all(nr_orb, atoms; kw...)
+#3
+#3	end 
 
 	atorb_iter(_Hamilt_indices(nr_orb,maximum(atoms),orbs,atoms); kw...)
 

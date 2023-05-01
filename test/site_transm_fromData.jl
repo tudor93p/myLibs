@@ -39,6 +39,10 @@ NR_ORB = rand(1:10)
 	LENGTH = rand(1:30)
 	WIDTH = rand(1:30)
 
+NR_ORB = 7
+LENGTH = 28
+WIDTH = 23
+
 #	NR_ORB = 1 
 #	WIDTH=2
 #	LENGTH=3 
@@ -94,13 +98,24 @@ for default_LAR in ["forced",
 
 
 	PH = vcat(ones(div(NR_ORB,2)),zeros(NR_ORB-div(NR_ORB,2))) 
-	
-	projectors = [
-		Operators.Projector(PH, :atoms; nr_orb=NR_ORB, dim=2),
-		Operators.Projector(1 .- PH, :atoms; nr_orb=NR_ORB, dim=2),
-		Operators.Projector(ones(NR_ORB), :atoms; nr_orb=NR_ORB, dim=2),
+
+
+	projectors = [ Operators.Projector(q, :atoms; nr_orb=NR_ORB, dim=2, sum_orbitals=false, sum_atoms=false) for q in [PH, 1 .- PH, 1 ] 
 		]
 
+
+	@testset "projectors" begin 
+
+	for p in projectors
+
+		x = rand(NR_ORB,NR_ORB) 
+
+		@test p(x) isa AbstractMatrix 
+		@test size(p(x))==size(x) 
+
+	end 
+
+end 
 
 println()
 @testset "same bonds" begin 
@@ -226,8 +241,19 @@ println()
 end 
 println() 
 
+for proj in projectors 
+
+	for dos=(true,false),ldos=(true,false)
+
+		data = ObservablesFromGF.ComputeDOSLDOS_Decimation(G_new, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer], proj,  VirtLeads; dos=dos, ldos=ldos, dim=2)
+
+#		dos && @show data[1]
+#		ldos && @show extrema(data[2])
+
+	end 
 
 
+	end 
 @testset "net T old==new" begin  
 
 	for ps_=Combinatorics.powerset(projectors,0,2), ps=[ps_, reverse(ps_)]
