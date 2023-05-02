@@ -73,7 +73,17 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 	kwargs = (dim=1, nr_orb=NR_ORB)
 
 #	@benchmark ObservablesFromGF.SiteTransmission($(args)...; $(kwargs)...)
-#	ObservablesFromGF.SiteTransmission(args...; kwargs...)
+	
+	siteT1 = ObservablesFromGF.SiteTransmission(args...; kwargs...)
+
+	siteT2 = zeros(ObservablesFromGF.size_SiteTransm(DevAtoms; dim=1))
+
+	ObservablesFromGF.SiteTransmission!(siteT2, args...; kwargs...)
+
+	@test siteT1 ≈siteT2 
+
+
+
 
 	
 	

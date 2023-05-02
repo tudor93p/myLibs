@@ -59,7 +59,7 @@ end
 
 
 function size_LDOS_Decimation(;NrLayers::Int, indsLayer::Function,
-															kwargs...)::Tuple 
+															kwargs...)::Tuple{Int}
 
 	size_LDOS_Decimation(NrLayers, indsLayer; kwargs...)
 
@@ -1429,6 +1429,8 @@ function SiteTransmission(Gr::Function, Ga::Function,
 end  
 
 
+
+
 function SiteTransmission(G::Function, 
 													arg1::Union{AbstractVector,Tuple,AbstractDict},
 													args...; 
@@ -1443,6 +1445,44 @@ function SiteTransmission(G::Function,
 	return siteT 
 
 end
+
+
+function SiteTransmission!(siteT::T,
+													 Gr::Function, Ga::Function,
+													args...; 
+													GaGr_check::AbstractString="return",
+													kwargs...
+													)::T where T<:AbstractMatrix{Float64}
+
+	SiteTransmission_!(siteT, args..., Gr, Ga; GaGr_check="return", kwargs...)
+
+#	summarize_warn_messages(GaGr_check, errmsg)
+
+	return siteT 
+
+end  
+
+
+
+
+function SiteTransmission!(siteT::T,
+													 G::Function, 
+													arg1::Union{AbstractVector,Tuple,AbstractDict},
+													args...; 
+													GaGr_check::AbstractString="return",
+													kwargs...)::T where T<:AbstractMatrix{Float64}
+
+	SiteTransmission_!(siteT, arg1, args..., G; 
+																	 GaGr_check="return", kwargs...)
+
+	return siteT 
+
+end
+
+
+
+
+
  
 #===========================================================================#
 #
@@ -1461,6 +1501,7 @@ function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 													 ;
 													 dim::Int,
 													 kwargs...)::Tuple{Matrix{Float64},Vector{String}}
+
 
 	siteT = ArrayOps.init_zeros(dim => maximum(maximum, Bonds),
 															[2,1][dim] => length(RBonds[1][1]))
@@ -1484,17 +1525,21 @@ function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 
 end
 
-function size_SiteTransm(	 Atoms::AbstractMatrix{Float64};
+function size_SiteTransm(Atoms::AbstractMatrix{Float64},
+												 args...;
 													 dim::Int,
 													 kwargs...
-													 )::Matrix{Float64}
+													 )::NTuple{2,Int}
 
 	size(Lattices.VecsOnDim(Atoms; dim=dim))
 
 end 
 
 
-function SiteTransmission_(Hamilt::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{ComplexF64}},
+
+function SiteTransmission_!(siteT::AbstractMatrix{Float64},
+														
+														Hamilt::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{ComplexF64}},
 													 Bonds::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{Int}},
 													 Atoms::AbstractMatrix{Float64},
 													 get_inds_atoms::Function,
@@ -1504,11 +1549,8 @@ function SiteTransmission_(Hamilt::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{
 													 Gs::Function...;
 													 dim::Int,
 													 kwargs...
-													 )::Tuple{Matrix{Float64},Vector{String}}
+													 )::AbstractMatrix{Float64}
 
-
-	siteT = ArrayOps.init_zeros(dim => Lattices.NrVecs(Atoms),
-															[2,1][dim] => Lattices.VecLen(Atoms))
 
 	W = GreensFunctions.DecayWidth(SE_lead(lead, lead_uc))
 
@@ -1522,7 +1564,25 @@ function SiteTransmission_(Hamilt::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{
 	end 
 
 
-	return (siteT,String[])
+	return siteT 
+
+end
+
+
+
+function SiteTransmission_(
+													 Hamilt::AbstractDict,
+													 Bonds::AbstractDict,
+													 Atoms::AbstractMatrix{Float64},
+													 args...;
+													 dim::Int,
+													 kwargs...
+													 )::Tuple{Matrix{Float64},Vector{String}}
+
+	(SiteTransmission_!(zeros(size_SiteTransm(Atoms; dim=dim)),
+										 Hamilt, Bonds, Atoms, args...;
+										 dim=dim, kwargs...),
+	 String[])
 
 end
 
