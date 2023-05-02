@@ -3698,6 +3698,10 @@ function RecursiveMerge(f::Function, iter::List;
 												)::AbstractDict{<:Any, Any}
 
 	RecursiveMerge((parallel ? pmap : map)(f, iter); kwargs...)
+#	@time "A" A = (parallel ? pmap : map)(f, iter);
+#
+#	@time "RM" out = RecursiveMerge(A; kwargs...)
+
 
 end 
 

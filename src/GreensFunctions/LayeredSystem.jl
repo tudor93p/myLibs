@@ -33,7 +33,23 @@ import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
+function nrLeadAtoms(nr_at::Int=0; dim::Int, kwargs...)::Int 
 
+	for k in [:LeftLead,:RightLead]
+
+		haskey(kwargs,k) || continue 
+
+		for at in kwargs[k][:head]
+
+			nr_at += size(at,dim)
+
+		end 
+
+	end 
+
+	return nr_at 
+
+end 
 
 function LeadAtomOrder(nr_at::Int=0; dim::Int,
 											 LeftLead=nothing, RightLead=nothing, 
@@ -1206,25 +1222,6 @@ function condStore_sharedHB(
 	return data_H, data_B
 
 end  
-
-#@resumable function iter_shared_data(
-#												data::Dict{NTuple{2,Int}, SharedMatrix{<:Number}},
-#												)
-#
-#	for (k,v) in data 
-#	
-#		haskey(data, (i,j)) || continue 
-#		(i,j)
-#
-#
-#
-#	(i,i) 
-#	(i-1,i)
-#	end 
-#
-#	return  
-#
-#end 
 
 
 """

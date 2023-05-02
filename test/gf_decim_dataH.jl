@@ -1,6 +1,6 @@
 using myLibs: Lattices, LayeredSystem, Algebra,GreensFunctions, Graph,ArrayOps,TBmodel,Utils 
 
-using LinearAlgebra, SparseArrays 
+using LinearAlgebra, SparseArrays, Distributed 
 #import PyPlot
 
 include("mock_DevLeads.jl")
@@ -12,7 +12,12 @@ include("mock_DevLeads.jl")
 		hopp = Dict(:Hopping=>get_hopp(nr_orb), :nr_orb=>nr_orb)  
 
 		for Nx=10:15:20, Ny=7:17:20 
-	
+#for Nx=[100]
+
+#	Ny = div(Nx,2)
+
+			@show (Nx,Ny)
+
 			atoms = get_atoms([Nx,Ny])  
 
 			leads_  = get_two_leads(max(div(Ny,2),1), atoms; hopp...)
@@ -104,14 +109,17 @@ include("mock_DevLeads.jl")
 					end 
 
 
-					Graph.has_prop(g_noH,:UCsLeads) && @show Graph.get_prop(g_noH, :UCsLeads)
-					Graph.has_prop(g_withH,:UCsLeads) && @show Graph.get_prop(g_withH, :UCsLeads)
+#					Graph.has_prop(g_noH,:UCsLeads) && @show Graph.get_prop(g_noH, :UCsLeads)
+#					Graph.has_prop(g_withH,:UCsLeads) && @show Graph.get_prop(g_withH, :UCsLeads)
 		
 				leadlabels = Graph.get_prop(g_noH,:LeadLabels) 
 
 				@test leadlabels==Graph.get_prop(g_withH,:LeadLabels)
 			
 				data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; hopp...)
+#@time "single" data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; hopp...)
+#				data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; parallel=true, hopp...)
+#@time "multi"				data_H,data_B = LayeredSystem.condStore_sharedHB(D, atoms; parallel=true, hopp...)
 		
 				@test !isempty(data_H) 
 				@test !isempty(data_B)

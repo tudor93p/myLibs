@@ -55,6 +55,25 @@ end
 #
 #---------------------------------------------------------------------------#
 
+
+
+
+function size_LDOS_Decimation(;NrLayers::Int, indsLayer::Function,
+															kwargs...)::Tuple 
+
+	size_LDOS_Decimation(NrLayers, indsLayer; kwargs...)
+
+end   
+
+function size_LDOS_Decimation(NrLayers::Int, indsLayer::Function;
+															kwargs...)::Tuple 
+
+	(LayeredSystem.nrLeadAtoms(sum(length∘indsLayer, 1:NrLayers); kwargs...),)
+
+end  
+
+
+
 function LDOS_Decimation(GD::Function; 
 												 NrLayers::Int, 
 												 IndsAtomsOfLayer::Function,
@@ -89,6 +108,48 @@ function LDOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function;
 	return ldos
 	
 end
+
+function LDOS!(ldos::AbstractVector{Float64},
+									 Gr::AbstractMatrix{ComplexF64},
+									 inds::AbstractVector{Int}; 
+									 kwargs...
+									 )::AbstractVector{Float64}
+
+	setindex!(ldos,
+						LDOS(Gr; nr_at=length(inds), size_H=size(Gr,1), kwargs...),
+						inds)
+
+end 
+
+function LDOS_Decimation!(ldos::AbstractVector{Float64},
+													GD::Function, NrLayers::Int, indsLayer::Function; 
+												 proj::Function=identity, dim::Int, VirtLeads...
+												 )::AbstractVector{Float64}
+
+	nr_at::Int = 0 
+
+	for L in 1:NrLayers
+
+		inds = indsLayer(L) 
+
+		nr_at += length(inds)
+
+		LDOS!(ldos, GD("Layer",L), inds; proj=proj, dim=dim)
+
+	end
+	
+	for (key,inds) in LayeredSystem.LeadAtomOrder(nr_at; dim=dim, VirtLeads...)
+
+		LDOS!(ldos, GD(key...), inds; proj=proj, dim=dim)
+
+	end 
+
+	return ldos
+	
+end
+
+
+
 
 
 
@@ -1390,7 +1451,6 @@ end
 #---------------------------------------------------------------------------#
 
 
-
 function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 													 Bonds::AbstractVector{NTuple{2,Int}},
 													 RBonds::AbstractVector{<:AbstractVector{<:AbstractVector{<:Real}}},
@@ -1424,6 +1484,14 @@ function SiteTransmission_(Hoppings::AbstractVector{<:AbstractMatrix},
 
 end
 
+function size_SiteTransm(	 Atoms::AbstractMatrix{Float64};
+													 dim::Int,
+													 kwargs...
+													 )::Matrix{Float64}
+
+	size(Lattices.VecsOnDim(Atoms; dim=dim))
+
+end 
 
 
 function SiteTransmission_(Hamilt::AbstractDict{NTuple{2,Int}, <:AbstractMatrix{ComplexF64}},
