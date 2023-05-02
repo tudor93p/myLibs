@@ -2210,9 +2210,127 @@ function get_Bonds_fromMatrix(M; inds=false, pos=false, dim=1)
 				
 				end 
 
-end 	
+end 	 
+
+
+
+
+#===========================================================================#
+#
+# 
+#
+#---------------------------------------------------------------------------#
+
+"""
+Fast in-place multiplication of a series of matrices of identical size 
+
+Moved from WLO 
+"""
+function matmulpairs!(aux::AbstractArray{T,3},
+											matrices::Vararg{<:AbstractMatrix{T},N}
+											)::AbstractMatrix{T} where T<:Number where N 
+
+	for i=1:div(N,2) 
+
+		LA.mul!(selectdim(aux,3,i),matrices[2i-1],matrices[2i])
+
+	end 
+
+	isodd(N) && copy!(selectdim(aux,3,div(N+1,2)), matrices[N])
+
+	return matmulpairs!(aux, div(N+1,2))
+
+end 
+
+function matmulpairs!(dst::AbstractArray{T,3},
+											src::AbstractArray{T,3},
+											inds_src::AbstractVector{Int},
+											i0::Int...
+											)::AbstractMatrix{T} where T<:Number  
+
+	matmulpairs!(dst, selectdim(src,3,inds_src), i0...)
+
+end 
+
+
+function matmulpairs!(dst::AbstractArray{T,3},
+											src::AbstractArray{T,3},
+											i0::Int=1,
+											)::AbstractMatrix{T} where T<:Number 
+	
+	Npairs,offset = divrem(size(src,3),2)
+
+	Npairs==0 && return selectdim(src,3,1)
+
+	offset==1 && copy!(selectdim(dst,3,i0), selectdim(src,3,1)) 
+									# not touched at this iteration 
+
+# dst[i0:imax] will contain the results 
+	imax = i0+Npairs+offset-1
+
+	for (i,i2) in zip(i0+offset:imax, 2+offset:2:size(src,3))
+
+		LA.mul!(selectdim(dst,3,i),
+											 selectdim(src,3,i2-1),
+											 selectdim(src,3,i2)
+											 )
+	end 
+
+	return matmulpairs!(dst, dst, i0:imax, 1+imax*(size(dst,3)-i0+1>imax))
+
+end 
+
+
+
+function matmulpairs!(data::AbstractArray{T,3}, # overwritten 
+											 stop::Int 
+											)::AbstractMatrix{T} where T<:Number 
+
+#	stop = size(data,3)-1
+
+	N::Int = stop 
+
+	N>1 && @assert stop<size(data,3) "Extra space needed for storage" 
+
+
+	while N>1 
+
+		for (j,k) in zip(stop:-1:stop-div(N,2)+1, stop-2:-2:stop-N)
+	
+			LA.mul!(selectdim(data, 3, mod(j,size(data,3))+1),
+												 selectdim(data, 3, mod(k,size(data,3))+1),
+												 selectdim(data, 3, mod(k+1,size(data,3))+1),
+												 )
+	
+		end 
+	
+	
+		if isodd(N) 
+	
+			copy!(selectdim(data, 3, mod(stop-div(N,2), size(data,3))+1),
+						selectdim(data, 3, mod(stop-N, size(data,3))+1))
+	
+		end  
+	
+		stop = mod(stop,size(data,3))+1
+	
+		N = div(N+1,2)
+
+	end 
+	
+	
+	return selectdim(data,3,stop)
+
+
+end  
+
+
+
+
+
+
+
 
 
 #############################################################################
-
 end

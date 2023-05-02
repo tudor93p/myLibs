@@ -1,6 +1,6 @@
 using Revise,Test,Distributed 
 using SharedArrays
-import myLibs:Utils  
+import myLibs:Utils,MeshInPlace
 
 NR_ENERGIES= 400
 
@@ -34,13 +34,13 @@ end
 	N = W*L 
 	leads = ["A","B"]
 
-	netT = Dict(l1*l2 => SharedArray{Float64}(NR_ENERGIES) for l1=leads for l2=leads if l1!=l2) 
+	netT = Dict(l1*l2 => SharedArray{Float64}(1,NR_ENERGIES) for l1=leads for l2=leads if l1!=l2) 
 
-	siteT = Dict(l=>SharedArray{Float64}(NR_ENERGIES,2,N) for l in leads)
-	ldos  = SharedArray{Float64}(NR_ENERGIES,N) 
-	dos = SharedArray{Float64}(NR_ENERGIES) 
+	siteT = Dict(l=>SharedArray{Float64}(2,N,NR_ENERGIES) for l in leads)
+	ldos  = SharedArray{Float64}(N,NR_ENERGIES)
+	dos = SharedArray{Float64}(1,NR_ENERGIES) 
 
-	i = SharedArray{Float64}(NR_ENERGIES)
+	i = SharedArray{Float64}(1,NR_ENERGIES)
 
 	return Dict{String,Any}("i" => i,
 													"siteT" => siteT,
@@ -108,17 +108,38 @@ end
 
 
 
-for L  = [2,60,100,2]
+for L  = [2,60,100,3][1:1]
 
 	println() 
 
 	@testset "L=$L" begin 
 
-		@showtime get_data(L)
+#		@showtime get_data(L)
 
-		shdata = @showtime init_data(L)
+		shdata = @showtime init_data(L) 
 
-		@showtime fill_data_all!(shdata, L)
+
+		shdata2 = Dict(k=>MeshInPlace.init_storage(v, NR_ENERGIES; parallel=true,shared=true) for (k,v)=f(1,L))
+
+
+		for (k,s) in shdata
+
+			if s isa AbstractArray 
+				@test s≈shdata2[k]
+
+			elseif s isa AbstractDict 
+			
+				for (q,sq) in s 
+
+					@test sq≈shdata2[k][q]
+
+				end 
+
+			end 
+
+		end 
+
+#		@showtime fill_data_all!(shdata, L)
 
 
 		GC.gc() 

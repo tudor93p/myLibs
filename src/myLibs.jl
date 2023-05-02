@@ -26,6 +26,7 @@ include("ArrayOps.jl")
 include("Algebra.jl")
 include("SignalProcessing.jl")
 
+include("MeshInPlace.jl")
 
 include("QuantumMechanics.jl")
 
