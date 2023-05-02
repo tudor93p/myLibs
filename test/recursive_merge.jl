@@ -119,7 +119,8 @@ for L  = [2,60,100,3][1:1]
 		shdata = @showtime init_data(L) 
 
 
-		shdata2 = Dict(k=>MeshInPlace.init_storage(v, NR_ENERGIES; parallel=true,shared=true) for (k,v)=f(1,L))
+		shdata2 = MeshInPlace.init_storage(f(1,L), NR_ENERGIES; parallel=true,shared=true)
+
 
 
 		for (k,s) in shdata

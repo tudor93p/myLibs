@@ -10,6 +10,10 @@ using SharedArrays:SharedArray
 import ..Utils 
 
 
+const SubOrArray{T,N} = Union{Array{T,N}, SubArray{T,N,<:Array}}
+const SubOrSArray{T,N} = Union{SharedArray{T,N}, SubArray{T,N,<:SharedArray}}
+
+const ENDPOINT::Bool = true 
 
 #===========================================================================#
 #
@@ -100,6 +104,35 @@ function get_mesh_dim(::Union{NTuple{Ns,<:Union{Int,UnitRange{Int}}},
 end  
 
 
+
+
+function mesh_axes(ns::Vararg{Int,Nm}; kwargs...)::NTuple{Nm,Int} where Nm
+
+	mesh_axes(ns; kwargs...) 
+
+end 
+
+function mesh_size(ns::Vararg{Int,Nm}; kwargs...)::NTuple{Nm,Int} where Nm
+
+	mesh_size(ns; kwargs...) 
+
+end 
+
+function mesh_size(ns::NTuple{Nm,Int}, args...;
+									 endpoint::Bool=ENDPOINT,
+									 kwargs...)::NTuple{Nm,Int} where Nm
+
+	endpoint ? ns : ns .- 1 
+
+end  
+
+function mesh_axes(ns::NTuple{Nm,Int}, args...; 
+									 kwargs...)::NTuple{Nm,Base.OneTo} where Nm
+
+	map(Base.OneTo, mesh_size(ns; kwargs...))
+
+end 
+
 """
 Size of a storage array. 
 
@@ -114,11 +147,10 @@ function _storage_size(
 											s::NTuple{Na,Int},
 											ns::NTuple{Nm,Int},
 											args...;
-											endpoint::Bool=true,
 											kwargs...
 											)::NTuple{Na+Nm,Int} where {Na,Nm}
 
-	Utils.tuplejoin(s,endpoint ? ns : ns .- 1)
+	Utils.tuplejoin(s, mesh_size(ns; kwargs...))
 
 end 
 
@@ -383,11 +415,166 @@ end
 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function select_mesh_point(data::AbstractArray{T,Ns},
+													 i::NTuple{Nm,Int} 
+													 )::AbstractArray{T} where {T<:Number,Ns,Nm}
+
+	view(data, fill(:,Ns-Nm), i...)
+
+end 
+
+
+#select_mesh_point(data, i::NTuple{N<Nm}
+#									Nm, dir::NTuple{N} 
+
+
+#function get_mesh_dim(Ns::Int, Nm::Int, dir::Int)::Int 
+#
+#	@assert Ns>=Nm && 1<=dir<=Nm 
+#
+#	Ns-Nm+dir 
+#
+#end 
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
 
 
 
+"""
+Internal method for in-place mesh storing. 
 
+Adapted from WLO 
+""" 
+function _store_on_mesh!(f!::Function, 
+												 dest::T,
+												 inds::Tuple{Vararg{AbstractVector{Int}}},
+												data...; 
+												parallel::Bool=false,
+												array_distrib=nothing,
+												kwargs...
+												)::T where T<:Union{<:SubOrArray{<:Number},
+																		<:SubOrSArray{<:Number},
+																		<:AbstractVector{<:AbstractArray},
+#																		<:AbstractDict, ? 
+																		}
+
+	for i in Base.product(inds...)
+
+#		store_on_mesh_one!(get_one!, dest, i, data...; kwargs...)
+		f!(dest, i, data...; kwargs...)
+
+	end 
+
+	return dest 
+
+end    
+
+
+#function store_on_mesh_one!(
+#							get_one_item!::Function, 
+#							dest::T,
+#							i::Tuple{Vararg{Int}},
+#							data...; kwargs...
+#												)::T where T<:Union{
+#													<:SubOrArray{<:Number},
+#													<:SubOrSArray{<:Number},
+#													<:AbstractVector{<:AbstractArray},
+#													<:AbstractDict, # ?
+#													}
+#
+#	get_one!(select_mesh_point(dest, i), i, data...; kwargs...)
+#
+#	return dest 
+#
+#end  
+#
+
+
+
+function store_on_mesh!(f!::Function, 
+												dest,
+												ns::Union{Int,Tuple{Vararg{Int}}}, 
+												args...; kwargs...)
+
+	store_on_mesh!(f!, dest, mesh_axes(ns; kwargs...), args...; kwargs...)
+
+end 
+
+
+function store_on_mesh!(f!::Function, dest::T,
+												 inds::Tuple{Vararg{AbstractVector{Int}}},
+												data...; kwargs...
+												)::T where T<:Union{<:SubOrArray{<:Number},
+#																		<:SubOrSArray{<:Number}, # different
+																		<:AbstractVector{<:AbstractArray},
+#																		<:AbstractDict,
+																		}
+
+	_store_on_mesh(f!, dest, inds, data...; kwargs...)
+
+end 
+
+	#for d in data 
+
+	#	@assert !isa(d,SubOrDArray)
+
+	#	isa(d,SubOrSArray) && continue 
+	#
+	#	@assert !isa(d, SubOrDArray)
+
+	#	isa(d,SubOrArray) || continue 
+	#	
+	#	length(d) < max(100, sum(length, dest)/50) && continue 
+
+	#	@warn "Large non-shared array passed? $(size(d))"
+
+	#	@show typeof(d)
+	#end 
+
+
+function store_on_mesh!(f!::Function, dest::T, 
+												 inds::Tuple{Vararg{AbstractVector{Int}}},
+												data...; 
+												array_distrib::Dict{Int,Tuple{Vararg{UnitRange{Int}}}},
+												kwargs...
+												)::T where T<:Union{<:AbstractVector{<:SubOrSArray},
+																		 SubOrSArray{<:Number},
+																		 }
+
+@warn "Not implemented" 
+
+#	map(procs_(array_distrib)) do p 
+#
+#		locinds = array_distrib[p]
+#
+#		@spawnat p begin   
+#
+#			_store_on_mesh!(f!, 
+#											localpart_(dest, locinds), # NOT DEFINED 
+#											map(findall_indexin, get_big_inds(locinds), inds), 
+##											pass locinds  ? 
+#										data...;
+#										kwargs...)
+#
+#		end  
+#
+#	end .|> fetch 
+
+	return dest 
+
+end   
 
 
 
