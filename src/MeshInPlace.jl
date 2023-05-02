@@ -47,6 +47,14 @@ function wrapper_ak(akfun::Function,
 end 
 
 
+#function wrapper_scalar_inplace(f::Function)::Function 
+#
+#	f!(V::AbstractVector{<:Number}, args...; kwargs...) 
+#
+#
+#f(args...; kwargs...)
+#
+
 
 
 

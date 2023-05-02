@@ -33,6 +33,13 @@ import ..Utils, ..Graph, ..TBmodel, ..Lattices, ..ArrayOps, ..Algebra
 #
 #---------------------------------------------------------------------------#
 
+function keysLeadAtoms(; leads...
+											 )::Vector{Tuple{String,Base.OneTo}}
+
+	Tuple{String,Base.OneTo}[(string(k),eachindex(leads[k][:head])) for k in [:LeftLead,:RightLead] if haskey(leads,k)]
+
+end 
+
 function nrLeadAtoms(nr_at::Int=0; dim::Int, kwargs...)::Int 
 
 	for k in [:LeftLead,:RightLead]
@@ -85,7 +92,6 @@ function LeadAtomOrder(nr_at::Int=0; dim::Int,
 
 end
  
-
 
 
 function AllAtoms(latt::Lattices.Lattice; kwargs...)::Matrix{Float64}

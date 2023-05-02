@@ -37,6 +37,25 @@ function LDOS(Gr::AbstractMatrix{ComplexF64};
 
 end
 
+function addDOS!(dos::AbstractVector{Float64},
+							Gr::AbstractMatrix{ComplexF64}; 
+						 proj::Function=identity, kwargs...
+						 )::AbstractVector{Float64}
+
+
+	for g in proj(imag(LA.diag(Gr)))
+
+		dos[1] -= g/pi
+	
+	end 
+
+	return dos 
+
+#	length(Op)==1 && return only(Op)*sum(D) 
+
+#	return Operators.Trace("orbitals", Op; sum_up=true, kwargs...)(D)
+
+end
 
 function DOS(Gr::AbstractMatrix{ComplexF64}; 
 						 proj::Function=identity, kwargs...)::Float64
@@ -150,11 +169,15 @@ end
 
 
 
+function DOS_Decimation!(dos::AbstractVector{Float64},
+												 GD::Function; 
+												 NrLayers::Int, 
+												 IndsAtomsOfLayer::Function,
+												 kwargs...)::AbstractVector{Float64}
 
+	DOS_Decimation!(dos, GD, NrLayers, IndsAtomsOfLayer; kwargs...)
 
-
-
-
+end
 
 
 function DOS_Decimation(GD::Function; 
@@ -167,26 +190,38 @@ function DOS_Decimation(GD::Function;
 end
 
 
-function DOS_Decimation(GD::Function, NrLayers::Int, indsLayer::Function; 
-												proj::Function=identity, dim::Int, VirtLeads...)::Float64
 
-	out = 0.0
+function DOS_Decimation!(dos::AbstractVector{Float64},
+												 GD::Function, NrLayers::Int, indsLayer::Function; 
+												proj::Function=identity, dim::Int, VirtLeads... 
+												)::AbstractVector{Float64}
 
-	for d in (pairs(LayeredSystem.LeadAtomOrder(;dim=dim, VirtLeads...)),
-						(("Layer",L)=>indsLayer(L) for L=1:NrLayers))
+	dos .= 0 
 
-		for (key,inds) in d
+	for L=1:NrLayers 
 
-			g = GD(key...) 
+		addDOS!(dos, GD("Layer",L); proj=proj, dim=dim) 
 
-			out += DOS(g; proj=proj, nr_at=length(inds), size_H=size(g,1), dim=dim)
-			
+	end 
+
+	for (lead_label,lead_ucs) in LayeredSystem.keysLeadAtoms(;VirtLeads...)
+
+		for uc in lead_ucs 
+
+			addDOS!(dos, GD(lead_label, uc); proj=proj)
+
 		end 
-
+			
 	end
 
+	return dos
+end
 
-	return out
+
+
+function DOS_Decimation(GD::Function, n::Int, args...; kwargs...)::Float64
+
+	only(DOS_Decimation!(zeros(1), GD, n, args...; kwargs...))
 
 end
 

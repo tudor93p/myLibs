@@ -91,7 +91,6 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 
 		data = ObservablesFromGF.ComputeDOSLDOS_Decimation(G_ret, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer], proj,  VirtLeads; dos=true, ldos=true, dim=2)
 		
-		
 		s = ObservablesFromGF.size_LDOS_Decimation(LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer]; dim=2, VirtLeads...)
 
 		ldos = zeros(s)
@@ -100,6 +99,7 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 
 		@test data[2]≈ldos 
 
+		@test data[1]≈sum(ldos)≈only(ObservablesFromGF.DOS_Decimation!(rand(1), G_ret; LayerAtom..., proj=proj,dim=2, VirtLeads...))
 	
 	
 		end  
