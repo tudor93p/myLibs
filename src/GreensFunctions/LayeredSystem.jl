@@ -1526,6 +1526,7 @@ function set_leadlabels!(g::MetaDiGraph,
 
 end 
 
+get_NrLeadUCs(g::MetaDiGraph)::Int = Graph.get_prop(g, :UCsLeads)
 
 function add_leads!(g::MetaDiGraph, 
 										VirtLeads::AbstractDict{Symbol,<:AbstractDict};
@@ -1563,7 +1564,7 @@ function add_lead!(g::MetaDiGraph,
 										label::Symbol,
 																	)::MetaDiGraph 
 
-	N = Graph.get_prop(g, :UCsLeads)
+	N = get_NrLeadUCs(g)
 
 	for i in 1:N
 
@@ -1747,6 +1748,24 @@ function get_graphH(g::MetaDiGraph, n::Int
 end     
 
 
+function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
+										data_H::AbstractDict,
+										T::AbstractString, I::Int64;
+										kwargs...)::AbstractMatrix{<:Number}
+
+	get_graphH(g, data_H, get_node(g,T,I); kwargs...)
+
+end  
+
+function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
+										data_H::AbstractDict,
+										T1::AbstractString, I1::Int64,
+										T2::AbstractString, I2::Int64;
+										kwargs...)::AbstractMatrix{<:Number}
+
+	get_graphH(g, data_H, get_node(g,T1,I1), get_node(g,T2,I2); kwargs...)
+
+end
 
 function get_graphH(g::MetaGraphs.AbstractMetaGraph, 
 										T::AbstractString, I::Int64;

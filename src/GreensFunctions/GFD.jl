@@ -3,15 +3,17 @@ module GFD
 
 import ..MetaDiGraph
 
+
+
+
 import ..Graph
 import ..LayeredSystem: islayer, islead,
 												node_right, node_left, 
 												get_lead_GFf, get_graphH,
 												get_node
 
-#get_leadlabels get_node  
 
-import ..GF
+import ..GF,..SelfEn
 
 #===========================================================================#
 #
@@ -56,6 +58,17 @@ function dir_layer(g::MetaDiGraph, n::Int)::String
 
 end 
 
+function dir_out(g::MetaDiGraph, n::Int)::String 
+
+	for d in ("right","left")
+
+		meets_layer(g,n,d) || return d 
+		
+	end 
+	
+	error()
+
+end 
 
 dir_layer((g,)::Tuple, n::Int)::String = dir_layer(g, n)
 
@@ -199,15 +212,14 @@ function lead_GF!((_,storage,)::Tuple, data::Tuple, args...
 
 end  
 
-
 function lead_GF!(storage::AbstractDict,
 											(g,)::Tuple{MetaDiGraph,Vararg},
 											E::Number,
-								n::Int,
+
+								lead_label::AbstractString,
+								lead_uc::Int,
 								args...
 							 )::Matrix{ComplexF64} 
-
-	lead_label, lead_uc = Graph.get_prop(g, n, :name)
 
 	out = get!(storage, lead_label) do 
 
@@ -216,6 +228,17 @@ function lead_GF!(storage::AbstractDict,
 	end  
 
 	return out[min(lead_uc,end)]
+
+end  
+
+function lead_GF!(storage::AbstractDict,
+											data::Tuple,
+											E::Number,
+								n::Int,
+								args...
+							 )::Matrix{ComplexF64} 
+
+	lead_GF!(storage, data, E, Graph.get_prop(data[1], n, :name)...)
 
 end  
 
@@ -373,37 +396,33 @@ end
 
 
 
-# template 
+#===========================================================================#
 #
-#function _GF_Decim_UI(args...; kwargs...)::Function  
-#	
-#	#	storage, data, slicer = prepare (args..., kwargs...)
-## data: (g, data_H, e, R(e)) or (g, e, R(e))
-#	
-#	function G(a...; k...)::AbstractMatrix{ComplexF64}
 #
-#		G!(storage, data, unpack_argsG(a...; k...)..., slicer)
 #
-#	end 
-#
-#end 
-#
+#---------------------------------------------------------------------------#
 
 
 
 
+function get_SE!(storage::NTuple{2,Dict},
+								 data::Tuple{MetaDiGraph, Vararg},
+								 slicer::Function,
+								)::Function
 
 
+	function self_en(k::AbstractString, uc::Int=2)::Matrix
+	
+		(K,),(s,) = slicer(k,uc) 
+		
+		i = max(uc,2) 
+		
+		return SelfEn(view(H(data, K, i, K, i-1), s, s),
+									view(lead_GF!(storage, data, K, i), s, s))
 
+	end 
 
-
-
-
-
-
-
-
-
+end 	
 
 
 

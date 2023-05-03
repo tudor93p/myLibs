@@ -1,7 +1,7 @@
 using Revise,Test 
 using myLibs: Lattices, LayeredSystem, Algebra,GreensFunctions, Graph,ArrayOps,TBmodel,Utils 
 
-using myLibs: GreensFunctions_old 
+#using myLibs: GreensFunctions_old 
 
 using LinearAlgebra, SparseArrays, Distributed 
 #import PyPlot
@@ -229,6 +229,16 @@ include("mock_DevLeads.jl")
 #																												leads_have_imag=true,
 #																												)
 
+				pgf4 = GreensFunctions.prep_GF_fE( nr_layers, VirtLeads; leads_have_imag=true)
+				G_new4 = GreensFunctions.GF_Decimation(pgf4..., E1, Slicer, data_H)
+				
+				SE_new4 = GreensFunctions.SelfEn_Decimation(pgf4..., E1, Slicer, data_H)
+
+				for l in leadlabels ,uc=1:3
+					@test SE_new4(l,uc) isa AbstractMatrix
+
+				end 
+
 				G_new = GreensFunctions.GF_Decimation(
 																												g_noH, 
 																												E1,
@@ -238,12 +248,15 @@ include("mock_DevLeads.jl")
 																												leads_have_imag=true,
 																												)
 		
-				G_new2 = GreensFunctions.GF_Decimation_fE(data_H, nr_layers, 
+				G_new2 = GreensFunctions.GF_Decimation_fE(
+																									data_H, 
+																									nr_layers, 
 																							 Slicer, VirtLeads;
 																							 leads_have_imag=true,
 																							 )(E1)
 				
-				G_new3 = GreensFunctions.GF_Decimation_fE(data_H, VirtLeads, Slicer;
+				G_new3 = GreensFunctions.GF_Decimation_fE(data_H, 
+																									VirtLeads, Slicer;
 																									kwargs2...,
 																							 leads_have_imag=true
 																							 )(E1)
@@ -257,7 +270,7 @@ include("mock_DevLeads.jl")
 				for a=GF_call_args, b=GF_call_args
 				
 						G0 = G_old(a,b)
-						for ab=((a,b),(a...,b...)), fG=(G_old,G_old2,G_new,G_new2,G_old3,G_new3)
+						for ab=((a,b),(a...,b...)), fG=(G_old,G_old2,G_new,G_new2,G_old3,G_new3,G_new4)
 
 						@test G0≈fG(ab...)
 					

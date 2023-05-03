@@ -2,12 +2,12 @@ module GreensFunctions
 #############################################################################
 
 import ..LA, ..ArrayOps
-#import MetaGraphs:MetaDiGraph
+import MetaGraphs:MetaDiGraph
 
 import ..Utils, ..TBmodel, ..Lattices
 
 import ..Graph, ..LayeredSystem
-import ..LayeredSystem#: get_node, islayer, node_right, node_left, get_graphH, get_leadlabels, get_lead_GFf
+import ..LayeredSystem: get_leadlabels 
 
 #===========================================================================#
 #
@@ -157,6 +157,7 @@ function SelfEn_fromGDecim(G::Function,
 end 
 
 
+
 function SelfEn_fromGDecim(VirtLeads::AbstractDict,
 													 LeadLayerSlicer::Function,
 													 k::AbstractString,
@@ -181,6 +182,13 @@ function DecayWidth_fromGDecim1(args...)::Function
 
 end 
 
+
+
+
+
+#############################################################################
+include("GFD.jl")
+############################################################################# 
 
 
 #===========================================================================#
@@ -302,6 +310,11 @@ function GF_Decimation(args...; kwargs...)::Function
 	GF_Decimation!(init_storage_GF(), args...; kwargs...)
 
 end 
+function SelfEn_Decimation(args...; kwargs...)::Function 
+
+	SelfEn_Decimation!(init_storage_GF(), args...; kwargs...)
+
+end 
 
 function GF_Decimation!(storage::NTuple{2,Dict},
 												g::MetaDiGraph, E::Number, args...;
@@ -322,7 +335,22 @@ function GF_Decimation!(storage::NTuple{2,Dict},
 	_GF_Decimation!(storage, g, E::T, R(E), args...)
 
 end
- 
+
+
+function SelfEn_Decimation!(storage::NTuple{2,Dict},
+
+												g::MetaDiGraph, (T,R)::Tuple{DataType,Function},  
+												E::Number, 
+
+												Slicer::Function,
+												data_H::AbstractDict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}}...
+												)::Function  
+
+	GFD.get_SE!(storage, (g, data_H..., E::T, R(E)), Slicer)
+
+end
+
 
 
 
@@ -332,7 +360,6 @@ end
 #
 #---------------------------------------------------------------------------#
 
-include("GFD.jl")
 
 
 function _GF_Decimation!(storage::NTuple{2,Dict},

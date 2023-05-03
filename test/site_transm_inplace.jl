@@ -64,10 +64,24 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 	G_old = GreensFunctions.GF_Decimation(g_noH, E1, Slicer, data_H; leads_have_imag=false)
 
 
-
 	self_en = GreensFunctions.SelfEn_fromGDecim(G_old, VirtLeads, Slicer) 
 
+	pgf4 = GreensFunctions.prep_GF_fE(LayerAtom[:NrLayers], VirtLeads; leads_have_imag=false) 
 
+	
+	SE_new4 = GreensFunctions.SelfEn_Decimation(pgf4..., E1, Slicer, data_H)
+
+
+	for k in leadlabels
+		for uc=1:2
+
+			@test self_en(k, uc) isa AbstractMatrix 
+			@test self_en(k, uc) ≈ SE_new4(k, uc)
+
+		end 
+	end 
+
+	@info "Self En OK"
 
 	args = (G_old,data_H, data_B, data_A..., self_en, lead_ID...) 
 	kwargs = (dim=1, nr_orb=NR_ORB)
