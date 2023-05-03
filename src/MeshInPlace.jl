@@ -366,9 +366,10 @@ function init_storage_ak(item1::AbstractArray{T},
 
 end 
 
-function init_storage_ak(item1::Number, args; kwargs...) 
+function init_storage_ak(item1::Number, 
+												 ns::Union{Int,Tuple{Vararg{Int}}}; kwargs...) 
 
-	init_storage_ak([item1], args...; kwargs...)
+	init_storage_ak([item1], ns; kwargs...)
 
 end 
 
@@ -416,9 +417,9 @@ function init_storage(args...; kwargs...)
 
 end  
 
-function init_storage(item1::Dict, args...; kwargs...)::Dict
+function init_storage(item1::Dict, arg1, args...; kwargs...)::Dict
 
-	Dict(k=>init_storage(v, args...; kwargs...) for (k,v)=item1)
+	Dict(k=>init_storage(v, arg1, args...; kwargs...) for (k,v)=item1)
 
 end 
 
