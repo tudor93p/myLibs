@@ -61,7 +61,7 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 #	@show E1 
 
 	
-	G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_noH, data_H, Slicer; leads_have_imag=false)
+	G_old = GreensFunctions.GF_Decimation(g_noH, E1, Slicer, data_H; leads_have_imag=false)
 
 
 

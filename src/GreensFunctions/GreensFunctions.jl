@@ -420,7 +420,7 @@ end
 
 function get_reEnergy(::Val{true}, ::Val{false})::Tuple{DataType,Function}
 
-	(Complex, real) 
+	(ComplexF64, real) 
 
 end 
 

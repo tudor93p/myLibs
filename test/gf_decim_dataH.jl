@@ -1,6 +1,8 @@
 using Revise,Test 
 using myLibs: Lattices, LayeredSystem, Algebra,GreensFunctions, Graph,ArrayOps,TBmodel,Utils 
 
+using myLibs: GreensFunctions_old 
+
 using LinearAlgebra, SparseArrays, Distributed 
 #import PyPlot
 
@@ -217,7 +219,15 @@ include("mock_DevLeads.jl")
 																							 D...,
 																							 leads_have_imag=true
 																							 )(E1)
-		
+# before restructuration, at commit: 6268f86		
+#				G_ref = GreensFunctions_old.GF_Decimation_fromGraph(
+#																														E1,
+#																												g_noH, 
+#																												data_H,
+#																												Slicer,
+#																												;
+#																												leads_have_imag=true,
+#																												)
 
 				G_new = GreensFunctions.GF_Decimation(
 																												g_noH, 
