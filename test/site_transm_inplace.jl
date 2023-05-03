@@ -1,6 +1,7 @@
 using Revise,Test
-import myLibs: GreensFunctions, LayeredSystem, Lattices, Operators, ObservablesFromGF
-using LinearAlgebra , BenchmarkTools
+using myLibs: GreensFunctions, LayeredSystem, Lattices, Operators, ObservablesFromGF
+using LinearAlgebra , BenchmarkTools 
+
 #import Profile 
 include("mock_DevLeads.jl") 
 
@@ -60,16 +61,15 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 #	@show E1 
 
 	
-	G_ret = GreensFunctions.GF_Decimation_fromGraph(E1, g_noH, data_H, Slicer; leads_have_imag=false)
-#	G_adv = GreensFunctions.GF_Decimation_fromGraph(conj(E1), g_noH, data_H, Slicer; leads_have_imag=false)
+	G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_noH, data_H, Slicer; leads_have_imag=false)
 
 
 
-	self_en = GreensFunctions.SelfEn_fromGDecim(G_ret, VirtLeads, Slicer) 
+	self_en = GreensFunctions.SelfEn_fromGDecim(G_old, VirtLeads, Slicer) 
 
 
 
-	args = (G_ret,data_H, data_B, data_A..., self_en, lead_ID...) 
+	args = (G_old,data_H, data_B, data_A..., self_en, lead_ID...) 
 	kwargs = (dim=1, nr_orb=NR_ORB)
 
 #	@benchmark ObservablesFromGF.SiteTransmission($(args)...; $(kwargs)...)
@@ -89,17 +89,17 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 	
 	for proj in get_projectors(NR_ORB)
 
-		data = ObservablesFromGF.ComputeDOSLDOS_Decimation(G_ret, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer], proj,  VirtLeads; dos=true, ldos=true, dim=2)
+		data = ObservablesFromGF.ComputeDOSLDOS_Decimation(G_old, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer], proj,  VirtLeads; dos=true, ldos=true, dim=2)
 		
 		s = ObservablesFromGF.size_LDOS_Decimation(LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer]; dim=2, VirtLeads...)
 
 		ldos = zeros(s)
 
-		ObservablesFromGF.LDOS_Decimation!(ldos, G_ret, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer]; proj=proj, dim=2, VirtLeads...)
+		ObservablesFromGF.LDOS_Decimation!(ldos, G_old, LayerAtom[:NrLayers], LayerAtom[:IndsAtomsOfLayer]; proj=proj, dim=2, VirtLeads...)
 
 		@test data[2]≈ldos 
 
-		@test data[1]≈sum(ldos)≈only(ObservablesFromGF.DOS_Decimation!(rand(1), G_ret; LayerAtom..., proj=proj,dim=2, VirtLeads...))
+		@test data[1]≈sum(ldos)≈only(ObservablesFromGF.DOS_Decimation!(rand(1), G_old; LayerAtom..., proj=proj,dim=2, VirtLeads...))
 	
 	
 		end  

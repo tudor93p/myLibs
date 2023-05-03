@@ -1,3 +1,4 @@
+using Revise,Test 
 using myLibs: Lattices, LayeredSystem, Algebra,GreensFunctions, Graph,ArrayOps,TBmodel,Utils 
 
 using LinearAlgebra, SparseArrays, Distributed 
@@ -201,33 +202,39 @@ include("mock_DevLeads.jl")
 					E1 += 0.01im 
 				end 
 			
-				G_old = GreensFunctions.GF_Decimation_fromGraph(E1, g_withH, Slicer;
+				G_old = GreensFunctions.GF_Decimation(g_withH, E1, Slicer;
 																		leads_have_imag=true) 
 
-				G_old2 = GreensFunctions.GF_Decimation(HoppMatr, nr_layers, VirtLeads;
+				G_old2 = GreensFunctions.GF_Decimation_fE(HoppMatr, nr_layers, VirtLeads;
 																							 translate=Slicer,
 																							 leads_have_imag=true,
 																							 )(E1)
+	kwargs2 = (NrLayers=D[:NrLayers],
+						 IndsAtomsOfLayer=D[:IndsAtomsOfLayer],
+						 )
 
-				G_old3 = GreensFunctions.GF_Decimation(hopp, VirtLeads, Slicer;
+				G_old3 = GreensFunctions.GF_Decimation_fE(hopp, VirtLeads, Slicer;
 																							 D...,
 																							 leads_have_imag=true
 																							 )(E1)
-			
-				G_new = GreensFunctions.GF_Decimation_fromGraph(E1, 
+		
+
+				G_new = GreensFunctions.GF_Decimation(
 																												g_noH, 
+																												E1,
+																												Slicer,
 																												data_H,
-																												Slicer;
+																												;
 																												leads_have_imag=true,
 																												)
 		
-				G_new2 = GreensFunctions.GF_Decimation(data_H, nr_layers, VirtLeads;
-																							 translate=Slicer,
+				G_new2 = GreensFunctions.GF_Decimation_fE(data_H, nr_layers, 
+																							 Slicer, VirtLeads;
 																							 leads_have_imag=true,
 																							 )(E1)
 				
-				G_new3 = GreensFunctions.GF_Decimation(data_H, VirtLeads, Slicer;
-																							 D...,
+				G_new3 = GreensFunctions.GF_Decimation_fE(data_H, VirtLeads, Slicer;
+																									kwargs2...,
 																							 leads_have_imag=true
 																							 )(E1)
 

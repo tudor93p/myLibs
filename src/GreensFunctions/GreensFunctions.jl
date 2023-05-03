@@ -2,12 +2,12 @@ module GreensFunctions
 #############################################################################
 
 import ..LA, ..ArrayOps
-import MetaGraphs:MetaDiGraph
+#import MetaGraphs:MetaDiGraph
 
 import ..Utils, ..TBmodel, ..Lattices
 
 import ..Graph, ..LayeredSystem
-import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_graphH, get_leadlabels, get_lead_GFf
+import ..LayeredSystem#: get_node, islayer, node_right, node_left, get_graphH, get_leadlabels, get_lead_GFf
 
 #===========================================================================#
 #
@@ -19,13 +19,7 @@ import ..LayeredSystem: get_node, islead, islayer, node_right, node_left, get_gr
 
 """ gives the GF at energy E of an isolated system S with Hamiltonian H """
 
-GF2(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
-
-#function GF(E::Number,H::AbstractMatrix)::Matrix{ComplexF64}
-#
-#	inv(LA.axpy!(-1,H,Matrix{ComplexF64}(E*LA.I,size(H)))) 
-#
-#end 
+#GF2(E::Number,H::AbstractMatrix)::Matrix = inv(Matrix(E*LA.I - H))
 
 function GF(E::Number,H::AbstractMatrix)::Matrix{ComplexF64}
 
@@ -73,18 +67,17 @@ GF(g::AbstractMatrix)::AbstractMatrix = g
 	"""
 	Self energy associated with the coupling to another system
 
-	A := present system; B:= target system with GF g
+	`A` := present system; `B`:= target system with GF `g`
 	
 	U = HoppingMatrix(B -> A)
 
 	"""
-
 SelfEn(U::AbstractMatrix,g::AbstractMatrix)::Matrix = *(U',g,U)
 
-SelfEn((U,g)::Tuple{AbstractMatrix,AbstractMatrix})::Matrix = SelfEn(U,g)
+SelfEn((U,g)::NTuple{2,AbstractMatrix})::Matrix = SelfEn(U,g)
 			# if one tuple is given
 			
-function SelfEn(arg1, args...)::Matrix 
+function SelfEn(arg1::NTuple{2,AbstractMatrix}, args...)::Matrix 
 	#	if more than one tuple is give
 
 	out = SelfEn(arg1)
@@ -97,6 +90,26 @@ function SelfEn(arg1, args...)::Matrix
 
 end 
 
+
+#===========================================================================#
+#
+# Decay width
+#
+#---------------------------------------------------------------------------#
+
+
+function DecayWidth(SE::AbstractMatrix{<:Number})::LA.Hermitian  
+	
+	LA.Hermitian(1im*(SE-SE'))
+
+end 
+
+function DecayWidth(U::AbstractMatrix{<:Number}, g::AbstractMatrix{<:Number}
+									 )::LA.Hermitian 
+	
+	DecayWidth(SelfEn(U,g))
+
+end
 
 
 
@@ -168,42 +181,18 @@ function DecayWidth_fromGDecim1(args...)::Function
 
 end 
 
-#===========================================================================#
-#
-# Decay width
-#
-#---------------------------------------------------------------------------#
-
-
-function DecayWidth(SE::AbstractMatrix{<:Number})::LA.Hermitian  
-	
-	LA.Hermitian(1im*(SE-SE'))
-
-end 
-
-function DecayWidth(U::AbstractMatrix{<:Number}, g::AbstractMatrix{<:Number}
-									 )::LA.Hermitian 
-	
-	DecayWidth(SelfEn(U,g))
-
-end
-
-
 
 
 #===========================================================================#
 #
-# 	Green's function using decimation method for at most two leads.
-#
-#		Implementation as explained by Lewenkopf+Mucciolo in
-#
-#		"The recursive Green’s function method for graphene"
-#
-#				J Comput Electron (2013) 12: 203–231
+# GF as function of Energy (fE)
 #
 #---------------------------------------------------------------------------#
 
-function GF_Decimation(Hopping::AbstractDict{Symbol},
+
+
+
+function GF_Decimation_fE(Hopping::AbstractDict{Symbol},
 											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
 											 LeadLayerSlicer=nothing;
 											 NrLayers::Int, 
@@ -217,7 +206,7 @@ function GF_Decimation(Hopping::AbstractDict{Symbol},
 
 	# will be called as 'HoppMatr(layer_n, layer_m)' or just 'HoppMatr(layer_n)'
 
-	return GF_Decimation(HoppMatr, NrLayers, VirtLeads;
+	return GF_Decimation_fE(HoppMatr, NrLayers, VirtLeads;
 											 translate=LeadLayerSlicer,
 #											 plot_graph=(graph_fname,IndsAtomsOfLayer),
 											 kwargs...)
@@ -228,12 +217,248 @@ end
 
 
 
-function GF_Decimation(HoppMatr::Function, 
+function GF_Decimation_fE(HoppMatr::Function, 
 											 NrLayers::Int64, VL::AbstractDict...;
 											 translate=nothing, #plot_graph=nothing,
 											 kwargs...)::Function
 
-	g_withH = LayeredSystem.LayeredSystem_toGraph(HoppMatr, NrLayers, VL...)
+	GF_Decimation_fE(prep_GF_fE(HoppMatr, NrLayers, VL...)..., translate)
+
+end
+
+
+
+function GF_Decimation_fE(data_H::AbstractDict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}},
+											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
+											 Slicer=nothing;
+											 NrLayers::Int, 
+											 AtomsOfLayer=nothing, 		# not used 
+											 IndsAtomsOfLayer=nothing,# not used 
+											 kwargs...)::Function 
+
+	GF_Decimation_fE(data_H, NrLayers, Slicer, VirtLeads; kwargs...)
+	
+end
+
+
+
+function GF_Decimation_fE(data_H::AbstractDict, 
+													NrLayers::Int64, VL::AbstractDict; 
+													kwargs...)::Function 
+
+	GF_Decimation_fE(data_H, NrLayers, nothing, VL; kwargs...) 
+
+end 
+
+
+
+
+function GF_Decimation_fE(data_H::AbstractDict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}},
+											 NrLayers::Int64, 
+											 Slicer::Union{Function,Nothing}=nothing,
+											 VL::AbstractDict...;
+											 kwargs...
+												)::Function 
+	
+	GF_Decimation_fE(prep_GF_fE(NrLayers, VL...; kwargs...)..., Slicer, data_H)
+
+end 
+
+function GF_Decimation_fE(g::MetaDiGraph, (T,R)::Tuple{DataType,Function}, 
+													args...)::Function
+
+	function get_G(E::Number)::Function 
+
+		GF_Decimation(g, (T,R), E, args...)
+	
+	end 
+
+end
+
+
+function prep_GF_fE(args...; kwargs...)::Tuple{MetaDiGraph,
+																							 Tuple{DataType,Function},
+																							 }
+
+	g = LayeredSystem.LayeredSystem_toGraph(args...)
+
+	return (g, get_reEnergy(g; kwargs...))
+
+end  
+
+
+
+
+#===========================================================================#
+#
+# User methods 
+#
+#---------------------------------------------------------------------------#
+
+function GF_Decimation(args...; kwargs...)::Function 
+
+	GF_Decimation!(init_storage_GF(), args...; kwargs...)
+
+end 
+
+function GF_Decimation!(storage::NTuple{2,Dict},
+												g::MetaDiGraph, E::Number, args...;
+												kwargs...)::Function
+
+	_GF_Decimation!(storage, g, E, get_reEnergy(g, E; kwargs...), args...)
+
+
+end  
+
+
+function GF_Decimation!(storage::NTuple{2,Dict},
+												g::MetaDiGraph, (T,R)::Tuple{DataType,Function},  
+												E::Number, 
+												args...
+												)::Function  
+
+	_GF_Decimation!(storage, g, E::T, R(E), args...)
+
+end
+ 
+
+
+
+#===========================================================================#
+#
+# Internal methods 
+#
+#---------------------------------------------------------------------------#
+
+include("GFD.jl")
+
+
+function _GF_Decimation!(storage::NTuple{2,Dict},
+												g::MetaDiGraph,
+												E::Number, rE::Number,
+												data_H::AbstractDict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}}
+												)::Function 
+
+	_GF_Decimation!(storage, g, E, rE, nothing, data_H)
+
+end 
+
+function _GF_Decimation!(storage::NTuple{2,Dict},
+												g::MetaDiGraph,
+												E::Number, rE::Number,
+												Slicer::Union{Function,Nothing}=nothing, 
+												data_H::AbstractDict{NTuple{2,Int}, 
+																		<:AbstractMatrix{ComplexF64}}...
+												)::Function 
+
+	GFD.get_G!(storage, (g, data_H..., E, rE), Slicer)
+
+end 
+
+
+
+
+#GF_Decimation!(storage, prep_GF_fE(...)..., E, Slicer) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function init_storage_GF()
+
+	(Dict{Tuple{Int,Int,String},Matrix{ComplexF64}}(),
+	 Dict{String,Vector{Matrix{ComplexF64}}}()
+	 )
+
+end 
+
+function clear_storage_GF!(D::T)::T where T<:Tuple{Vararg{Dict}}
+
+	empty!.(D)
+
+	GC.gc() 
+
+	return D 
+
+end 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function get_reEnergy(::Val{true}, ::Val{true})::Tuple{DataType,Function}
+
+	(Real, identity)
+
+end 
+
+function get_reEnergy(::Val{true}, ::Val{false})::Tuple{DataType,Function}
+
+	(Complex, real) 
+
+end 
+
+get_reEnergy(::Val{false})::Tuple{DataType,Function} = (Number,identity)
+	
+function get_reEnergy(g::MetaDiGraph; leads_have_imag=nothing, 
+											#other kwargs not accepted 
+											)::Tuple{DataType,Function}
+
+	if !isempty(get_leadlabels(g)) && leads_have_imag isa Bool 
+
+		return get_reEnergy(Val(true), Val(leads_have_imag))
+
+	end 
+
+	return get_reEnergy(Val(false))
+
+end 
+
+	
+function get_reEnergy(g::MetaDiGraph, Energy::Number; kwargs...)::Number 
+
+	T,F = get_reEnergy(g; kwargs...)
+
+	Energy::T 
+
+	return F(Energy)
+
+end 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
 
 #	if !isnothing(plot_graph)
 #
@@ -250,358 +475,37 @@ function GF_Decimation(HoppMatr::Function,
 #		end
 #	end
 
-#	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g_withH)
+#	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g_withH) 
 
-	return function gf(Energy::Number)::Function 
-		
-		GF_Decimation_fromGraph(Energy, g_withH, translate; kwargs...)
 
-	end 
 
-end
 
-function GF_Decimation(data_H::AbstractDict{NTuple{2,Int}, 
-																		<:AbstractMatrix{ComplexF64}},
-											 VirtLeads::AbstractDict=Dict{Symbol,Dict{Symbol,Any}}(),
-											 Slicer=nothing;
-											 NrLayers::Int, 
-											 AtomsOfLayer=nothing, 		# not used 
-											 IndsAtomsOfLayer=nothing,# not used 
-											 kwargs...)::Function 
 
-	GF_Decimation(data_H, NrLayers, VirtLeads; translate=Slicer, kwargs...)
-	
 
-end
 
-function GF_Decimation(data_H::AbstractDict{NTuple{2,Int}, 
-																		<:AbstractMatrix{ComplexF64}},
-											 NrLayers::Int64, VL::AbstractDict...;
-											 translate=nothing, #plot_graph=nothing,
-											 kwargs...)::Function 
 
-	g_noH = LayeredSystem.LayeredSystem_toGraph(NrLayers, VL...)
 
-#	LayeredSystem.Plot_Graph(plot_graph, NrLayers, g_noH)
 
-	return function gf(Energy::Number)::Function 
-		
-		GF_Decimation_fromGraph(Energy, g_noH, data_H, translate; kwargs...)
 
-	end 
 
-end
 
 
 
 
-#===========================================================================#
-#
-#	Helper functions for dealing with the physical system stored in the graph
-#
-#---------------------------------------------------------------------------#
 
 
-function get_reEnergy(Energy::T, ::Val{false})::T where T<:Number 
 
-	Energy
 
-end 
 
-function get_reEnergy(Energy::T, ::Val{true}, ::Val{true})::T where T<:Real
 
-	Energy 
 
-end 
 
 
-function get_reEnergy(Energy::Complex, ::Val{true}, ::Val{false})::Real 
 
-	real(Energy)
 
-end 
 
 
-	
-	
-function get_reEnergy(g::MetaDiGraph, Energy::Number; kwargs...)::Number 
 
-	
-	if !isempty(get_leadlabels(g)) && haskey(kwargs, :leads_have_imag)
-
-		return get_reEnergy(Energy, Val(true), Val(kwargs[:leads_have_imag]))
-
-	end 
-
-
-	return get_reEnergy(Energy, Val(false))
-
-end 
-
-function next_node(g::MetaDiGraph, 
-									 n::Int64, 
-									 dir::AbstractString)::Union{Nothing,Int}
-
-	dir=="right" && return node_right(g, n)
-
-	dir=="left" && return node_left(g, n)
-
-	error("dir should be left or right")
-
-end 
-
-meets_layer(::MetaDiGraph, ::Nothing, ::AbstractString="")::Bool = false  
-
-meets_layer(::MetaDiGraph, ::Int)::Bool = true  
-
-function meets_layer(g::MetaDiGraph, n::Int, dir::AbstractString)::Bool
-
-	(dir=="both" || islayer(g,n)) && return true
-
-	return meets_layer(g, next_node(g,n,dir), dir)
-
-end
-
-function get_dir_layer(g::MetaDiGraph, n::Int)::String 
-
-	for dir in ("right","left")
-
-		meets_layer(g,n,dir) && return dir 
-		
-	end 
-	
-	error()
-
-end 
-
-
-#
-#function lead_extends(g::MetaDiGraph, n::Int, dir::AbstractString)::Bool
-#	islead(g,n) && (dir=="both" || !meets_layer(g,n,dir))
-#
-#end
-
-
-
-# ---- coupling node(s) left or right ----- #
-	
-function coupling_inds(g::MetaDiGraph, 
-											 src::Int, 
-											 dir::AbstractString
-														 )::Vector{Tuple{Int,Int,String}}
-
-	if dir in ("right","left")
-
-		 dst = next_node(g, src, dir) 
-
-		 return isnothing(dst) ? Tuple{Int,Int,String}[] : [(src,dst,dir)]
-
-	end 
-
-	return vcat((coupling_inds(g, src, d) for d=("right","left"))...)
-
-end  
-
-
-function bring_closer(g::MetaDiGraph, n::Int, m::Int
-											)::Tuple{Bool,Int,Int}
-
-	if isempty(Graph.FindPath(g,n,m))  #means m<n
-		
-		return (false, node_left(g,n), node_right(g,m))
-
-	else 
-
-		return (true, node_right(g,n), node_left(g,m))
-
-	end
-
-end  
-
-function Gnm_inds(g::MetaDiGraph, n::Int, m::Int, dir::AbstractString
-						 )::NTuple{2,Tuple{Int,Int,String}}
-
-	nisleft, n1, m1  = bring_closer(g, n, m)
-	
-	if dir in ("both","left")
-
-		return nisleft ? ((n,m1,"left"), (m,m,dir)) : ((n,n,dir), (n1,m,"left"))  
-	elseif dir=="right"
-
-		return nisleft ? ((n,n,dir), (n1,m,dir)) : ((n,m1,dir), (m,m,dir)) 
-
-	end 
-
-end 
-
-
-function unpack_argsG(ni1ni2::Tuple{Tuple,Tuple}; kwargs1...
-							)::Tuple{Tuple{String,Int,String,Int},String}
-
-	unpack_argsG(ni1ni2...; kwargs1...)
-
-end 
-function unpack_argsG(n1i1::Tuple{<:AbstractString,Int},
-											n2i2::Tuple{<:AbstractString,Int}=n1i1;
-											kwargs1...
-							)::Tuple{Tuple{String,Int,String,Int},String}
-
-	unpack_argsG(n1i1..., n2i2...; kwargs1...)
-
-end 
-
-
-function unpack_argsG(name1::AbstractString, index1::Int64,
-						 	name2::AbstractString=name1, index2::Int64=index1;
-							dir::AbstractString="both"
-							)::Tuple{Tuple{String,Int,String,Int},String}
-
-	(name1,index1,name2,index2), dir 
-
-end 
-
-
-
-#===========================================================================#
-#
-#
-#
-#---------------------------------------------------------------------------#
-
-function GF_Decimation_fromGraph(Energy::Number, 
-																 g::MetaDiGraph,
-																 ::Nothing;
-																 kwargs...
-																 )::Function 
-
-	GF_Decimation_fromGraph(Energy, g; kwargs...)
-
-end 
-
-function GF_Decimation_fromGraph(Energy::Number, 
-																 g::MetaDiGraph,
-																 data::Union{MetaDiGraph,Dict}=g,
-																 ::Nothing=nothing;
-																 kwargs...
-																 )::Function
-
-	reEnergy = get_reEnergy(g, Energy; kwargs...)
-
-
-	# ----- the (trapped) dictionary with stored GF matrices -------- #
-	
-	storage_G = Dict{Tuple{Int,Int,String},Matrix{ComplexF64}}() 
-
-	storage_g = Dict{String,Vector{Matrix{ComplexF64}}}()
-
-	# ----- the main functions writing to dicts -------- # 
-
-	function leadG(n::Int)::Matrix{ComplexF64} 
-		
-		lead_label, lead_uc = Graph.get_prop(g, n, :name)
-
-		out = get!(storage_g, lead_label) do 
-
-			get_lead_GFf(g, lead_label)(Energy)
-
-		end  
-
-		return get_lead_GF(out, lead_uc)
-		
-	end  
-
-
-	function G(n::Int, m::Int, dir::AbstractString
-						 )::AbstractMatrix{ComplexF64}
-	
-		n==m && islead(g,n) && !meets_layer(g,n,dir) && return leadG(n)
-							#	aready stored in gd 
-
-		return get!(storage_G,(n,m,dir)) do 
-																Gnm(n,m,dir) end
-
-	end
-
-
-
-	# ----- methods to calculate the GF ------- #	
-
-	function coupling(n0::Int, d0::AbstractString)::Base.Generator
-
-		((get_graphH(g,data,m,n),G(m,m,d)) for (n,m,d)=coupling_inds(g,n0,d0))
-
-	end 
-
-
-	function Gnn(n::Int, dir::AbstractString)::Matrix{ComplexF64}
-
-		if islead(g,n) && dir=="both"
-	
-			return GF(leadG(n), coupling(n, get_dir_layer(g,n))...)
-
-		else # if islead, dir->into the system 
-
-			return GF(reEnergy, get_graphH(g, data, n), coupling(n, dir)...) 
-
-		end  
-
-	end
-
-
-	function Gnm(n::Int, m::Int, dir::AbstractString)::Matrix{ComplexF64}
-
-		n==m && return Gnn(n, dir) 
-
-		(a1,b1,d1),(a2,b2,d2) = Gnm_inds(g, n, m, dir) 
-
-		return *(G(a1,b1,d1), get_graphH(g, data, b1, a2), G(a2,b2,d2))
-
-	end 
-
-
-	return function out1(args...; kwargs1...)::AbstractMatrix{ComplexF64}
-
-		(n1,i1,n2,i2), dir = unpack_argsG(args...; kwargs1...) 
-
-		return G(get_node(g,n1,i1), get_node(g,n2,i2), dir)
-
-	end 
-
-end
-
-
-
-function GF_Decimation_fromGraph(Energy::Number, 
-																 g::MetaDiGraph,
-																 data_H::Union{Dict,MetaDiGraph},
-																 translate::Function;
-																 kwargs...
-																 )::Function
-
-	out1 = GF_Decimation_fromGraph(Energy, g, data_H; kwargs...)
-
-	return function out2(args...; kwargs1...)::AbstractMatrix{ComplexF64}
-
-		ni1ni2,slice = translate(unpack_argsG(args...)[1]...) 
-
-		return view(out1(ni1ni2...; kwargs1...), slice...)
-
-#		return translate(out1(ni1ni2...; kwargs1...), q...)
-
-	end 
-
-end 
-
-
-function GF_Decimation_fromGraph(Energy::Number, 
-																 g::MetaDiGraph, 
-																 translate::Function;
-																 kwargs...
-																 )::Function
-
-	GF_Decimation_fromGraph(Energy, g, g, translate; kwargs...)
-
-end
 
 
 #===========================================================================#
@@ -1154,13 +1058,6 @@ function PrepareLead(label::AbstractString,
 end
 
 
-function get_lead_GF(gf::AbstractVector{<:AbstractMatrix{ComplexF64}},
-										 uc::Int=1
-										 )::AbstractMatrix{ComplexF64}
-
-	gf[min(uc,end)]
-
-end 
 
 
 
