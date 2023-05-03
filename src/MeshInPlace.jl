@@ -144,13 +144,13 @@ Size of a storage array.
 - `endpoint::Bool=true`: whether the last and first mesh points differ
 """
 function _storage_size(
-											s::NTuple{Na,Int},
-											ns::NTuple{Nm,Int},
+											 s::Tuple{Vararg{Int}},
+											 ns::Tuple{Vararg{Int}},
 											args...;
 											kwargs...
-											)::NTuple{Na+Nm,Int} where {Na,Nm}
+											)::Tuple{Vararg{Int}}
 
-	Utils.tuplejoin(s, mesh_size(ns; kwargs...))
+	Utils.tuplejoin(isempty(s) ? (1,) : s, mesh_size(ns; kwargs...))
 
 end 
 
@@ -167,17 +167,19 @@ end
 
 
 function _prep_init_array(
-											s::NTuple{Na,Int},
+											s::Tuple{Vararg{Int}},
 											ns::NTuple{Nn,Int},
 											args...;
 											distr_axis::Int=Nn,
 											kwargs...
-											)::Tuple{NTuple{Na+Nn,Int}, Vector{Int}, Vector{Int}
-															 } where {Na,Nn}
+											)::Tuple{Tuple{Vararg{Int}}, Vector{Int}, Vector{Int}
+															 } where Nn
 
 	array_size = _storage_size(s, ns; kwargs...)
 
-	d = ones(Int, Na+Nn)
+	Na = length(array_size) - Nn
+
+	d = ones(Int, length(array_size))
 
 
 	parallel = check_parallel_possible(;kwargs...)
@@ -198,24 +200,37 @@ end
 
 
 function _init_storage(
-											s::NTuple{Ns,Int},
-											ns::NTuple{Nn,Int},
+											 s::Tuple{Vararg{Int}},
+											 ns::Tuple{Vararg{Int}},
 											T::DataType;
 											parallel::Bool=false,
 											shared::Bool=false,
 											kwargs...
-											)::AbstractArray{<:Number,Ns+Nn} where Ns where Nn 
+											)::AbstractArray{<:Number}
 
 	array_size, array_workers, array_distrib = _prep_init_array(s,ns; 
 																						parallel=parallel, 
 																						kwargs...)
 
+	if parallel 
+		
+		if shared 
+			
+			return SharedArray{T}(array_size; pids=union(myid(), array_workers)) 
 
-	parallel || return zeros(T, array_size)
+		else  # distributed array 
 
-	shared || return dzeros(T, array_size, array_workers, array_distrib)
+			return dzeros(T, array_size, array_workers, array_distrib)
 
-	return SharedArray{T}(array_size; pids=union(myid(), array_workers))
+		end 
+
+	else 
+
+		shared && @warn "SharedArray not initialized when parallel=false"
+
+		return zeros(T, array_size)
+
+	end 
 
 end 
 
@@ -281,6 +296,29 @@ function init_storage_ak(T::DataType, ns::Int...; kwargs...)
 
 end 
 
+#confused with init_storage_ak(item1::Int, n::Int, kwargs...)
+#function init_storage_ak(ns::Int...; kwargs...)
+#	
+#	init_storage_ak((), ns; kwargs...)
+#
+#end 
+function init_storage_ak(n::Int; kwargs...)
+
+	init_storage_ak((), (n,); kwargs...)
+
+end 
+
+
+function init_storage_ak(
+												 s::Tuple{Vararg{Int}}, 
+												 n::Vararg{Int}; 
+												 kwargs...)
+
+	init_storage_ak(s, n; kwargs...)
+
+end 
+
+
 function init_storage_ak(T::DataType, 
 												 s::Tuple{Vararg{Int}}, 
 												 n::Vararg{Int}; 
@@ -289,6 +327,7 @@ function init_storage_ak(T::DataType,
 	init_storage_ak(T, s, n; kwargs...)
 
 end 
+
 
 function init_storage_ak(T::DataType, 
 												 s::Tuple{Vararg{Int}}, 
@@ -299,10 +338,12 @@ function init_storage_ak(T::DataType,
 
 end 
 
+
+
 function init_storage_ak(
 												 s::Tuple{Vararg{Int}}, 
 												 n::Tuple{Vararg{Int}},
-												 T::DataType;
+												 T::DataType=Float64;
 												 kwargs...)
 
 	(s, n, T), kwargs
@@ -426,7 +467,7 @@ function select_mesh_point(data::AbstractArray{T,Ns},
 													 i::NTuple{Nm,Int} 
 													 )::AbstractArray{T} where {T<:Number,Ns,Nm}
 
-	view(data, fill(:,Ns-Nm), i...)
+	view(data, fill(:,Ns-Nm)..., i...)
 
 end 
 
@@ -502,29 +543,29 @@ end
 #
 
 
-
-function store_on_mesh!(f!::Function, 
-												dest,
-												ns::Union{Int,Tuple{Vararg{Int}}}, 
-												args...; kwargs...)
-
-	store_on_mesh!(f!, dest, mesh_axes(ns; kwargs...), args...; kwargs...)
-
-end 
-
-
-function store_on_mesh!(f!::Function, dest::T,
-												 inds::Tuple{Vararg{AbstractVector{Int}}},
-												data...; kwargs...
-												)::T where T<:Union{<:SubOrArray{<:Number},
-#																		<:SubOrSArray{<:Number}, # different
-																		<:AbstractVector{<:AbstractArray},
-#																		<:AbstractDict,
-																		}
-
-	_store_on_mesh(f!, dest, inds, data...; kwargs...)
-
-end 
+#
+#function store_on_mesh!(f!::Function, 
+#												dest,
+#												ns::Union{Int,Tuple{Vararg{Int}}}, 
+#												args...; kwargs...)
+#
+#	store_on_mesh!(f!, dest, mesh_axes(ns; kwargs...), args...; kwargs...)
+#
+#end 
+#
+#
+#function store_on_mesh!(f!::Function, dest::T,
+#												 inds::Tuple{Vararg{AbstractVector{Int}}},
+#												data...; kwargs...
+#												)::T where T<:Union{<:SubOrArray{<:Number},
+##																		<:SubOrSArray{<:Number}, # different
+#																		<:AbstractVector{<:AbstractArray},
+##																		<:AbstractDict,
+#																		}
+#
+#	_store_on_mesh(f!, dest, inds, data...; kwargs...)
+#
+#end 
 
 	#for d in data 
 
@@ -544,37 +585,37 @@ end
 	#end 
 
 
-function store_on_mesh!(f!::Function, dest::T, 
-												 inds::Tuple{Vararg{AbstractVector{Int}}},
-												data...; 
-												array_distrib::Dict{Int,Tuple{Vararg{UnitRange{Int}}}},
-												kwargs...
-												)::T where T<:Union{<:AbstractVector{<:SubOrSArray},
-																		 SubOrSArray{<:Number},
-																		 }
-
-@warn "Not implemented" 
-
-#	map(procs_(array_distrib)) do p 
+#function store_on_mesh!(f!::Function, dest::T, 
+#												 inds::Tuple{Vararg{AbstractVector{Int}}},
+#												data...; 
+#												array_distrib::Dict{Int,Tuple{Vararg{UnitRange{Int}}}},
+#												kwargs...
+#												)::T where T<:Union{<:AbstractVector{<:SubOrSArray},
+#																		 SubOrSArray{<:Number},
+#																		 }
 #
-#		locinds = array_distrib[p]
+#@warn "Not implemented" 
 #
-#		@spawnat p begin   
+##	map(procs_(array_distrib)) do p 
+##
+##		locinds = array_distrib[p]
+##
+##		@spawnat p begin   
+##
+##			_store_on_mesh!(f!, 
+##											localpart_(dest, locinds), # NOT DEFINED 
+##											map(findall_indexin, get_big_inds(locinds), inds), 
+###											pass locinds  ? 
+##										data...;
+##										kwargs...)
+##
+##		end  
+##
+##	end .|> fetch 
 #
-#			_store_on_mesh!(f!, 
-#											localpart_(dest, locinds), # NOT DEFINED 
-#											map(findall_indexin, get_big_inds(locinds), inds), 
-##											pass locinds  ? 
-#										data...;
-#										kwargs...)
+#	return dest 
 #
-#		end  
-#
-#	end .|> fetch 
-
-	return dest 
-
-end   
+#end   
 
 
 
