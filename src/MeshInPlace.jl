@@ -292,7 +292,13 @@ Prepare args and kwargs for the internal method _init_storage
 """
 function init_storage_ak(T::DataType, ns::Int...; kwargs...)
 
-	init_storage_ak(T, (), ns...)
+	init_storage_ak(T, (), ns)
+
+end 
+
+function init_storage_ak(T::DataType, ns::Tuple{Vararg{Int}}; kwargs...)
+
+	init_storage_ak(T, (), ns)
 
 end 
 
@@ -301,30 +307,30 @@ end
 #	
 #	init_storage_ak((), ns; kwargs...)
 #
-#end 
+#end  
+
 function init_storage_ak(n::Int; kwargs...)
 
 	init_storage_ak((), (n,); kwargs...)
 
 end 
 
-
-function init_storage_ak(
-												 s::Tuple{Vararg{Int}}, 
-												 n::Vararg{Int}; 
+function init_storage_ak(s::Tuple{Vararg{Int}}, 
+												 n::Int,
+												 T::DataType...;
 												 kwargs...)
 
-	init_storage_ak(s, n; kwargs...)
+	init_storage_ak(s, (n,), T...; kwargs...)
 
 end 
 
-
 function init_storage_ak(T::DataType, 
 												 s::Tuple{Vararg{Int}}, 
+												 n1::Int,
 												 n::Vararg{Int}; 
 												 kwargs...)
 
-	init_storage_ak(T, s, n; kwargs...)
+	init_storage_ak(T, s, (n1, n...); kwargs...)
 
 end 
 
@@ -339,7 +345,6 @@ function init_storage_ak(T::DataType,
 end 
 
 
-
 function init_storage_ak(
 												 s::Tuple{Vararg{Int}}, 
 												 n::Tuple{Vararg{Int}},
@@ -349,6 +354,7 @@ function init_storage_ak(
 	(s, n, T), kwargs
 
 end 
+
 
 
 function init_storage_ak(item1::AbstractArray{T}, n::Int; kwargs...) where T
@@ -366,10 +372,36 @@ function init_storage_ak(item1::AbstractArray{T},
 
 end 
 
-function init_storage_ak(item1::Number, 
-												 ns::Union{Int,Tuple{Vararg{Int}}}; kwargs...) 
+function init_storage_ak(item1::T,
+												 ns::Tuple{Vararg{Int}}; 
+												 kwargs...) where T<:Number 
 
-	init_storage_ak([item1], ns; kwargs...)
+	init_storage_ak(T, ns; kwargs...)
+
+end 
+
+function init_storage_ak(
+												 x::Union{
+																	Number,
+																	AbstractArray{<:Number},
+																	},
+												 n::Int,
+												 T::DataType...;
+												 kwargs...)
+
+	init_storage_ak(x, (n,), T...; kwargs...)
+
+end 
+function init_storage_ak(
+												 x::Union{
+																	Number,
+																	AbstractArray{<:Number},
+																	},
+												 n::Tuple{Vararg{Int}},
+												 T::DataType;
+												 kwargs...)
+
+	init_storage_ak(T, n; kwargs...)
 
 end 
 
