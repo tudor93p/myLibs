@@ -5,7 +5,11 @@ import ..DlmF
 import FileIO, JLD, OrderedCollections
 
 import ..Utils, ..ArrayOps
+using SharedArrays: SharedArray 
 
+
+const SubOrArray{T,N} = Union{Array{T,N}, SubArray{T,N,<:Array}}
+const SubOrSArray{T,N} = Union{SharedArray{T,N}, SubArray{T,N,<:SharedArray}}
 
 #===========================================================================#
 #
@@ -115,7 +119,7 @@ function Write_NamesVals(filename::Function,
 
 
 
-	function writable(matrix::AbstractArray{<:Complex}, name)
+	function writable(matrix::SubOrArray{<:Complex}, name)
 
 		if has_significant_imagpart(matrix; atol=tol)
 			
@@ -133,8 +137,9 @@ function Write_NamesVals(filename::Function,
 
 	end
 
+	writable(matrix::SubOrSArray{<:Number}, name) = writable(Array(matrix), name)
 
-	writable(matrix::AbstractArray{<:Real}, name) = matrix
+	writable(matrix::SubOrArray{<:Real}, name) = matrix
 	writable(matrix::AbstractArray{<:AbstractString},name) = matrix
 
 	writable(matrix::AbstractArray{<:Char},name) = matrix
@@ -264,9 +269,21 @@ end
 
 function good_data(D::T)::T where T<:AbstractDict 
 
-	for v in values(D)
+	for (k,v) in D
 		
-		v isa Union{<:Number, <:AbstractDict,<:AbstractArray, <:AbstractString} && continue 
+		v isa Union{<:Number, <:AbstractDict,<:SubOrArray, <:AbstractString} && continue 
+
+		if v isa SubOrSArray 
+
+			@warn "'$k' isa SharedArray of size $(size(v)). Converting to Array"
+
+			D[k] = Array(v)  
+
+			continue 
+
+		end 
+
+
 
 		@show typeof(v) 
 
