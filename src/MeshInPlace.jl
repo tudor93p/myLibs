@@ -169,10 +169,13 @@ end
 """
 Drops the first singleton dimension added for homogeneity
 """
-function drop_first_singleton!(D::AbstractDict
+function drop_first_singleton!(D::AbstractDict,
+															 exceptions...
 															)::AbstractDict 
 
 	for (K,V) in D 
+
+		K in exceptions && continue 
 
 		if V isa AbstractArray  ################
 
@@ -713,7 +716,7 @@ Adapted from WLO
 #	return dest 
 #
 #end   
-
+#
 
 
 
