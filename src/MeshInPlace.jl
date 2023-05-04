@@ -351,13 +351,13 @@ Prepare args and kwargs for the internal method _init_storage
 """
 function init_storage_ak(T::DataType, ns::Int...; kwargs...)
 
-	init_storage_ak(T, (), ns)
+	init_storage_ak(T, (), ns; kwargs...)
 
 end 
 
 function init_storage_ak(T::DataType, ns::Tuple{Vararg{Int}}; kwargs...)
 
-	init_storage_ak(T, (), ns)
+	init_storage_ak(T, (), ns; kwargs...)
 
 end 
 
@@ -434,7 +434,7 @@ end
 function init_storage_ak(item1::T,
 												 ns::Tuple{Vararg{Int}}; 
 												 kwargs...) where T<:Number 
-
+	
 	init_storage_ak(T, ns; kwargs...)
 
 end 
