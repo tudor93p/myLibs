@@ -424,13 +424,82 @@ function get_SE!(storage::NTuple{2,Dict},
 
 end 	
 
+function get_nr_layers((g,)::Tuple{MetaDiGraph,Vararg})::Int
+
+	Graph.get_prop(g, :NrLayers)
+
+end 
+
+function gradual_fill!(storage::NTuple{2,Dict},
+								 data::Tuple{MetaDiGraph, Vararg},
+													)::Nothing
+
+	N::Int = get_nr_layers(data)
+
+	G!(storage,data,1,1,"left"),
+	G!(storage,data,N,N,"right"),
+	
+	for n=2:N
+
+		G!(storage,data,n,n,"left") 
+		G!(storage,data,n-1,n,"left") 
+		G!(storage,data,n,n-1,"left") 
+
+		G!(storage,data,N-n+1,N-n+1,"right")
+		G!(storage,data,N-n+2,N-n+1,"right")
+		G!(storage,data,N-n+1,N-n+2,"right")
+
+	end 
+
+	G!(storage,data,1,1,"both")
+
+	for n=2:N
+
+		G!(storage,data,n,n,"both")
+		G!(storage,data,n,n-1,"both")
+		G!(storage,data,n-1,n,"both")
+
+	end 
+
+	return 
+
+end 
 
 
+function bad_gradual_fill!(storage::NTuple{2,Dict},
+								 data::Tuple{MetaDiGraph, Vararg},
+													)::Nothing
+
+	N::Int = get_nr_layers(data)
+
+	G!(storage,data,1,1,"right"),
+	G!(storage,data,N,N,"left"),
+	
+	for n=2:N
+
+		G!(storage,data,n,n,"right") 
+		G!(storage,data,n-1,n,"right") 
+		G!(storage,data,n,n-1,"right") 
+
+		G!(storage,data,N-n+1,N-n+1,"left")
+		G!(storage,data,N-n+2,N-n+1,"left")
+		G!(storage,data,N-n+1,N-n+2,"left")
+
+	end 
 
 
+	for n=N:-1:2
 
+		G!(storage,data,n,n-1,"both")
+		G!(storage,data,n-1,n,"both")
+		G!(storage,data,n,n,"both")
 
+	end 
+	G!(storage,data,1,1,"both")
 
+	return 
+
+end 
 
 
 
