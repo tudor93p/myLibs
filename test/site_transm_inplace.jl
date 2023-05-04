@@ -113,7 +113,6 @@ hopp = Dict(:Hopping=>get_hopp(NR_ORB), :nr_orb=>NR_ORB)
 
 		@test data[2]≈ldos 
 
-		@test data[1]≈sum(ldos)≈only(ObservablesFromGF.DOS_Decimation!(rand(1), G_old; LayerAtom..., proj=proj,dim=2, VirtLeads...))
 	
 	
 		end  

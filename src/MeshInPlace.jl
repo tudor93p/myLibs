@@ -498,9 +498,16 @@ end
 
 function select_mesh_point(data::AbstractArray{T,Ns},
 													 i::NTuple{Nm,Int} 
-													 )::AbstractArray{T} where {T<:Number,Ns,Nm}
+													 )::AbstractArray{T,Ns-Nm} where {T<:Number,Ns,Nm}
 
 	view(data, fill(:,Ns-Nm)..., i...)
+
+end 
+function select_mesh_point(data::AbstractArray{T,Ns},
+													 i::Int,
+													 )::AbstractArray{T,Ns-1} where {T<:Number,Ns}
+
+	selectdim(data, Ns, i)
 
 end 
 
@@ -531,29 +538,29 @@ Internal method for in-place mesh storing.
 
 Adapted from WLO 
 """ 
-function _store_on_mesh!(f!::Function, 
-												 dest::T,
-												 inds::Tuple{Vararg{AbstractVector{Int}}},
-												data...; 
-												parallel::Bool=false,
-												array_distrib=nothing,
-												kwargs...
-												)::T where T<:Union{<:SubOrArray{<:Number},
-																		<:SubOrSArray{<:Number},
-																		<:AbstractVector{<:AbstractArray},
-#																		<:AbstractDict, ? 
-																		}
-
-	for i in Base.product(inds...)
-
-#		store_on_mesh_one!(get_one!, dest, i, data...; kwargs...)
-		f!(dest, i, data...; kwargs...)
-
-	end 
-
-	return dest 
-
-end    
+#function _store_on_mesh!(f!::Function, 
+#												 dest::T,
+#												 inds::Tuple{Vararg{AbstractVector{Int}}},
+#												data...; 
+#												parallel::Bool=false,
+#												array_distrib=nothing,
+#												kwargs...
+#												)::T where T<:Union{<:SubOrArray{<:Number},
+#																		<:SubOrSArray{<:Number},
+#																		<:AbstractVector{<:AbstractArray},
+##																		<:AbstractDict, ? 
+#																		}
+#
+#	for i in Base.product(inds...)
+#
+##		store_on_mesh_one!(get_one!, dest, i, data...; kwargs...)
+#		f!(dest, i, data...; kwargs...)
+#
+#	end 
+#
+#	return dest 
+#
+#end    
 
 
 #function store_on_mesh_one!(

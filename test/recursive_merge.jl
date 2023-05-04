@@ -1,8 +1,83 @@
 using Revise,Test,Distributed 
 using SharedArrays
 import myLibs:Utils,MeshInPlace
+using myLibs.MeshInPlace: init_storage
 
 NR_ENERGIES= 400
+
+@testset "init_storage" begin
+
+	for t in [Int,Float64,ComplexF64],n0 in [1,10]
+		
+		a0 = zeros(t,1,n0)
+
+		for x in [rand(t),rand(t,1)] 
+
+			for n in [n0,(n0,)]
+
+				@test a0≈init_storage(x,n) 
+
+				@test a0≈init_storage(t,(1,),n)
+				@test a0≈init_storage((1,),n,t)
+
+				@test a0≈init_storage(Dict("q"=>x,"Q"=>rand()),n)["q"]
+			
+				@test a0≈init_storage(Dict("q"=>size(x),"Q"=>rand()),n,t)["q"]
+
+				if t==Float64
+
+					@test a0≈init_storage(Float64.(x),n) 
+	
+					@test a0≈init_storage((1,),n)
+	
+					@test a0≈init_storage(Dict("q"=>Float64.(x),"Q"=>rand()),n)["q"]
+				
+				end 
+
+			end 
+
+		end 
+
+		b0 =zeros(t,6,n0)
+		
+		for x in [rand(t,6)] 
+
+			for n in [n0,(n0,)]
+
+				@test b0≈init_storage(x,n) 
+
+				@test b0≈init_storage(t,(6,),n)
+				@test b0≈init_storage((6,),n,t)
+
+				@test b0≈init_storage(Dict("q"=>x,"Q"=>rand()),n)["q"]
+			
+				@test b0≈init_storage(Dict("q"=>size(x),"Q"=>rand()),n,t)["q"]
+
+				if t==Float64
+
+					@test b0≈init_storage(Float64.(x),n) 
+	
+					@test b0≈init_storage((6,),n)
+	
+					@test b0≈init_storage(Dict("q"=>Float64.(x),"Q"=>rand()),n)["q"]
+				
+				end 
+
+			end 
+
+		end 
+
+
+
+
+	end 
+
+
+
+end 
+
+
+
 
 
 @everywhere function f(i::Int,L::Int)
@@ -18,7 +93,9 @@ NR_ENERGIES= 400
 	dos = rand() 
 
 
-	return Dict{String,Any}("i" => i,
+
+	return Dict{String,Any}("q" => hcat(i),
+													"i" => i,
 													"siteT" => siteT,
 													"ldos" => ldos,
 													"netT" => netT,
@@ -42,7 +119,10 @@ end
 
 	i = SharedArray{Float64}(1,NR_ENERGIES)
 
-	return Dict{String,Any}("i" => i,
+	q = SharedArray{Int}(1,1,NR_ENERGIES)
+
+	return Dict{String,Any}("q" => q,
+													"i" => i,
 													"siteT" => siteT,
 													"ldos" => ldos,
 													"netT" => netT,
@@ -125,8 +205,8 @@ for L  = [2,60,100,3][1:1]
 
 		for (k,s) in shdata
 
-			if s isa AbstractArray 
-				@test s≈shdata2[k]
+			if s isa AbstractArray  
+				@test s≈shdata2[k] 
 
 			elseif s isa AbstractDict 
 			
