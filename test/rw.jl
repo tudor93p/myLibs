@@ -1,5 +1,5 @@
 import myLibs:ReadWrite, Utils
-
+using JLD ,Test 
 
 
 
@@ -29,13 +29,14 @@ println()
 #
 
 println()
-println()
 
-FSM = "dat"
+for FSM in ["jld", "dat"]
 
 fname = x->string("test/savefile/",x)
 
 Write!,outdict = ReadWrite.Write_PhysObs(fname, FSM)
+
+@testset "recovered read $FSM" begin 
 
 for k in keys(d) 
 
@@ -51,9 +52,15 @@ Write!(k, d[k], outdict)
 
 z = ReadWrite.Read_PhysObs(fname, k, FSM)[k] 
 
-println(d[k])
-println(z) 
+if z isa AbstractArray 
 
+@test z≈d[k]
+else 
+
+	@test all([zq≈d[k][q] for (q,zq)=z])
+
+
+end 
 
 println()
 
@@ -61,4 +68,5 @@ end
 
 
 
-
+end 
+end 

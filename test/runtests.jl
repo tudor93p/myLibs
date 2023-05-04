@@ -45,7 +45,7 @@ for f in [
 
 #"rgf_B" |> pr_in 
 
-"gf_decim_dataH",
+#"gf_decim_dataH",
 #"layeredsystem",
 #"gf_err",
 #"gf",
@@ -70,7 +70,7 @@ for f in [
 
 #"utils",
 
-"recursive_merge",
+#"recursive_merge",
 #"utils_splitws",
 #"oper" ,
 
@@ -87,7 +87,7 @@ for f in [
 ##"param" #|> pr_in 
 
 #"param2",
-
+"rw",
 ]
 
 	println("\n********* $f ********* \n")

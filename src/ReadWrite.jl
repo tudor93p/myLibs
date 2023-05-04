@@ -114,7 +114,8 @@ function Write_NamesVals(filename::Function,
 												 )::Tuple{Function,Dict}
 
 
-	function writable(matrix::AbstractArray{<:Number}, name)
+
+	function writable(matrix::AbstractArray{<:Complex}, name)
 
 		if has_significant_imagpart(matrix; atol=tol)
 			
@@ -132,6 +133,8 @@ function Write_NamesVals(filename::Function,
 
 	end
 
+
+	writable(matrix::AbstractArray{<:Real}, name) = matrix
 	writable(matrix::AbstractArray{<:AbstractString},name) = matrix
 
 	writable(matrix::AbstractArray{<:Char},name) = matrix
@@ -191,7 +194,8 @@ function Write_NamesVals(filename::Function,
 
 		if !isnothing(name) & !isnothing(val)
 
-			outdict[name] = write_(name, writable(val,name))
+#			outdict[name] = 
+			write_(name, writable(val,name))
 
 		end 
 
