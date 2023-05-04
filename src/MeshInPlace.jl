@@ -154,9 +154,65 @@ function _storage_size(
 
 end 
 
+function drop_first_singleton(A::AbstractArray{T,N}
+															)::AbstractArray{T} where {T<:Number,N}
+
+	@assert N>1 "No vector was initialized"
+
+	size(A,1)==1 ? dropdims(A; dims=1) : A 
+
+end 
 
 
 
+
+"""
+Drops the first singleton dimension added for homogeneity
+"""
+function drop_first_singleton!(D::AbstractDict
+															)::AbstractDict 
+
+	for (K,V) in D 
+
+		if V isa AbstractArray  ################
+
+			@assert ndims(V)>1 "No vector was initialized"
+
+			if size(V,1)==1
+				
+				D[K] = dropdims(V; dims=1)
+
+			end 
+
+
+		elseif V isa AbstractDict 	#################
+
+			for (k,v) in V
+
+				@assert v isa AbstractArray 
+				
+				@assert ndims(v)>1 "No vector was initialized"
+
+				if size(v,1)==1 
+	
+					D[V][k] = dropdims(v; dims=1)
+	
+				end 
+	
+			end 
+
+
+		else  ##############
+
+			error("Not implemented: $V")
+
+		end 
+
+	end 
+
+	return D
+
+end 
 
 #===========================================================================#
 #
@@ -449,9 +505,10 @@ function init_storage(args...; kwargs...)
 
 end  
 
-function init_storage(item1::Dict, arg1, args...; kwargs...)::Dict
+function init_storage(item1::Dict{K,V}, arg1, args...; kwargs...
+											)::Dict{K,Any} where {K,V}
 
-	Dict(k=>init_storage(v, arg1, args...; kwargs...) for (k,v)=item1)
+	Dict{K,Any}(k=>init_storage(v, arg1, args...; kwargs...) for (k,v)=item1)
 
 end 
 
