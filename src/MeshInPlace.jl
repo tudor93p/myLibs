@@ -195,7 +195,7 @@ function drop_first_singleton!(D::AbstractDict
 
 				if size(v,1)==1 
 	
-					D[V][k] = dropdims(v; dims=1)
+					D[K][k] = dropdims(v; dims=1)
 	
 				end 
 	
