@@ -1242,39 +1242,113 @@ function EqualDistributeBallsToBoxes(list::Any, boxes::Int)::Vector{Int}
 end 
 
 
-function PropDistributeBallsToBoxes(balls::Int, sizes::AbstractVector{<:Number})::Vector{Int} 
-
-	float_ns = balls*LA.normalize(sizes, 1) # proportional distribution 
-
-	int_ns = Int64.(round.(float_ns))		# rough distribution 
 
 
-	while sum(int_ns) > balls 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
 
-		nonzero_inds = findall(>(0), int_ns)
+function masked_argmax(x::AbstractVector{<:Real},
+											 b::AbstractVector{Bool}
+											 )::Int
 
-		isempty(nonzero_inds) && return int_ns 
+	v = view(x, b) 
+	
+	return only(parentindices(v))[argmax(v)]
+	
+end   
+function masked_argmin(x::AbstractVector{<:Real},
+											 b::AbstractVector{Bool}
+											 )::Int
 
-		jmax = argmax(int_ns[nonzero_inds] - float_ns[nonzero_inds])
+	v = view(x, b) 
+	
+	return only(parentindices(v))[argmin(v)]
+	
+end   
 
-		int_ns[nonzero_inds[jmax]] -= 1 
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+
+function PropDistributeBallsToBoxes(balls::Int, 
+																		sizes::AbstractVector{<:Number};
+																		nmin::Int=0,
+																		)::Vector{Int} 
+
+	boxes = length(sizes)
+
+	@assert !xor(balls==0, boxes==0)
+
+	balls==0 && return Int[]
+
+	@assert balls >= nmin*boxes "Too few balls to distribute"
+
+
+	float_ns = LA.normalize(sizes, 1) # sum(float_ns)=1 
+
+	float_ns .*= balls 
+
+	bigger_than_min = trues(boxes) 
+
+	int_ns = Vector{Int}(undef, boxes) 
+
+	overest = similar(float_ns)
+
+	for (i,n) in enumerate(float_ns)  
+
+		int_ns[i] =	round(n)  
+
+		if int_ns[i]<=nmin 
+
+			bigger_than_min[i]=false    
+
+			int_ns[i]==nmin || setindex!(int_ns,nmin,i)
+
+		end  
+
+		overest[i] = int_ns[i] - n 
+
+	end 
+
+	while sum(int_ns) > balls 		# rounding resulted in too many 
+
+		any(bigger_than_min) || return int_ns # no donors 
+
+		jmax = masked_argmax(overest, bigger_than_min)  # highest overestimation 
+
+		int_ns[jmax] -= 1 
+		overest[jmax] -= 1  
+
+		int_ns[jmax]<=nmin && setindex!(bigger_than_min, false, jmax)
 
   end
 
   while sum(int_ns) < balls 
 
-		int_ns[argmin(int_ns - float_ns)] += 1
+		jmin = argmin(overest) 
 
-  end
+		int_ns[jmin] += 1
+		overest[jmin] += 1
+
+	end 
 
 	return int_ns 
 
 end 
 
 
-function PropDistributeBallsToBoxes_cumulRanges(args...)
+function PropDistributeBallsToBoxes_cumulRanges(args...; kwargs...)
 
-	d = PropDistributeBallsToBoxes(args[1:2]...)
+	d = PropDistributeBallsToBoxes(args[1:2]...; kwargs...)
 
 	return sepLengths_cumulRanges(d, args[3:end]...)
 
@@ -3441,19 +3515,34 @@ end
 
 
 
+
+
+
+
 function PathConnect(points::AbstractMatrix, n::Int, dist::AbstractVector;
 										 end_point::Bool=true, 
 										 bounds::AbstractVector=[0,1],
 										 dim::Int,
 										 )
 
-	nr_intervals = size(points, dim) - 1
+
+	P = size(points, dim) 
+
+	nr_intervals = P - 1
 
 	nr_intervals > 0 || return points, [], []
 
-	nr_intervals==length(dist) || error("There should be $nr_intervals distance(s), you provided ",length(dist))
+	@assert nr_intervals==length(dist) "There should be $nr_intervals distance(s), you provided $(length(dist))"
 
-	xticks = Rescale(cumsum([0;dist]), bounds) 
+
+	xticks = zeros(P)
+	
+	cumsum!(view(xticks,2:P), dist)
+
+	Utils.Rescale!(xticks, bounds)
+
+#	@assert xticks ≈ Rescale(cumsum([0;dist]), bounds) 
+
 
 
 	if n <= nr_intervals + end_point 
