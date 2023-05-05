@@ -5,7 +5,8 @@ import ..DlmF
 import FileIO, JLD, OrderedCollections
 
 import ..Utils, ..ArrayOps
-using SharedArrays: SharedArray 
+
+using Distributed, SharedArrays
 
 
 const SubOrArray{T,N} = Union{Array{T,N}, SubArray{T,N,<:Array}}
