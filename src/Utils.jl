@@ -2278,6 +2278,12 @@ function canonicalize_maxtwo(dt::Dates.Period)::Dates.CompoundPeriod
 
 end 
 
+function canonicalize_maxtwo(dt::Real)::Dates.CompoundPeriod 
+
+	canonicalize_maxtwo(Dates.Second(ceil(max(dt,1))))
+
+end 
+
 
 
 #===========================================================================#

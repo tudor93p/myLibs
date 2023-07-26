@@ -76,8 +76,9 @@ for f in [
 
 #"mirror_oper",
 
-#"bandstr" |> pr_in
+#"bandstr" 
 
+"simple_wlos",
 
 #"tasks2",
 #"tasks",
@@ -87,7 +88,7 @@ for f in [
 ##"param" #|> pr_in 
 
 #"param2",
-"rw",
+#%"rw",
 ]
 
 	println("\n********* $f ********* \n")

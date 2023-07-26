@@ -1,6 +1,7 @@
 module Groups 
 ############################################################################# 
 
+import Combinatorics
 
 import ..LA 
 
@@ -13,19 +14,27 @@ import ..LA
 #
 #---------------------------------------------------------------------------#
 
-function PMinput(i::Int)::Val 
+function PMinputint(i::Int)::Int 
 	
 	@assert 0<=i<=3 
-	
-	return Val(i) 
+
+	return i 
 
 end 
 
-function PMinput(c::Union{AbstractChar,AbstractString})::Val 
+function PMinputint(c::Union{AbstractChar,AbstractString})::Int
 	
-	PMinput(parse(Int,c))
+	parse(Int,c)
 
 end 
+
+
+function PMinput(i::Union{AbstractChar, AbstractString, Int})::Val 
+
+	Val(PMinputint(i))
+
+end 
+
 
 
 function PauliMatrices()::Dict{Int64,Matrix{ComplexF64}}
@@ -39,11 +48,38 @@ PauliMatrix(i::Union{AbstractChar,
 										 Int
 										 })::Matrix{ComplexF64} = PauliMatrix(PMinput(i))
 
-PauliMatrix(::Val{0})::Matrix{ComplexF64} = [[1 0]; [0 1]]
-PauliMatrix(::Val{1})::Matrix{ComplexF64} = [[0 1]; [1 0]]
-PauliMatrix(::Val{2})::Matrix{ComplexF64} = [[0 -1im]; [1im 0]]
-PauliMatrix(::Val{3})::Matrix{ComplexF64} = [[1 0]; [0 -1]]
+PauliMatrix(::Val{0})::Matrix{ComplexF64} = ComplexF64[[1 0]; [0 1]]
+PauliMatrix(::Val{1})::Matrix{ComplexF64} = ComplexF64[[0 1]; [1 0]]
+PauliMatrix(::Val{2})::Matrix{ComplexF64} = ComplexF64[[0 -1im]; [1im 0]]
+PauliMatrix(::Val{3})::Matrix{ComplexF64} = ComplexF64[[1 0]; [0 -1]]
 
+
+
+
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+function PMprod(i_, j_)::Matrix{ComplexF64} 
+
+	p = Int[PMinputint(i_), PMinputint(j_), -1]
+
+	allunique(view(p,1:2)) || return PauliMatrix(0)  
+
+	p[1]==0 && return PauliMatrix(p[2])
+	p[2]==0 && return PauliMatrix(p[1])
+
+	p[3] = 6-p[1]-p[2]
+
+	out = PauliMatrix(p[3])
+
+	out .*= im * Combinatorics.levicivita(p)
+
+	return out 
+
+end 
 
 
 #===========================================================================#
