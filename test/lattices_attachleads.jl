@@ -7,11 +7,6 @@ using OrderedCollections:OrderedDict
 
 println() 
 	
-#path = "/media/tudor/Tudor/Work/scripts/python_libraries/tests/"
-#
-#pushfirst!(PyCall.PyVector(PyCall.pyimport("sys")."path"), path)
-#
-#pytest = PyCall.pyimport("Lattices_AlignLead_test")
 
 
 println() 

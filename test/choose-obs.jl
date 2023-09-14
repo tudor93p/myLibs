@@ -1,7 +1,7 @@
 import myLibs: ReadWrite, ComputeTasks 
 import JLD 
 
-fn = x->"/media/tudor/Tudor/Work/2020_Snake-states/SnakeStates/Data/DeviceWithLeads/GreensFcts/075-37-2p000-0p030-2-0p005-0p00-0p400-0p400-0p002/AB/18-1-1p0-0p0-m1-1p00-m1p0-1p0/18-1-1p0-0p0-1-1p00-1p0-m1p0/$x"
+#fn = x->"/media/tudor/Tudor/Work/2020_Snake-states/SnakeStates/Data/DeviceWithLeads/GreensFcts/075-37-2p000-0p030-2-0p005-0p00-0p400-0p400-0p002/AB/18-1-1p0-0p0-m1-1p00-m1p0-1p0/18-1-1p0-0p0-1-1p00-1p0-m1p0/$x"
 
 obs = "QP-SiteVectorTransmission"
 

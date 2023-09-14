@@ -320,7 +320,7 @@ end
 
 
 function Diagonalize(H::Function, 
-										 kPoints::AbstractMatrix{Float64}, 
+										 kPoints::AbstractMatrix{<:Real},
 										 filename::Function;
 										 storemethod::AbstractString="jld",
 										 kwargs...)

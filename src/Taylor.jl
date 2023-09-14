@@ -1390,7 +1390,7 @@ end
 
 														 
 function Tensor_fromDeriv(S::Scalar, 
-														 fields::Vararg{<:Any,D}
+														 fields::Vararg{Any,D}
 														)::Tensor{D} where D
 
 	Tensor_fromDeriv(Tensor(S), fields...)
@@ -1399,7 +1399,7 @@ end
 
 function Tensor_fromDeriv(T::Tensor{D},
 														 field::Union{AbstractString,FieldPlaceholder},
-														 fields::Vararg{<:Any,N}
+														 fields::Vararg{Any,N}
 														 )::Tensor{D+N+1} where {D,N}
 
 	Tensor_fromDeriv(Tensor_fromDeriv(T,field), fields...)

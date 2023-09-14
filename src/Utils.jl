@@ -2929,8 +2929,8 @@ end
 function execute_julia_function_(file_function;args=[],Nr_Procs=8,libs=[])
 
 
-  lib_local  = "/media/tudor/Tudor/Work/scripts/julia_libraries/"
-  lib_remote = "/net/horon/scratch/pahomit/apps/julia-1.2.0/lib/mylib/"
+#  lib_local  = "/media/tudor/Tudor/scripts/julia_libraries/"
+#  lib_remote = "/net/horon/scratch/pahomit/apps/julia-1.2.0/lib/mylib/"
 
   lib_root = gethostname() == "tudor-HP" ? lib_local : lib_remote
 

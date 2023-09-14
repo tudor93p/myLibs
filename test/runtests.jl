@@ -8,86 +8,79 @@ for f in [
 
 #"mydistrib",
 #"algebra" ,
- 
 #"signal",
-#
-#
-#"identify_sectors", 
-#
-#
-#"caroli_cond_methods"
+"identify_sectors", 
+"caroli_cond_methods",
+"taylor",
+
+"lattices_vecs",
+
+"lattices",
+
+"geometry",
+
+"lattices_attachleads",
+
+"sancho-rubio",
 
 
-#"taylor",
-
-#"lattices_vecs" |> pr_in
-
-#"lattices",
-
-#"geometry",
-
-#"lattices_attachleads",
-
-#"sancho-rubio",
+"lattices_relabsdim",
 
 
-#"lattices_relabsdim" |> pr_in
+"hopping_terms",
+
+"rgf_LM08" , 
+"rgf_sq_honey_leads" ,
+"rgf_LM10" , 
+"rgf_LM11" , 
+
+"rgf_LM12",
+
+"rgf_B" , 
+
+"gf_decim_dataH",
+"layeredsystem",
+"gf_err",
+"gf",
+
+"site_transm_fromData",
+"site_transm_fromData_mem",
+
+"transm_ZHXS", 
 
 
-#"hopping_terms",
-
-#"rgf_LM08" |> pr_in 
-#"rgf_sq_honey_leads" |> pr_in
-#"rgf_LM10" |> pr_in 
-#"rgf_LM11" |> pr_in 
-
-#"rgf_LM12",
-
-#"rgf_B" |> pr_in 
-
-#"gf_decim_dataH",
-#"layeredsystem",
-#"gf_err",
-#"gf",
-
-#"site_transm_fromData",
-#"site_transm_fromData_mem",
-
-#"transm_ZHXS", 
-
-
-#"transm_ZHXS_Fig2", 
-#"transm_ZHXS_Fig3", 
-#"transm_ZHXS_Fig5", 
-#"transm_ZHXS_Fig7", 
-#"transm_ZHXS_local", 
+"transm_ZHXS_Fig2", 
+"transm_ZHXS_Fig3", 
+"transm_ZHXS_Fig5", 
+"transm_ZHXS_Fig7", 
+"transm_ZHXS_local", 
 
 
 
-#"tbmodel",
+"tbmodel",
 
-#"TBmodel_faster-TBmatrices",
+"TBmodel_faster-TBmatrices",
 
-#"utils",
+"utils",
 
-#"recursive_merge",
-#"utils_splitws",
-#"oper" ,
+"recursive_merge",
+"utils_splitws",
+"oper" ,
 
-#"mirror_oper",
+"mirror_oper",
 
-#"bandstr" 
+"bandstr" ,
 
 "simple_wlos",
 
-#"tasks2",
-#"tasks",
+"tasks2",
+"tasks",
 
-#"tasks_multi",
+"tasks_multi",
 
-##"param" #|> pr_in 
+#"param" #|> pr_in 
 
-#"param2",
+"param2",
 #%"rw",
 ]
 
