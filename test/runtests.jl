@@ -9,9 +9,9 @@ for f in [
 #"mydistrib",
 #"algebra" ,
 #"signal",
-"identify_sectors", 
-"caroli_cond_methods",
-"taylor",
+#"identify_sectors", 
+#"caroli_cond_methods",
+#"taylor",
 
 "lattices_vecs",
 

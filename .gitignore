@@ -4,6 +4,6 @@ Data
 pyqt_figures 
 test/Data 
 testData
-.*.swp
-
+.*.toml
+Manifest.swp
 */.*.swp

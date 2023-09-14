@@ -2,6 +2,8 @@ import myLibs: Utils, Geometry
 
 using OrderedCollections:OrderedDict 
 
+include("../src/TightBinding/Lattices.jl")
+
 include("../src/TightBinding/Lattices_VecMatDict.jl")
 
 
