@@ -2933,8 +2933,19 @@ end
 #---------------------------------------------------------------------------#
 
 
-function NearbyUCs(latt::Lattice, nr_uc::Int=1; #sublatt_coord=Dict(), 
+function NearbyUCs(latt::Lattice, nr_uc::Int...; kwargs...)::NTuple{3,Matrix}
+
+	NearbyUCs(latt, PosAtoms(latt; kwargs...), nr_uc...; kwargs...)
+
+end 
+
+
+
+function NearbyUCs(latt::Lattice, atoms::AbstractMatrix{Float64}, 
+									 nr_uc::Int=1; 
 									 remove_minus_m::Bool=true, kwargs...)::NTuple{3,Matrix}
+
+	@assert VecLen(atoms)==VecLen(latt) 
 
 	ms = vectors_of_integers(LattDim(latt), nr_uc)
 
@@ -2949,9 +2960,14 @@ function NearbyUCs(latt::Lattice, nr_uc::Int=1; #sublatt_coord=Dict(),
 	end)
 
 
-	return (ms1, CombsOfVecs(latt, ms1), PosAtoms(latt; kwargs...))
+	return (ms1, CombsOfVecs(latt, ms1), atoms)
 
 end 
+
+
+
+
+
 
 
 
