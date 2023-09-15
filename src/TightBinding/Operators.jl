@@ -1473,7 +1473,13 @@ function Position(ax::Int, Rs::AbstractMatrix{<:Real};
 
 	a = selectdim(Rs, [2,1][dim], ax)
 	
-	Op = applicable(fpos, a) ? fpos(a) : fpos.(a)
+	Op = 	if applicable(fpos, a) 
+					fpos(a) 
+				elseif applicable(fpos, a[1])
+					fpos.(a)
+				else 
+					error("Cannot apply fpos")
+				end 
 
 	return Operator(Op, :orbitals; dim=dim, nr_at=nr_at, kwargs...)
 
@@ -1562,7 +1568,7 @@ function IPR(;kwargs...)::Function
 
 	return function ipr(P::AbstractMatrix{<:Number}; kw...)::Matrix{Float64}
 
-		sum(abs2, ldos(P; kw...), dims=ldos.csdim) .|> inv 
+		sum(abs2, ldos(P; kw...), dims=ldos.csdim) .\= 1 
 
 	end 
 

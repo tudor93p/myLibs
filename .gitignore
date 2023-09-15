@@ -5,5 +5,5 @@ pyqt_figures
 test/Data 
 testData
 .*.toml
-Manifest.swp
+Manifest.toml
 */.*.swp
