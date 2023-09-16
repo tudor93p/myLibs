@@ -1473,11 +1473,16 @@ function Position(ax::Int, Rs::AbstractMatrix{<:Real};
 
 	a = selectdim(Rs, [2,1][dim], ax)
 	
-	Op = 	if applicable(fpos, a) 
-					fpos(a) 
-				elseif applicable(fpos, a[1])
-					fpos.(a)
+	Op = 	if hasmethod(fpos, (typeof(a),))
+
+					invokelatest(fpos, a)
+
+				elseif hasmethod(fpos, (typeof(a[1]),))
+
+					invokelatest.(fpos, a)
+
 				else 
+					@show methods(fpos)
 					error("Cannot apply fpos")
 				end 
 
