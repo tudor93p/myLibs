@@ -50,7 +50,12 @@ end
 
 function foo()
 
-atoms = rand(2,10) 
+	nr_at = 13 
+	nr_orb = 4 
+
+
+
+	atoms = rand(2,nr_at)
 
 n = "x"
 
@@ -58,12 +63,18 @@ d,f = parse_fstr_Cartesian(n)
 
 
 
-kwargs = (nr_at=size(atoms,2), nr_orb=4, dim=2)
+kwargs = (nr_at=nr_at, nr_orb=nr_orb, dim=2)
 
 R = Operators.Position(d, atoms; kwargs..., fpos=f) 
 
-@show R(rand(40,2)) 
+#@show 
+R(rand(nr_at*nr_orb,2)) 
 
+
+
+ipr = Operators.IPR(;kwargs...)
+
+@show ipr(rand(nr_at*nr_orb,7))
 
 end 
 

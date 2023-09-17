@@ -1573,13 +1573,19 @@ function IPR(;kwargs...)::Function
 
 	return function ipr(P::AbstractMatrix{<:Number}; kw...)::Matrix{Float64}
 
-		sum(abs2, ldos(P; kw...), dims=ldos.csdim) .\= 1 
+#		@show nr_atoms = size(ldos(P; kw...),ldos.csdim) 
+#		Utils.Rescale!(A, [0,1], [1,nr_atoms]) 
+#
+		sum(abs2, ldos(P; kw...), dims=ldos.csdim)  .\= 1 
+
+
 
 	end 
 
 	# special function, cannot be constructed directly from Operator(...)
-	# = 1 if psi localized on a single site, 
-	# = nr_atoms for psi spread on all atoms
+	# unless rescaled:
+	# ipr = 1 if psi localized on a single site, 
+	# ipr = nr_atoms for psi spread on all atoms
 
 end 
 
