@@ -892,7 +892,7 @@ function MatrixElem(P1::AbstractMatrix{<:Number},
 
 	csdim==1 && return *(P1', Op, P2) 
 
-	csdim==2 && return *(conj(P1), Op, transpose(P2))
+	csdim==2 && return *(transpose(P1'), Op, transpose(P2))
 
 end 
 

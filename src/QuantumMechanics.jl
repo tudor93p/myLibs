@@ -135,6 +135,66 @@ function psi_sorted_energy(psi::AbstractArray{ComplexF64,N};
 end 
 
 
+#===========================================================================#
+#
+#
+#
+#---------------------------------------------------------------------------#
+
+
+function WFoverlap(wf1::AbstractMatrix{T1},
+								 wf2::AbstractMatrix{T2}=wf1;
+								 vsdim::Int=2
+								 )::Matrix{promote_type(T1,T2)
+													 } where {T1<:Number,T2<:Number} 
+
+	WFoverlap!(
+		Matrix{promote_type(T1,T2)}(undef, size(wf1,vsdim), size(wf2,vsdim)),
+		wf1, wf2;
+		vsdim=vsdim
+		)
+
+end 
+
+
+function WFoverlap!(args...; vsdim::Int=2
+								 )::AbstractMatrix{<:Number}
+
+	(vsdim==2 ? WFoverlap2! : WFoverlap1!)(args...)
+
+end 
+
+
+
+function WFoverlap2!(A::T,
+									wf1::AbstractMatrix{<:Number},
+									wf2::AbstractMatrix{<:Number}=wf1,
+								 )::T where T<:AbstractMatrix{<:Number}
+
+	LinearAlgebra.mul!(A, wf1', wf2)
+
+end  
+
+function WFoverlap1!(A::T,
+									wf1::AbstractMatrix{<:Number},
+								 )::T where T<:AbstractMatrix{<:Number}
+
+	WFoverlap2!(A, transpose(wf1))
+
+end 
+
+function WFoverlap1!(A::T,
+									wf1::AbstractMatrix{<:Number},
+									wf2::AbstractMatrix{<:Number},
+								 )::T where T<:AbstractMatrix{<:Number}
+
+	WFoverlap2!(A, transpose(wf1), transpose(wf2))
+
+end 
+
+
+
+
 
 
 
