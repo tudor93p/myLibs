@@ -1,6 +1,8 @@
 module QuantumMechanics 
 #############################################################################
 
+import LinearAlgebra 
+
 
 import ..Algebra 
 
