@@ -276,7 +276,6 @@ function Diagonalize(H::Function,
 
 	if isempty(rest_ks) 
 
-
 		DoK1["kLabels"] = collect(LinRange(0,1,length(DoK1["kLabels"])))
 		
 		DoK1["kLabel"] = "Eigenvalue index"
@@ -325,8 +324,11 @@ function Diagonalize(H::Function,
 										 storemethod::AbstractString="jld",
 										 kwargs...)
 
-	ReadWrite.Write_PhysObs(filename, storemethod, 
-													Diagonalize(H, kPoints; kwargs...))
+	out = Diagonalize(H, kPoints; kwargs...)
+
+	ReadWrite.Write_PhysObs(filename, storemethod, out)
+
+	return out 
 
 end 
 
