@@ -64,8 +64,75 @@ end
 #
 #---------------------------------------------------------------------------#
 
+function sortperm_energy(N::Int;
+												 halfspace::Bool=false,
+												 occupied::Bool=false,
+												 kwargs...
+												 )::AbstractVector{Int}
+
+	halfspace || return 1:N 
+
+	return occupied ? (1:div(N,2)) : (div(N,2)+1:N)
+
+end 
 
 
+
+function sortperm_energy(E::AbstractVector{<:Real}; 
+												 halfspace::Bool=false,
+												 kwargs...
+												 )::AbstractVector{Int}
+
+	halfspace || return sortperm(E; kwargs...)
+
+	return partialsortperm(E, 
+												 sortperm_energy(length(E); 
+																				 halfspace=halfspace, kwargs...)
+												 )
+end 
+
+
+
+function psien_sorted_energy(
+													 psi::AbstractArray{ComplexF64,N},
+														E::AbstractVector{<:Real};
+														vsdim::Int=2,
+														kwargs...
+														)::AbstractVector{<:AbstractArray} where N
+
+	@assert N>=2  
+
+	@assert vsdim<=N 
+
+	i = sortperm_energy(E; kwargs...)
+
+	return [selectdim(psi, vsdim, i), view(E, i)]
+
+end   
+
+
+function psi_sorted_energy(psi::AbstractArray{ComplexF64,N},
+													 E::Union{<:Int,<:AbstractVector{<:Real}};
+													vsdim::Int=2,
+												 kwargs...
+											 )::AbstractArray{ComplexF64,N} where N
+
+	@assert N>=2 
+
+	@assert vsdim<=N
+
+	return selectdim(psi, vsdim, sortperm_energy(E; kwargs...))
+
+end 
+
+function psi_sorted_energy(psi::AbstractArray{ComplexF64,N};
+													vsdim::Int=2,
+												 kwargs...
+											 )::AbstractArray{ComplexF64,N} where N
+
+	psien_sorted_energy(psi, size(psi,vsdim); vsdim=vsdim, kwargs...)
+
+end 
 
 
 

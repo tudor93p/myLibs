@@ -2922,71 +2922,71 @@ end
 # Executes a julia function in parallel
 #
 #---------------------------------------------------------------------------#
-
-
-
-
-function execute_julia_function_(file_function;args=[],Nr_Procs=8,libs=[])
-
-
-#  lib_local  = "/media/tudor/Tudor/scripts/julia_libraries/"
-#  lib_remote = "/net/horon/scratch/pahomit/apps/julia-1.2.0/lib/mylib/"
-
-  lib_root = gethostname() == "tudor-HP" ? lib_local : lib_remote
-
-		# make up some name for the script to be launched
-  frun = string("auxrun_",join(file_function),rand(40000:50000),".jl")
-
-
-  open(frun,"w") do f
-    filename,funname = file_function
-
-    text = string("include(\"",filename,".jl\")\n",funname,"()")
-		# inclunde the file and run the target function
-
-    write(f,text)
- #   println(text)
-  end
-
-  libs = "-L " *lib_root.*libs.*".jl"
-
-  cmd = [["julia -p",Nr_Procs];libs;[frun];args]
-
-  cmd = join(string.(cmd),' ')
-		# give the input and output files and run in parallel
-
-#  println(cmd)
-
-  run(`sh -c $cmd`)
-
-  rm(frun)
-
-end
-
-
-
-function execute_julia_function(args,nr_results,read_write_funs,file_function;Nr_Procs=8,libs=[])
-
-  !isdir("./aux") && mkdir("./aux")
-
-  write_args, read_result = read_write_funs
-
-
-
-		# write the given arguments with the particular method
-  f_args = write_args(args...)
-
-
-		# make up some fileNames for the results
-  f_result = "./aux/res_"*join(file_function).*string.(rand(20000:30000) .+ collect(1:nr_results) )
-
-		# make a separate script and run the function in parallel 
-  execute_julia_function_(file_function,args=[f_args;f_result],Nr_Procs=Nr_Procs,libs=libs)
-		# read the results with the particular method
-  return read_result(f_result)
-
-end
-
+#
+#
+#
+#
+#function execute_julia_function_(file_function;args=[],Nr_Procs=8,libs=[])
+#
+#
+##  lib_local  = "/media/tudor/Tudor/scripts/julia_libraries/"
+##  lib_remote = "/net/horon/scratch/pahomit/apps/julia-1.2.0/lib/mylib/"
+#
+#  lib_root = gethostname() == "tudor-HP" ? lib_local : lib_remote
+#
+#		# make up some name for the script to be launched
+#  frun = string("auxrun_",join(file_function),rand(40000:50000),".jl")
+#
+#
+#  open(frun,"w") do f
+#    filename,funname = file_function
+#
+#    text = string("include(\"",filename,".jl\")\n",funname,"()")
+#		# inclunde the file and run the target function
+#
+#    write(f,text)
+# #   println(text)
+#  end
+#
+#  libs = "-L " *lib_root.*libs.*".jl"
+#
+#  cmd = [["julia -p",Nr_Procs];libs;[frun];args]
+#
+#  cmd = join(string.(cmd),' ')
+#		# give the input and output files and run in parallel
+#
+##  println(cmd)
+#
+#  run(`sh -c $cmd`)
+#
+#  rm(frun)
+#
+#end
+#
+#
+#
+#function execute_julia_function(args,nr_results,read_write_funs,file_function;Nr_Procs=8,libs=[])
+#
+#  !isdir("./aux") && mkdir("./aux")
+#
+#  write_args, read_result = read_write_funs
+#
+#
+#
+#		# write the given arguments with the particular method
+#  f_args = write_args(args...)
+#
+#
+#		# make up some fileNames for the results
+#  f_result = "./aux/res_"*join(file_function).*string.(rand(20000:30000) .+ collect(1:nr_results) )
+#
+#		# make a separate script and run the function in parallel 
+#  execute_julia_function_(file_function,args=[f_args;f_result],Nr_Procs=Nr_Procs,libs=libs)
+#		# read the results with the particular method
+#  return read_result(f_result)
+#
+#end
+#
 
 #===========================================================================#
 #
