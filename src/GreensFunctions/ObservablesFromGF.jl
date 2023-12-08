@@ -1198,7 +1198,8 @@ end
 
 function BondTij(GWGH::AbstractMatrix{ComplexF64}; kwargs...)::Float64
 
-	-2.0*imag(LA.tr(GWGH))
+#	-2.0*imag(LA.tr(GWGH)) # initial formula according to papers 
+	2.0*imag(LA.tr(GWGH)) # modified due to domain wall upwards problem
 
 end 
 
